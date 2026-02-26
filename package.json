@@ -16,32 +16,34 @@
     "check": "pnpm run typecheck && pnpm run lint"
   },
   "dependencies": {
-    "@effect/platform": "^0.65.0",
+    "@effect/platform": "^0.94.5",
     "@tanstack/react-db": "^0.1.73",
-    "@tanstack/react-query": "^5.71.10",
+    "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-router": "^1.163.2",
     "@tanstack/react-start": "^1.163.2",
-    "@tanstack/react-virtual": "^3.12.0",
-    "effect": "^3.13.0",
-    "jsdiff": "^1.1.0",
-    "match-sorter": "^6.3.6",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@tanstack/react-virtual": "^3.13.19",
+    "effect": "^3.19.19",
+    "jsdiff": "^1.1.1",
+    "match-sorter": "^8.2.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
-    "@types/node": "^22.12.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^4.4.4",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "^25.3.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@typescript/native-preview": "7.0.0-dev.20251204.1",
+    "@vitejs/plugin-react": "^5.1.4",
     "chrome-devtools-mcp": "0.18.1",
-    "nitro": "^3.0.0-rc.1",
-    "oxc": "^1.0.0",
+    "nitro": "3.0.1-alpha.2",
+    "oxc": "^1.0.1",
     "oxlint": "^1.50.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.3",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "unplugin-jsx-source": "^0.1.5",
     "vite": "^7.3.1",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^6.1.1"
   },
   "packageManager": "pnpm@10.16.0"
 }
