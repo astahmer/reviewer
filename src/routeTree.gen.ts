@@ -14,6 +14,7 @@ import { Route as ApiRepositoriesRouteImport } from './routes/api/repositories'
 import { Route as ApiDiffRouteImport } from './routes/api/diff'
 import { Route as ApiCurrentBranchRouteImport } from './routes/api/current-branch'
 import { Route as ApiCommitsRouteImport } from './routes/api/commits'
+import { Route as ApiBranchesRouteImport } from './routes/api/branches'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,9 +41,15 @@ const ApiCommitsRoute = ApiCommitsRouteImport.update({
   path: '/api/commits',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBranchesRoute = ApiBranchesRouteImport.update({
+  id: '/api/branches',
+  path: '/api/branches',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api/branches': typeof ApiBranchesRoute
   '/api/commits': typeof ApiCommitsRoute
   '/api/current-branch': typeof ApiCurrentBranchRoute
   '/api/diff': typeof ApiDiffRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api/branches': typeof ApiBranchesRoute
   '/api/commits': typeof ApiCommitsRoute
   '/api/current-branch': typeof ApiCurrentBranchRoute
   '/api/diff': typeof ApiDiffRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api/branches': typeof ApiBranchesRoute
   '/api/commits': typeof ApiCommitsRoute
   '/api/current-branch': typeof ApiCurrentBranchRoute
   '/api/diff': typeof ApiDiffRoute
@@ -67,6 +76,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api/branches'
     | '/api/commits'
     | '/api/current-branch'
     | '/api/diff'
@@ -74,6 +84,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api/branches'
     | '/api/commits'
     | '/api/current-branch'
     | '/api/diff'
@@ -81,6 +92,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/api/branches'
     | '/api/commits'
     | '/api/current-branch'
     | '/api/diff'
@@ -89,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiBranchesRoute: typeof ApiBranchesRoute
   ApiCommitsRoute: typeof ApiCommitsRoute
   ApiCurrentBranchRoute: typeof ApiCurrentBranchRoute
   ApiDiffRoute: typeof ApiDiffRoute
@@ -132,11 +145,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCommitsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/branches': {
+      id: '/api/branches'
+      path: '/api/branches'
+      fullPath: '/api/branches'
+      preLoaderRoute: typeof ApiBranchesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiBranchesRoute: ApiBranchesRoute,
   ApiCommitsRoute: ApiCommitsRoute,
   ApiCurrentBranchRoute: ApiCurrentBranchRoute,
   ApiDiffRoute: ApiDiffRoute,

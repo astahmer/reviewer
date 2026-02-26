@@ -5,6 +5,7 @@ import { DiffViewer } from '~/components/diff-viewer'
 
 const REPO_STORAGE_KEY = 'selectedRepoPath'
 const CUSTOM_PATHS_KEY = 'customSearchPaths'
+const CONTROLS_COLLAPSED_KEY = 'controlsCollapsed'
 
 interface Repository {
   path: string
@@ -21,6 +22,7 @@ export const HomePage: FC = () => {
   const [selectedToCommit, setSelectedToCommit] = useState<string>('HEAD')
   const [customPathInput, setCustomPathInput] = useState('')
   const [customPaths, setCustomPaths] = useState<string[]>([])
+  const [controlsCollapsed, setControlsCollapsed] = useState(true)
 
   // Load saved repo and custom paths from localStorage on mount
   useEffect(() => {
@@ -39,6 +41,10 @@ export const HomePage: FC = () => {
       } catch {
         // Invalid JSON, ignore
       }
+    }
+    const savedCollapsed = localStorage.getItem(CONTROLS_COLLAPSED_KEY)
+    if (savedCollapsed) {
+      setControlsCollapsed(JSON.parse(savedCollapsed))
     }
   }, [])
 
@@ -95,6 +101,22 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   })
 
+  // Fetch branches
+  const {
+    data: branches = [],
+    isLoading: branchesLoading,
+  } = useQuery({
+    queryKey: ['branches', selectedRepo?.path],
+    queryFn: async () => {
+      const url = new URL('/api/branches', window.location.origin)
+      if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to fetch branches')
+      return (await response.json()) as string[]
+    },
+    enabled: !!selectedRepo,
+  })
+
   // Fetch current branch
   const { data: currentBranch = 'main' } = useQuery({
     queryKey: ['currentBranch', selectedRepo?.path],
@@ -132,120 +154,160 @@ export const HomePage: FC = () => {
     localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo))
   }
 
+  const toggleControlsCollapsed = () => {
+    const newState = !controlsCollapsed
+    setControlsCollapsed(newState)
+    localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState))
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 h-full flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Git Diff Reviewer</h1>
+    <div className="flex h-screen flex-col bg-gray-50">
+      {/* Compact Header */}
+      <header className="border-b border-gray-200 bg-white px-4 py-2">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-lg font-semibold text-gray-900">Git Diff Reviewer</h1>
+          {selectedRepo && (
+            <div className="flex items-center gap-3 text-sm text-gray-700">
+              <span className="text-xs text-gray-500">{selectedRepo.name}</span>
+              <span className="inline-flex items-center rounded bg-blue-50 px-2 py-1 font-mono text-xs font-medium text-blue-700">
+                {currentBranch}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={toggleControlsCollapsed}
+            className="ml-auto rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+          >
+            {controlsCollapsed ? '▼ Show' : '▲ Hide'} Controls
+          </button>
         </div>
       </header>
 
-      {/* Repository Selector */}
-      <div className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-4">
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Repository</label>
-            <select
-              value={selectedRepo?.path || ''}
-              onChange={(e) => {
-                const repo = repositories.find((r) => r.path === e.target.value)
-                if (repo) handleRepoChange(repo)
-              }}
-              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-              disabled={reposLoading}
-            >
-              <option value="">Select a repository...</option>
-              {repositories.map((repo: Repository) => (
-                <option key={repo.path} value={repo.path}>
-                  {repo.name} ({repo.path})
-                </option>
-              ))}
-            </select>
+      {/* Collapsible Controls Section */}
+      {!controlsCollapsed && (
+        <div className="border-b border-gray-200 bg-white p-3">
+          {/* Repository & Custom Paths */}
+          <div className="mb-3 grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Repository</label>
+              <select
+                value={selectedRepo?.path || ''}
+                onChange={(e) => {
+                  const repo = repositories.find((r) => r.path === e.target.value)
+                  if (repo) handleRepoChange(repo)
+                }}
+                className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                disabled={reposLoading}
+              >
+                <option value="">Select a repository...</option>
+                {repositories.map((repo: Repository) => (
+                  <option key={repo.path} value={repo.path}>
+                    {repo.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedRepo && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Branch</label>
+                <select
+                  value={currentBranch}
+                  disabled={branchesLoading}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs disabled:bg-gray-50"
+                >
+                  {branches.map((branch) => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {selectedRepo && (
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Add Custom Path</label>
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    value={customPathInput}
+                    onChange={(e) => setCustomPathInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addCustomPath()}
+                    placeholder="Path..."
+                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+                  />
+                  <button
+                    onClick={addCustomPath}
+                    className="rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white hover:bg-blue-600"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-          {selectedRepo && (
-            <div className="text-sm text-gray-600 self-end pb-2">
-              Branch: <span className="font-mono font-semibold text-gray-900">{currentBranch}</span>
+
+          {/* Custom Paths Tags */}
+          {customPaths.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1">
+              {customPaths.map((p) => (
+                <span
+                  key={p}
+                  className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs"
+                >
+                  {p}
+                  <button
+                    onClick={() => removeCustomPath(p)}
+                    className="text-gray-500 hover:text-red-500"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
             </div>
           )}
-        </div>
 
-        {/* Custom Search Paths */}
-        <div className="mt-4 flex items-center gap-2">
-          <input
-            type="text"
-            value={customPathInput}
-            onChange={(e) => setCustomPathInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addCustomPath()}
-            placeholder="Add custom search path..."
-            className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm"
-          />
-          <button
-            onClick={addCustomPath}
-            className="rounded bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
-          >
-            Add
-          </button>
-        </div>
-        {customPaths.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {customPaths.map((p) => (
-              <span
-                key={p}
-                className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs"
-              >
-                {p}
-                <button
-                  onClick={() => removeCustomPath(p)}
-                  className="text-gray-500 hover:text-red-500"
+          {/* Commit Selection */}
+          {selectedRepo && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">From Commit</label>
+                <select
+                  value={selectedFromCommit}
+                  onChange={(e) => setSelectedFromCommit(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
                 >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+                  <option value="HEAD~1">HEAD~1 (previous)</option>
+                  {commits.map((commit: CommitInfo) => (
+                    <option key={commit.hash} value={commit.hash}>
+                      {commit.hash.slice(0, 7)} - {commit.message}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-      {/* Controls - only show when repo is selected */}
-      {selectedRepo && (
-        <div className="border-b border-gray-200 bg-white px-6 py-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">From Commit</label>
-              <select
-                value={selectedFromCommit}
-                onChange={(e) => setSelectedFromCommit(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="HEAD~1">HEAD~1 (previous)</option>
-                {commits.map((commit: CommitInfo) => (
-                  <option key={commit.hash} value={commit.hash}>
-                    {commit.hash.slice(0, 7)} - {commit.message}
-                  </option>
-                ))}
-              </select>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">To Commit</label>
+                <select
+                  value={selectedToCommit}
+                  onChange={(e) => setSelectedToCommit(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                >
+                  <option value="HEAD">HEAD (current)</option>
+                  {commits.map((commit: CommitInfo) => (
+                    <option key={commit.hash} value={commit.hash}>
+                      {commit.hash.slice(0, 7)} - {commit.message}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+          )}
 
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">To Commit</label>
-              <select
-                value={selectedToCommit}
-                onChange={(e) => setSelectedToCommit(e.target.value)}
-                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="HEAD">HEAD (current)</option>
-                {commits.map((commit: CommitInfo) => (
-                  <option key={commit.hash} value={commit.hash}>
-                    {commit.hash.slice(0, 7)} - {commit.message}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
+          {/* Error Display */}
           {(commitsError || diffError) && (
-            <div className="mt-3 rounded bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">
               {commitsError instanceof Error
                 ? commitsError.message
                 : diffError instanceof Error
@@ -256,16 +318,16 @@ export const HomePage: FC = () => {
         </div>
       )}
 
-      {/* Diff Viewer */}
-      <main className="flex-1 p-6 min-h-0 h-full">
+      {/* Main Diff Viewer - Takes up most of the screen */}
+      <main className="flex-1 min-h-0 p-2 overflow-hidden">
         {!selectedRepo ? (
-          <div className="rounded border border-gray-200 bg-white p-8 text-center text-gray-600">
+          <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
             Select a repository to get started.
           </div>
         ) : commitsLoading || diffLoading ? (
-          <div className="rounded border border-gray-200 bg-white p-8 text-center">
+          <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>
-            <p className="mt-3 text-gray-600">Loading diff...</p>
+            <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
           </div>
         ) : diff ? (
           <DiffViewer
@@ -277,7 +339,7 @@ export const HomePage: FC = () => {
             defaultMode="unified"
           />
         ) : (
-          <div className="rounded border border-gray-200 bg-white p-8 text-center text-gray-600">
+          <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
             No diff available for the selected commits.
           </div>
         )}
