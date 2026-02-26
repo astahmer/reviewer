@@ -19,7 +19,7 @@ export const HomePage: FC = () => {
   } = useQuery({
     queryKey: ['commits'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/commits?limit=20')
+      const response = await fetch('/api/commits?limit=20')
       if (!response.ok) throw new Error('Failed to fetch commits')
       return (await response.json()) as CommitInfo[]
     },
@@ -29,7 +29,7 @@ export const HomePage: FC = () => {
   const { data: currentBranch = 'main' } = useQuery({
     queryKey: ['currentBranch'],
     queryFn: async () => {
-      const response = await fetch('http://localhost:3001/api/current-branch')
+      const response = await fetch('/api/current-branch')
       if (!response.ok) throw new Error('Failed to fetch branch')
       return response.text()
     },
@@ -44,7 +44,7 @@ export const HomePage: FC = () => {
     queryKey: ['diff', selectedFromCommit, selectedToCommit],
     queryFn: async () => {
       const response = await fetch(
-        `http://localhost:3001/api/diff?from=${encodeURIComponent(selectedFromCommit)}&to=${encodeURIComponent(selectedToCommit)}`,
+        `/api/diff?from=${encodeURIComponent(selectedFromCommit)}&to=${encodeURIComponent(selectedToCommit)}`,
       )
       if (!response.ok) throw new Error('Failed to fetch diff')
       return (await response.json()) as Diff
