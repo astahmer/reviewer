@@ -1,5 +1,5 @@
 import { FC, useState, useEffect, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Line, CommitInfo, Diff } from '~/lib/types'
 import { DiffViewer } from '~/components/diff-viewer'
 
@@ -13,6 +13,7 @@ interface Repository {
 }
 
 export const HomePage: FC = () => {
+  const queryClient = useQueryClient()
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
   const [fromBranch, setFromBranch] = useState<string>('')
   const [toBranch, setToBranch] = useState<string>('')
@@ -120,16 +121,6 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   })
 
-  const filteredCommitsFrom = useMemo(() => {
-    if (!fromBranch) return commits
-    return commits.slice(0, 20)
-  }, [commits, fromBranch])
-
-  const filteredCommitsTo = useMemo(() => {
-    if (!toBranch) return commits
-    return commits.slice(0, 20)
-  }, [commits, toBranch])
-
   const {
     data: diff,
     isLoading: diffLoading,
@@ -161,10 +152,7 @@ export const HomePage: FC = () => {
     localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState))
   }
 
-  const getRefDisplay = (ref: string, isBranch: boolean, branch: string) => {
-    if (isBranch) {
-      return { label: branch, sublabel: 'branch' }
-    }
+  const getRefDisplay = (ref: string) => {
     const info = commits.find(c => c.hash.startsWith(ref.slice(0, 7)) || ref === c.hash)
     if (ref === 'HEAD~1' || ref === 'HEAD') {
       return { label: ref, sublabel: info?.message || '' }
@@ -175,8 +163,8 @@ export const HomePage: FC = () => {
     }
   }
 
-  const fromDisplay = getRefDisplay(fromCommit, false, fromBranch)
-  const toDisplay = getRefDisplay(toCommit, false, toBranch)
+  const fromDisplay = getRefDisplay(fromCommit)
+  const toDisplay = getRefDisplay(toCommit)
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -221,8 +209,16 @@ export const HomePage: FC = () => {
           )}
 
           <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['diff'] })}
+            className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            title="Refresh diff"
+          >
+            ↻ Refresh
+          </button>
+
+          <button
             onClick={toggleControlsCollapsed}
-            className="ml-auto rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
           >
             {controlsCollapsed ? '▼ Show' : '▲ Hide'} Controls
           </button>
@@ -236,32 +232,34 @@ export const HomePage: FC = () => {
               <div className="text-xs font-semibold text-gray-700">From</div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Branch (optional)</label>
-                <select
+                <input
+                  list="from-branches"
                   value={fromBranch}
                   onChange={(e) => setFromBranch(e.target.value)}
+                  placeholder="All branches"
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                >
-                  <option value="">All branches</option>
+                />
+                <datalist id="from-branches">
                   {branches.map((branch) => (
-                    <option key={branch} value={branch}>{branch}</option>
+                    <option key={branch} value={branch} />
                   ))}
-                </select>
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Commit</label>
-                <select
+                <input
+                  list="from-commits"
                   value={fromCommit}
                   onChange={(e) => setFromCommit(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                >
-                  <option value="HEAD~1">HEAD~1</option>
-                  <option value="HEAD">HEAD</option>
-                  {filteredCommitsFrom.map((commit: CommitInfo) => (
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
+                />
+                <datalist id="from-commits">
+                  {commits.slice(0, 50).map((commit: CommitInfo) => (
                     <option key={commit.hash} value={commit.hash}>
                       {commit.hash.slice(0, 7)} - {commit.message}
                     </option>
                   ))}
-                </select>
+                </datalist>
               </div>
             </div>
 
@@ -269,32 +267,34 @@ export const HomePage: FC = () => {
               <div className="text-xs font-semibold text-gray-700">To</div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Branch (optional)</label>
-                <select
+                <input
+                  list="to-branches"
                   value={toBranch}
                   onChange={(e) => setToBranch(e.target.value)}
+                  placeholder="All branches"
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                >
-                  <option value="">All branches</option>
+                />
+                <datalist id="to-branches">
                   {branches.map((branch) => (
-                    <option key={branch} value={branch}>{branch}</option>
+                    <option key={branch} value={branch} />
                   ))}
-                </select>
+                </datalist>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Commit</label>
-                <select
+                <input
+                  list="to-commits"
                   value={toCommit}
                   onChange={(e) => setToCommit(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                >
-                  <option value="HEAD~1">HEAD~1</option>
-                  <option value="HEAD">HEAD</option>
-                  {filteredCommitsTo.map((commit: CommitInfo) => (
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
+                />
+                <datalist id="to-commits">
+                  {commits.slice(0, 50).map((commit: CommitInfo) => (
                     <option key={commit.hash} value={commit.hash}>
                       {commit.hash.slice(0, 7)} - {commit.message}
                     </option>
                   ))}
-                </select>
+                </datalist>
               </div>
             </div>
           </div>

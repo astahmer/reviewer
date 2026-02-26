@@ -1,4 +1,4 @@
-import { FC, useState, useMemo, useRef, useEffect } from 'react'
+import { FC, useState, useMemo, useRef } from 'react'
 import { Diff, Line, FileDiff } from '~/lib/types'
 import { DiffLineRenderer } from './diff-line-renderer'
 
@@ -20,18 +20,17 @@ interface AlignedLine {
 
 export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect, repoPath, wordWrap = true }) => {
   const [hoveredLine, setHoveredLine] = useState<Line | null>(null)
-  const leftPaneRef = useRef<HTMLDivElement>(null)
-  const rightPaneRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const alignedLines = useMemo((): AlignedLine[] => {
     const result: AlignedLine[] = []
-
+    
     for (const file of diff.files) {
       const fileIndex = file.index
-
+      
       const removeLines: Line[] = []
       const addLines: Line[] = []
-
+      
       for (const hunk of file.hunks) {
         for (const line of hunk.lines) {
           if (line.type === 'context') {
@@ -47,10 +46,10 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
           }
         }
       }
-
+      
       let removeIdx = 0
       let addIdx = 0
-
+      
       for (const hunk of file.hunks) {
         for (const line of hunk.lines) {
           if (line.type === 'remove') {
@@ -75,35 +74,9 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
         }
       }
     }
-
+    
     return result
   }, [diff.files])
-
-  useEffect(() => {
-    const leftPane = leftPaneRef.current
-    const rightPane = rightPaneRef.current
-    if (!leftPane || !rightPane) return
-
-    let isSyncing = false
-
-    const syncScroll = (source: HTMLElement, target: HTMLElement) => {
-      if (isSyncing) return
-      isSyncing = true
-      target.scrollTop = source.scrollTop
-      setTimeout(() => { isSyncing = false }, 10)
-    }
-
-    const handleLeftScroll = () => syncScroll(leftPane, rightPane)
-    const handleRightScroll = () => syncScroll(rightPane, leftPane)
-
-    leftPane.addEventListener('scroll', handleLeftScroll, { passive: true })
-    rightPane.addEventListener('scroll', handleRightScroll, { passive: true })
-
-    return () => {
-      leftPane.removeEventListener('scroll', handleLeftScroll)
-      rightPane.removeEventListener('scroll', handleRightScroll)
-    }
-  }, [])
 
   const getAbsolutePath = (relativePath: string): string => {
     if (!repoPath) return relativePath
@@ -146,7 +119,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
       <div className="flex shrink-0">
         <div className="w-12 bg-gray-50 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
           <span className="text-xs text-gray-500">
-            {side === 'left'
+            {side === 'left' 
               ? (line.oldLineNumber >= 0 ? line.oldLineNumber : '')
               : (line.newLineNumber >= 0 ? line.newLineNumber : '')
             }
@@ -181,12 +154,9 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
         </div>
       </div>
 
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        <div
-          ref={leftPaneRef}
-          className={`flex-1 overflow-auto ${!wordWrap ? 'max-w-[50%]' : ''}`}
-        >
-          <div className={!wordWrap ? 'min-w-max' : ''}>
+      <div ref={scrollRef} className="flex-1 overflow-auto">
+        <div className="flex">
+          <div className="flex-1 min-w-0">
             {diff.files.map((file) => (
               <div key={`left-${file.index}`}>
                 {renderFileHeader(file, 'left')}
@@ -198,15 +168,10 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="w-px bg-gray-300 shrink-0"></div>
-
-        <div
-          ref={rightPaneRef}
-          className={`flex-1 overflow-auto ${!wordWrap ? 'max-w-[50%]' : ''}`}
-        >
-          <div className={!wordWrap ? 'min-w-max' : ''}>
+          
+          <div className="w-px bg-gray-300 shrink-0"></div>
+          
+          <div className="flex-1 min-w-0">
             {diff.files.map((file) => (
               <div key={`right-${file.index}`}>
                 {renderFileHeader(file, 'right')}
@@ -222,7 +187,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
       </div>
 
       {hoveredLine && (
-        <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600 shrink-0 absolute bottom-0 left-0">
+        <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600 shrink-0">
           Old: Line {hoveredLine.oldLineNumber >= 0 ? hoveredLine.oldLineNumber : '-'} | New: Line {hoveredLine.newLineNumber >= 0 ? hoveredLine.newLineNumber : '-'}
         </div>
       )}
