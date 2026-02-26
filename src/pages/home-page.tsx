@@ -365,6 +365,7 @@ export const HomePage: FC = () => {
               console.log('Selected line:', line)
             }}
             defaultMode="unified"
+            repoPath={selectedRepo?.path}
           />
         ) : (
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">

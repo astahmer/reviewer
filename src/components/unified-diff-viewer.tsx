@@ -45,12 +45,12 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
         </span>
       </div>
 
-      <div className={`flex-1 overflow-y-auto ${wordWrap ? 'overflow-x-hidden' : 'overflow-x-auto'}`}>
+      <div className="flex-1 overflow-auto">
         {renderItems.map((item) => {
           if (item.type === 'header' && item.file) {
             const file = item.file
             return (
-              <div key={`header-${file.index}`} className="sticky top-0 z-10 px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 flex items-center gap-2 shrink-0 font-mono">
+              <div key={`header-${file.index}`} className="sticky top-0 z-10 px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 flex items-center gap-2 font-mono">
                 <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                   file.status === 'add' ? 'bg-green-100 text-green-800' :
                   file.status === 'remove' ? 'bg-red-100 text-red-800' :
@@ -76,7 +76,7 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
           const file = item.file!
 
           return (
-            <div key={line.id} className="flex shrink-0">
+            <div key={line.id} className="flex">
               <div className="w-12 bg-gray-50 border-r border-gray-200 text-right px-2 py-0.5 select-none flex-shrink-0">
                 <span className="text-xs text-gray-500">
                   {line.type === 'remove' && line.oldLineNumber >= 0 ? line.oldLineNumber :

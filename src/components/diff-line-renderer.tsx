@@ -124,10 +124,9 @@ export const DiffLineRenderer: FC<DiffLineRendererProps> = ({
   return (
     <div
       className={`
-        font-mono text-sm px-3 py-0.5 
-        ${wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'}
+        font-mono text-sm px-3 py-0.5
+        ${wordWrap ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'}
         hover:bg-opacity-50 transition-colors cursor-pointer
-        flex
         ${style.bg} ${style.text} border-l-4 ${style.border}
         ${isHighlighted ? 'ring-2 ring-yellow-400 ring-opacity-50 rounded' : ''}
       `}
@@ -139,24 +138,22 @@ export const DiffLineRenderer: FC<DiffLineRendererProps> = ({
       data-line-id={line.id}
       title={filePath ? `Click to open in VSCode: ${filePath}:${line.type === 'remove' ? line.oldLineNumber : line.newLineNumber}` : undefined}
     >
-      <span className="select-none mr-2 text-gray-400 w-4 flex-shrink-0">{prefix[line.type]}</span>
-      <span className="flex-1">
-        {charDiff ? (
-          charDiff.map((item, idx) => (
-            <span
-              key={idx}
-              className={`
-                ${item.type === 'add' ? `${style.charBg} font-bold text-green-900` : ''}
-                ${item.type === 'remove' ? `${style.charBg} font-bold text-red-900` : ''}
-              `}
-            >
-              {item.char}
-            </span>
-          ))
-        ) : (
-          <span>{line.content}</span>
-        )}
-      </span>
+      <span className="select-none mr-2 text-gray-400 w-4 inline-block">{prefix[line.type]}</span>
+      {charDiff ? (
+        charDiff.map((item, idx) => (
+          <span
+            key={idx}
+            className={`
+              ${item.type === 'add' ? `${style.charBg} font-bold text-green-900` : ''}
+              ${item.type === 'remove' ? `${style.charBg} font-bold text-red-900` : ''}
+            `}
+          >
+            {item.char}
+          </span>
+        ))
+      ) : (
+        <span>{line.content}</span>
+      )}
     </div>
   )
 }
