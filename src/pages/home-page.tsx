@@ -1,8 +1,7 @@
 import { FC, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Line } from '~/lib/types'
+import { Line, CommitInfo, Diff } from '~/lib/types'
 import { DiffViewer } from '~/components/diff-viewer'
-import { getDiff, getCommitList, getCurrentBranch } from '~/server/diff-reviewer.start'
 
 /**
  * Home page - main interface for reviewing diffs
@@ -19,13 +18,21 @@ export const HomePage: FC = () => {
     error: commitsError,
   } = useQuery({
     queryKey: ['commits'],
-    queryFn: () => getCommitList(20),
+    queryFn: async () => {
+      const response = await fetch('http://localhost:3001/api/commits?limit=20')
+      if (!response.ok) throw new Error('Failed to fetch commits')
+      return (await response.json()) as CommitInfo[]
+    },
   })
 
   // Fetch current branch
   const { data: currentBranch = 'main' } = useQuery({
     queryKey: ['currentBranch'],
-    queryFn: () => getCurrentBranch(),
+    queryFn: async () => {
+      const response = await fetch('http://localhost:3001/api/current-branch')
+      if (!response.ok) throw new Error('Failed to fetch branch')
+      return response.text()
+    },
   })
 
   // Fetch diff based on selected commits
@@ -35,7 +42,13 @@ export const HomePage: FC = () => {
     error: diffError,
   } = useQuery({
     queryKey: ['diff', selectedFromCommit, selectedToCommit],
-    queryFn: () => getDiff(selectedFromCommit, selectedToCommit),
+    queryFn: async () => {
+      const response = await fetch(
+        `http://localhost:3001/api/diff?from=${encodeURIComponent(selectedFromCommit)}&to=${encodeURIComponent(selectedToCommit)}`,
+      )
+      if (!response.ok) throw new Error('Failed to fetch diff')
+      return (await response.json()) as Diff
+    },
   })
 
   return (
@@ -61,7 +74,7 @@ export const HomePage: FC = () => {
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
             >
               <option value="HEAD~1">HEAD~1 (previous)</option>
-              {commits.map((commit) => (
+              {commits.map((commit: CommitInfo) => (
                 <option key={commit.hash} value={commit.hash}>
                   {commit.hash.slice(0, 7)} - {commit.message}
                 </option>
@@ -77,7 +90,7 @@ export const HomePage: FC = () => {
               className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
             >
               <option value="HEAD">HEAD (current)</option>
-              {commits.map((commit) => (
+              {commits.map((commit: CommitInfo) => (
                 <option key={commit.hash} value={commit.hash}>
                   {commit.hash.slice(0, 7)} - {commit.message}
                 </option>
