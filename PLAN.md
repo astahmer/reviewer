@@ -40,8 +40,8 @@ Search filters in-memory, updates Query cache (invalidation on filter change)
 
 | Layer | Choice | Why |
 |-------|--------|-----|
-| **Framework** | TanStack Start | Full-stack, file-based routing, `use-server` compiler eliminates fetch boilerplate |
-| **State** | TanStack Query | Server state ≠ client state; Query handles cache invalidation automatically |
+| **Framework** | TanStack Start | Full-stack, file-based routing, server functions eliminate fetch boilerplate |
+| **State** | TanStack Query + TanStack DB | Query for server state; DB for local collections, live queries, and reactive mutations |
 | **Effects** | Effect-TS | Type-safe error handling, resource management, composable retries/timeouts |
 | **UI Components** | shadcn/ui | Copy-paste control, Tailwind-native, works with custom themes |
 | **Styling** | Tailwind CSS | Utility-first, fast iteration, integrated with shadcn |
@@ -73,9 +73,9 @@ src/
 │
 ├── effects/
 │   ├── services/                     # Effect-based business logic
-│   │   ├── diff-processor.effect.ts  # Parse + cache diffs via Effect
-│   │   ├── search-engine.effect.ts   # Real-time filtering
-│   │   └── vcs-service.effect.ts     # VCS adapter wrapper with retry/timeout
+│   │   ├── diff-processor.ts         # Parse + cache diffs via Effect
+│   │   ├── search-engine.ts          # Real-time filtering
+│   │   └── vcs-service.ts            # VCS adapter wrapper with retry/timeout
 │   └── context/                      # Effect Context.Tag definitions
 │       ├── vcs-context.ts
 │       ├── storage-context.ts
@@ -83,12 +83,15 @@ src/
 │
 ├── routes/                           # TanStack Start file-based routing
 │   ├── index.tsx                     # Dashboard (select commit range)
+│   ├── index.start.ts                # Server functions for dashboard
 │   ├── [repo].index.tsx              # Async loader fetches diff via Effect
 │   ├── [repo].tsx                    # Main review page (diff viewer)
+│   ├── [repo].start.ts               # Server functions for diff reviewer
 │   ├── components/
 │   │   ├── diff-viewer.tsx           # Virtual scroll + split/unified toggle
 │   │   ├── search-bar.tsx            # Real-time search + filters
 │   │   ├── commit-range-select.tsx   # Commit picker UI
+│   │   ├── search-bar.tsx.hooks.ts   # Hooks for search-bar
 │   │   └── diff-hunk.tsx             # Single hunk renderer
 │   └── _layout.tsx
 │
@@ -112,10 +115,9 @@ src/
 │       ├── loading-skeleton.tsx
 │       └── error-boundary.tsx
 │
-├── hooks/
-│   ├── use-diff-viewer.ts            # Manages split/unified preference, virtual scroll state
-│   ├── use-search-filter.ts          # Real-time search with debounce
-│   └── use-git-commits.ts            # Server-side query + TanStack Query
+├── db/                               # TanStack DB schemas & queries (if using local persistence)
+│   ├── schema.ts                     # DB schema definitions
+│   └── queries.ts                    # DB query helpers
 │
 ├── lib/
 │   ├── diff-utils.ts                 # Convert raw diff to line array for virtualization
@@ -159,11 +161,13 @@ src/
    - `adapters/diff-parser/diff-parser.ts` – Use jsdiff, output `Line[][]` (files → hunks → lines)
    - Parse `+` / `-` / ` ` prefixes into line types
 2. **Create Effect services**:
-   - `effects/services/diff-processor.effect.ts` – Compose parser + storage adapter + error handling
+   - `effects/services/diff-processor.ts` – Compose parser + storage adapter + error handling
    - `effects/context/storage-context.ts` – Provide StorageAdapter via Context.Tag
-3. **Setup TanStack Query**:
-   - `app.tsx` – Wrap with QueryClientProvider
-   - `routes/[repo].index.tsx` – TanStack Start loader calls `diffProcessorEffect.run()`
+3. **Setup TanStack Query + DB**:
+   - `app.tsx` – Wrap with QueryClientProvider + DB provider
+   - `db/schema.ts` – Define DB collections (cached diffs, preferences)
+   - `routes/[repo].start.ts` – Server functions call `diffProcessorEffect.run()`
+   - `routes/[repo].index.tsx` – TanStack Start loader uses server functions
 
 **Verification**: Can parse a sample git diff, cache it, retrieve from storage on second load.
 
@@ -191,7 +195,8 @@ src/
    - Input field + search against: file names, file paths, line content
    - Use `match-sorter` for intelligent ranking
    - Debounce 200ms input → re-filter
-2. **Search effect** `effects/services/search-engine.effect.ts`:
+   - Colocate hook in `components/search/search-bar.tsx.hooks.ts`
+2. **Search service** `effects/services/search-engine.ts`:
    - Filter line array based on query
    - Invalidate Query cache → UI re-renders filtered lines
 3. **Highlight matches** `components/search/highlight-match.tsx`:
@@ -210,8 +215,9 @@ src/
    - Display recent commits, branches (from git)
    - Range picker: "From commit X to commit Y"
    - Button to navigate to review page
-2. **Commit loader** `server/loaders.ts`:
-   - TanStack Start loader fetches commit list async
+   - Colocate hook in `routes/index.tsx.hooks.ts`
+2. **Server functions** `routes/index.start.ts`:
+   - TanStack Start server functions fetch commit list async
    - Use VCSAdapter with Effect
 3. **Show commit details** in diff header:
    - Author, date, message for range
@@ -222,13 +228,14 @@ src/
 ---
 
 ### Phase 6: Preferences & Polish (Days 6–7)
-1. **Persist user preferences** `adapters/storage/storage.interface.ts`:
+1. **Persist user preferences** via TanStack DB:
    - Split/unified mode
    - Whitespace ignore setting
    - Search history (optional)
+   - Store in DB via `db/queries.ts` helpers
 2. **Whitespace toggle** `components/diff-viewer/unified-view.tsx`:
    - Re-parse diff with `ignoreWhitespace` flag when toggled
-   - Store preference in storage adapter
+   - Persist choice to DB (reactive updates via TanStack DB)
 3. **Error boundaries** `components/common/error-boundary.tsx`:
    - Catch parse errors, VCS errors, display user-friendly messages
 4. **Performance profiling**:
@@ -276,11 +283,12 @@ src/
 | `adapters/diff-parser/diff-parser.ts` | `parseDiff()` | Convert raw diff string to structured lines |
 | `lib/types.ts` | `Diff`, `Hunk`, `Line` | Core types |
 | `lib/diff-utils.ts` | `flattenDiffForVirtualization()` | Prep diff for virtual scroll |
-| `effects/services/diff-processor.effect.ts` | `DiffProcessorService` | Effect-based cache + parse orchestration |
+| `effects/services/diff-processor.ts` | `DiffProcessorService` | Effect-based cache + parse orchestration |
 | `components/diff-viewer/unified-view.tsx` | `UnifiedDiffViewer` | Virtual scroll renderer + search |
 | `components/diff-viewer/split-view.tsx` | `SplitDiffViewer` | Side-by-side virtual scroll |
-| `hooks/use-diff-viewer.ts` | `useDiffViewer()` | Unified/split mode state + persistence |
+| `components/diff-viewer/unified-view.tsx.hooks.ts` | `useDiffViewer()` | Unified/split mode state + persistence |
 | `routes/[repo].index.tsx` | TanStack loader | Async diff loading via Effect |
+| `routes/[repo].start.ts` | Server functions | TanStack Start server-side logic |
 
 ---
 
@@ -310,8 +318,8 @@ src/
 3. **Indexed Search**: Add worker-based indexing for 100k+ line diffs
 4. **Desktop App**: Wrap with Electron/Tauri; use same adapters
 5. **Jujutsu Support**: Implement `jj.ts` VCS adapter
-6. **Database**: If caching grows, migrate StorageAdapter to TanStack DB or SQLite
-7. **Collaborative Review**: Real-time sync of comments (WebSocket layer)
+6. **Collaborative Review**: Real-time sync of comments (WebSocket layer)
+7. **Database Scale**: If TanStack DB becomes bottleneck, migrate to SQLite/Prisma
 
 ---
 
