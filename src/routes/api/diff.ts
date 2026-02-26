@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getDiff } from '~/server/diff-reviewer.start'
 
 export const Route = createFileRoute('/api/diff')({
-  component: () => null,
   server: {
     handlers: {
       GET: async ({ request }: { request: Request }) => {
