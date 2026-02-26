@@ -8,6 +8,7 @@ interface DiffLineRendererProps {
   onHover?: (line: Line | null) => void
   filePath?: string
   pairedContent?: string
+  wordWrap?: boolean
 }
 
 function computeCharDiff(oldText: string, newText: string): { char: string; type: 'same' | 'add' | 'remove' }[] {
@@ -62,13 +63,14 @@ function computeCharDiff(oldText: string, newText: string): { char: string; type
   return result
 }
 
-export const DiffLineRenderer: FC<DiffLineRendererProps> = ({
-  line,
-  isHighlighted,
-  onClick,
-  onHover,
+export const DiffLineRenderer: FC<DiffLineRendererProps> = ({ 
+  line, 
+  isHighlighted, 
+  onClick, 
+  onHover, 
   filePath,
-  pairedContent
+  pairedContent,
+  wordWrap = true 
 }) => {
   const prefix = {
     add: '+',
@@ -122,7 +124,8 @@ export const DiffLineRenderer: FC<DiffLineRendererProps> = ({
   return (
     <div
       className={`
-        font-mono text-sm px-3 py-0.5 whitespace-pre-wrap break-words
+        font-mono text-sm px-3 py-0.5 
+        ${wordWrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre overflow-x-auto'}
         hover:bg-opacity-50 transition-colors cursor-pointer
         flex
         ${style.bg} ${style.text} border-l-4 ${style.border}

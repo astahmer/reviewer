@@ -9,6 +9,7 @@ interface SplitDiffViewerProps {
   highlightedIds?: Set<string>
   onLineSelect?: (line: Line) => void
   repoPath?: string
+  wordWrap?: boolean
 }
 
 type RenderItem =
@@ -25,7 +26,7 @@ interface AlignedLine {
 
 const FILE_HEADER_HEIGHT = 40
 
-export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect, repoPath }) => {
+export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect, repoPath, wordWrap = true }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
@@ -243,12 +244,12 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
 
       <div
         ref={containerRef}
-        className="flex flex-1 overflow-y-auto overflow-x-hidden gap-px bg-gray-200"
+        className={`flex flex-1 overflow-y-auto gap-px bg-gray-200 ${wordWrap ? 'overflow-x-hidden' : 'overflow-x-auto'}`}
         style={{ contain: 'strict' }}
       >
         <div
           ref={leftRef}
-          className="flex-1 overflow-x-auto bg-white"
+          className={`flex-1 overflow-x-auto bg-white ${wordWrap ? '' : 'max-w-[50%]'}`}
           style={{ contain: 'strict' }}
         >
           <div
@@ -303,7 +304,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
 
         <div
           ref={rightRef}
-          className="flex-1 overflow-x-auto bg-white"
+          className={`flex-1 overflow-x-auto bg-white ${wordWrap ? '' : 'max-w-[50%]'}`}
           style={{ contain: 'strict' }}
         >
           <div

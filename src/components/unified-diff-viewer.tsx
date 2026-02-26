@@ -9,6 +9,7 @@ interface UnifiedDiffViewerProps {
   highlightedIds?: Set<string>
   onLineSelect?: (line: Line) => void
   repoPath?: string
+  wordWrap?: boolean
 }
 
 type RenderItem =
@@ -17,7 +18,7 @@ type RenderItem =
 
 const FILE_HEADER_HEIGHT = 40
 
-export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect, repoPath }) => {
+export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect, repoPath, wordWrap = true }) => {
   const parentRef = useRef<HTMLDivElement>(null)
   const [hoveredLine, setHoveredLine] = useState<Line | null>(null)
 
@@ -73,7 +74,7 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
 
       <div
         ref={parentRef}
-        className="flex-1 overflow-y-auto overflow-x-hidden"
+        className={`flex-1 overflow-y-auto ${wordWrap ? 'overflow-x-hidden' : 'overflow-x-auto'}`}
         style={{ contain: 'strict' }}
       >
         <div

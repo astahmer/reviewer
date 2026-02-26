@@ -6,6 +6,7 @@ import { SplitDiffViewer } from './split-diff-viewer'
 type ViewMode = 'unified' | 'split'
 
 const VIEW_MODE_KEY = 'diffViewMode'
+const WORD_WRAP_KEY = 'diffWordWrap'
 
 interface DiffViewerProps {
   diff: Diff
@@ -20,11 +21,19 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSe
     const saved = localStorage.getItem(VIEW_MODE_KEY)
     return (saved as ViewMode) || defaultMode
   })
+  const [wordWrap, setWordWrap] = useState<boolean>(() => {
+    const saved = localStorage.getItem(WORD_WRAP_KEY)
+    return saved !== 'false'
+  })
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     localStorage.setItem(VIEW_MODE_KEY, viewMode)
   }, [viewMode])
+
+  useEffect(() => {
+    localStorage.setItem(WORD_WRAP_KEY, String(wordWrap))
+  }, [wordWrap])
 
   const filteredDiff = useMemo(() => {
     if (!searchQuery) return diff
@@ -61,7 +70,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSe
 
   return (
     <div className="flex flex-col h-full gap-3">
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         <input
           type="text"
           value={searchQuery}
@@ -69,6 +78,18 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSe
           placeholder="Search in diff..."
           className="flex-1 min-w-[200px] rounded border border-gray-300 px-3 py-2 text-sm"
         />
+
+        <button
+          onClick={() => setWordWrap(!wordWrap)}
+          className={`px-3 py-2 text-sm font-medium rounded transition-colors ${
+            wordWrap
+              ? 'bg-blue-500 text-white'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+          }`}
+          title="Toggle word wrap"
+        >
+          Wrap
+        </button>
 
         <button
           onClick={() => setViewMode('unified')}
@@ -105,6 +126,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSe
             highlightedIds={highlightedLineIds}
             onLineSelect={onLineSelect}
             repoPath={repoPath}
+            wordWrap={wordWrap}
           />
         ) : (
           <SplitDiffViewer
@@ -112,6 +134,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSe
             highlightedIds={highlightedLineIds}
             onLineSelect={onLineSelect}
             repoPath={repoPath}
+            wordWrap={wordWrap}
           />
         )}
       </div>
