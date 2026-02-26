@@ -12,26 +12,22 @@ interface Repository {
   name: string
 }
 
-/**
- * Home page - main interface for reviewing diffs
- * Fetches commits, allows selection, and displays diff
- */
+type RefValue = { type: 'commit'; value: string } | { type: 'branch'; value: string }
+
 export const HomePage: FC = () => {
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
-  const [selectedFromCommit, setSelectedFromCommit] = useState<string>('HEAD~1')
-  const [selectedToCommit, setSelectedToCommit] = useState<string>('HEAD')
+  const [selectedFrom, setSelectedFrom] = useState<RefValue>({ type: 'commit', value: 'HEAD~1' })
+  const [selectedTo, setSelectedTo] = useState<RefValue>({ type: 'commit', value: 'HEAD' })
   const [customPathInput, setCustomPathInput] = useState('')
   const [customPaths, setCustomPaths] = useState<string[]>([])
   const [controlsCollapsed, setControlsCollapsed] = useState(true)
 
-  // Load saved repo and custom paths from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem(REPO_STORAGE_KEY)
     if (saved) {
       try {
         setSelectedRepo(JSON.parse(saved))
       } catch {
-        // Invalid JSON, ignore
       }
     }
     const savedPaths = localStorage.getItem(CUSTOM_PATHS_KEY)
@@ -39,7 +35,6 @@ export const HomePage: FC = () => {
       try {
         setCustomPaths(JSON.parse(savedPaths))
       } catch {
-        // Invalid JSON, ignore
       }
     }
     const savedCollapsed = localStorage.getItem(CONTROLS_COLLAPSED_KEY)
@@ -53,7 +48,6 @@ export const HomePage: FC = () => {
     return [...customPaths, ...defaults.filter(d => !customPaths.includes(d))]
   }, [customPaths])
 
-  // Fetch available repositories
   const {
     data: repositories = [],
     isLoading: reposLoading,
@@ -84,7 +78,6 @@ export const HomePage: FC = () => {
     localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths))
   }
 
-  // Fetch available commits
   const {
     data: commits = [],
     isLoading: commitsLoading,
@@ -101,7 +94,6 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   })
 
-  // Fetch branches
   const {
     data: branches = [],
     isLoading: branchesLoading,
@@ -117,7 +109,6 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   })
 
-  // Fetch current branch
   const { data: currentBranch = 'main' } = useQuery({
     queryKey: ['currentBranch', selectedRepo?.path],
     queryFn: async () => {
@@ -130,23 +121,25 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   })
 
-  // Fetch diff based on selected commits
+  const fromValue = selectedFrom.type === 'branch' ? selectedFrom.value : selectedFrom.value
+  const toValue = selectedTo.type === 'branch' ? selectedTo.value : selectedTo.value
+
   const {
     data: diff,
     isLoading: diffLoading,
     error: diffError,
   } = useQuery({
-    queryKey: ['diff', selectedFromCommit, selectedToCommit, selectedRepo?.path],
+    queryKey: ['diff', fromValue, toValue, selectedRepo?.path],
     queryFn: async () => {
       const url = new URL('/api/diff', window.location.origin)
-      url.searchParams.set('from', selectedFromCommit)
-      url.searchParams.set('to', selectedToCommit)
+      url.searchParams.set('from', fromValue)
+      url.searchParams.set('to', toValue)
       if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
       const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch diff')
       return (await response.json()) as Diff
     },
-    enabled: !!selectedRepo && !!selectedFromCommit && !!selectedToCommit,
+    enabled: !!selectedRepo && !!fromValue && !!toValue,
   })
 
   const handleRepoChange = (repo: Repository) => {
@@ -160,37 +153,69 @@ export const HomePage: FC = () => {
     localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState))
   }
 
-  // Find commit info to display branch names
-  const fromCommitInfo = commits.find(c => c.hash.startsWith(selectedFromCommit.slice(0, 7)) || selectedFromCommit === c.hash)
-  const toCommitInfo = commits.find(c => c.hash.startsWith(selectedToCommit.slice(0, 7)) || selectedToCommit === c.hash)
-
-  const getCommitDisplay = (commit: string, info: typeof fromCommitInfo) => {
-    if (commit === 'HEAD~1' || commit === 'HEAD') {
-      return { hash: commit, message: info?.message || '', short: commit }
+  const getRefDisplay = (ref: RefValue) => {
+    if (ref.type === 'branch') {
+      return { label: ref.value, sublabel: 'branch' }
+    }
+    const info = commits.find(c => c.hash.startsWith(ref.value.slice(0, 7)) || ref.value === c.hash)
+    if (ref.value === 'HEAD~1' || ref.value === 'HEAD') {
+      return { label: ref.value, sublabel: info?.message || '' }
     }
     return {
-      hash: info?.hash || commit,
-      message: info?.message || '',
-      short: (info?.hash || commit).slice(0, 7)
+      label: ref.value.slice(0, 7),
+      sublabel: info?.message || ''
     }
   }
 
-  const fromCommit = getCommitDisplay(selectedFromCommit, fromCommitInfo)
-  const toCommit = getCommitDisplay(selectedToCommit, toCommitInfo)
+  const fromDisplay = getRefDisplay(selectedFrom)
+  const toDisplay = getRefDisplay(selectedTo)
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {})
-  }
+  const renderRefSelect = (
+    label: string,
+    value: RefValue,
+    onChange: (v: RefValue) => void
+  ) => (
+    <div>
+      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+      <select
+        value={value.type === 'branch' ? `branch:${value.value}` : `commit:${value.value}`}
+        onChange={(e) => {
+          const val = e.target.value
+          if (val.startsWith('branch:')) {
+            onChange({ type: 'branch', value: val.replace('branch:', '') })
+          } else {
+            onChange({ type: 'commit', value: val.replace('commit:', '') })
+          }
+        }}
+        className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+      >
+        <optgroup label="Branches">
+          {branches.map((branch) => (
+            <option key={`branch:${branch}`} value={`branch:${branch}`}>
+              {branch}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Commits">
+          <option value="commit:HEAD~1">HEAD~1 (previous)</option>
+          <option value="commit:HEAD">HEAD (current)</option>
+          {commits.map((commit: CommitInfo) => (
+            <option key={`commit:${commit.hash}`} value={`commit:${commit.hash}`}>
+              {commit.hash.slice(0, 7)} - {commit.message}
+            </option>
+          ))}
+        </optgroup>
+      </select>
+    </div>
+  )
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
-      {/* Compact Header */}
       <header className="border-b border-gray-200 bg-white px-4 py-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-semibold text-gray-900">Git Diff Reviewer</h1>
 
-            {/* Repository selector in header */}
             <select
               value={selectedRepo?.path || ''}
               onChange={(e) => {
@@ -209,28 +234,20 @@ export const HomePage: FC = () => {
             </select>
           </div>
 
-          {/* Commit range display */}
           {selectedRepo && diff && (
             <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
-              <span className="text-gray-600">→</span>
               <span
                 className="font-mono cursor-pointer group relative hover:text-blue-600"
-                title={`${fromCommit.short}: ${fromCommit.message}`}
+                title={fromDisplay.sublabel}
               >
-                {fromCommit.short}
-                <span className="absolute left-0 -bottom-8 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded z-20 text-xs whitespace-nowrap" onClick={() => copyToClipboard(fromCommit.hash)}>
-                  {fromCommit.message ? `${fromCommit.short} - ${fromCommit.message.slice(0, 30)}` : fromCommit.short}
-                </span>
+                {fromDisplay.label}
               </span>
               <span className="text-gray-400">→</span>
               <span
                 className="font-mono cursor-pointer group relative hover:text-blue-600"
-                title={`${toCommit.short}: ${toCommit.message}`}
+                title={toDisplay.sublabel}
               >
-                {toCommit.short}
-                <span className="absolute left-0 -bottom-8 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded z-20 text-xs whitespace-nowrap" onClick={() => copyToClipboard(toCommit.hash)}>
-                  {toCommit.message ? `${toCommit.short} - ${toCommit.message.slice(0, 30)}` : toCommit.short}
-                </span>
+                {toDisplay.label}
               </span>
               {currentBranch && (
                 <span className="inline-flex items-center rounded bg-blue-50 px-2 py-1 font-mono text-xs font-medium text-blue-700 ml-2">
@@ -249,14 +266,12 @@ export const HomePage: FC = () => {
         </div>
       </header>
 
-      {/* Collapsible Controls Section */}
       {!controlsCollapsed && (
         <div className="border-b border-gray-200 bg-white p-3">
-          {/* Custom Paths & Branch Management */}
           <div className="mb-3 grid grid-cols-2 gap-3">
             {selectedRepo && (
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Branch</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Current Branch</label>
                 <select
                   value={currentBranch}
                   disabled={branchesLoading}
@@ -294,7 +309,6 @@ export const HomePage: FC = () => {
             )}
           </div>
 
-          {/* Custom Paths Tags */}
           {customPaths.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1">
               {customPaths.map((p) => (
@@ -314,44 +328,13 @@ export const HomePage: FC = () => {
             </div>
           )}
 
-          {/* Commit Selection */}
           {selectedRepo && (
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">From Commit</label>
-                <select
-                  value={selectedFromCommit}
-                  onChange={(e) => setSelectedFromCommit(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                >
-                  <option value="HEAD~1">HEAD~1 (previous)</option>
-                  {commits.map((commit: CommitInfo) => (
-                    <option key={commit.hash} value={commit.hash}>
-                      {commit.hash.slice(0, 7)} - {commit.message}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">To Commit</label>
-                <select
-                  value={selectedToCommit}
-                  onChange={(e) => setSelectedToCommit(e.target.value)}
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                >
-                  <option value="HEAD">HEAD (current)</option>
-                  {commits.map((commit: CommitInfo) => (
-                    <option key={commit.hash} value={commit.hash}>
-                      {commit.hash.slice(0, 7)} - {commit.message}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {renderRefSelect('From', selectedFrom, setSelectedFrom)}
+              {renderRefSelect('To', selectedTo, setSelectedTo)}
             </div>
           )}
 
-          {/* Error Display */}
           {(commitsError || diffError) && (
             <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">
               {commitsError instanceof Error
@@ -364,7 +347,6 @@ export const HomePage: FC = () => {
         </div>
       )}
 
-      {/* Main Diff Viewer - Takes up most of the screen */}
       <main className="flex-1 min-h-0 p-2 overflow-hidden">
         {!selectedRepo ? (
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
@@ -386,7 +368,7 @@ export const HomePage: FC = () => {
           />
         ) : (
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
-            No diff available for the selected commits.
+            No diff available for the selected refs.
           </div>
         )}
       </main>
