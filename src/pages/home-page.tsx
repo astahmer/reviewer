@@ -163,7 +163,7 @@ export const HomePage: FC = () => {
   // Find commit info to display branch names
   const fromCommitInfo = commits.find(c => c.hash.startsWith(selectedFromCommit.slice(0, 7)) || selectedFromCommit === c.hash)
   const toCommitInfo = commits.find(c => c.hash.startsWith(selectedToCommit.slice(0, 7)) || selectedToCommit === c.hash)
-  
+
   const getCommitDisplay = (commit: string, info: typeof fromCommitInfo) => {
     if (commit === 'HEAD~1' || commit === 'HEAD') {
       return { hash: commit, message: info?.message || '', short: commit }
@@ -189,7 +189,7 @@ export const HomePage: FC = () => {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-semibold text-gray-900">Git Diff Reviewer</h1>
-            
+
             {/* Repository selector in header */}
             <select
               value={selectedRepo?.path || ''}
@@ -213,7 +213,7 @@ export const HomePage: FC = () => {
           {selectedRepo && diff && (
             <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
               <span className="text-gray-600">→</span>
-              <span 
+              <span
                 className="font-mono cursor-pointer group relative hover:text-blue-600"
                 title={`${fromCommit.short}: ${fromCommit.message}`}
               >
@@ -239,7 +239,7 @@ export const HomePage: FC = () => {
               )}
             </div>
           )}
-          
+
           <button
             onClick={toggleControlsCollapsed}
             className="ml-auto rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"

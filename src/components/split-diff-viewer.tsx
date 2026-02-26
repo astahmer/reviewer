@@ -97,7 +97,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
       </div>
 
       {/* Split view container with synchronized vertical scrolling */}
-      <div 
+      <div
         ref={containerRef}
         className="flex flex-1 overflow-y-auto overflow-x-hidden gap-px bg-gray-200"
         style={{
@@ -121,39 +121,81 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
           >
             {virtualItems.map((virtualItem) => {
               const oldLine = oldLines[virtualItem.index]
+              const newLine = newLines[virtualItem.index]
+
+              // Determine which file to display header for
+              const oldFile = oldLine ? diff.files[oldLine.fileIndex] : null
+              const newFile = newLine ? diff.files[newLine.fileIndex] : null
+              const currentFile = oldFile || newFile
+
+              // Check if this is a new file (file changed from previous line)
+              const prevOldLine = virtualItem.index > 0 ? oldLines[virtualItem.index - 1] : null
+              const prevNewLine = virtualItem.index > 0 ? newLines[virtualItem.index - 1] : null
+              const prevOldFile = prevOldLine ? diff.files[prevOldLine.fileIndex] : null
+              const prevNewFile = prevNewLine ? diff.files[prevNewLine.fileIndex] : null
+
+              const isNewFile = !prevOldFile || !prevNewFile ||
+                                (oldFile && oldFile.index !== prevOldFile.index) ||
+                                (newFile && newFile.index !== prevNewFile.index)
 
               return (
                 <div
-                  key={`old-${virtualItem.key}`}
+                  key={virtualItem.key}
                   style={{
                     position: 'absolute',
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: `${virtualItem.size}px`,
                     transform: `translateY(${virtualItem.start}px)`,
                   }}
                 >
-                  {oldLine ? (
-                    <div className="flex h-full">
-                      <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
-                        <span className="text-xs text-gray-500">{oldLine.oldLineNumber >= 0 ? oldLine.oldLineNumber : ''}</span>
-                      </div>
-                      <div className="flex-1">
-                        <DiffLineRenderer
-                          line={oldLine}
-                          isHighlighted={highlightedIds.has(oldLine.id)}
-                          onClick={() => onLineSelect?.(oldLine)}
-                          onHover={setHoveredLine}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex h-full">
-                      <div className="w-12 bg-gray-100 border-r border-gray-200"></div>
-                      <div className="flex-1 bg-gray-50"></div>
+                  {isNewFile && currentFile && (
+                    <div className="relative px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 sticky top-0 z-10 flex items-center gap-2">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        currentFile.status === 'add' ? 'bg-green-100 text-green-800' :
+                        currentFile.status === 'remove' ? 'bg-red-100 text-red-800' :
+                        currentFile.status === 'rename' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-200 text-gray-800'
+                      }`}>
+                        {currentFile.status}
+                      </span>
+                      {currentFile.oldPath === currentFile.newPath ? (
+                        <span className="font-mono">{currentFile.newPath}</span>
+                      ) : (
+                        <>
+                          <span className="font-mono text-gray-600">{currentFile.oldPath}</span>
+                          <span className="text-gray-400">→</span>
+                          <span className="font-mono">{currentFile.newPath}</span>
+                        </>
+                      )}
                     </div>
                   )}
+                  <div
+                    style={{
+                      height: `${virtualItem.size}px`,
+                    }}
+                  >
+                    {oldLine ? (
+                      <div className="flex h-full">
+                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
+                          <span className="text-xs text-gray-500">{oldLine.oldLineNumber >= 0 ? oldLine.oldLineNumber : ''}</span>
+                        </div>
+                        <div className="flex-1">
+                          <DiffLineRenderer
+                            line={oldLine}
+                            isHighlighted={highlightedIds.has(oldLine.id)}
+                            onClick={() => onLineSelect?.(oldLine)}
+                            onHover={setHoveredLine}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-full">
+                        <div className="w-12 bg-gray-100 border-r border-gray-200"></div>
+                        <div className="flex-1 bg-gray-50"></div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -176,40 +218,82 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
             }}
           >
             {virtualItems.map((virtualItem) => {
+              const oldLine = oldLines[virtualItem.index]
               const newLine = newLines[virtualItem.index]
+
+              // Determine which file to display header for
+              const oldFile = oldLine ? diff.files[oldLine.fileIndex] : null
+              const newFile = newLine ? diff.files[newLine.fileIndex] : null
+              const currentFile = oldFile || newFile
+
+              // Check if this is a new file (file changed from previous line)
+              const prevOldLine = virtualItem.index > 0 ? oldLines[virtualItem.index - 1] : null
+              const prevNewLine = virtualItem.index > 0 ? newLines[virtualItem.index - 1] : null
+              const prevOldFile = prevOldLine ? diff.files[prevOldLine.fileIndex] : null
+              const prevNewFile = prevNewLine ? diff.files[prevNewLine.fileIndex] : null
+
+              const isNewFile = !prevOldFile || !prevNewFile ||
+                                (oldFile && oldFile.index !== prevOldFile.index) ||
+                                (newFile && newFile.index !== prevNewFile.index)
 
               return (
                 <div
-                  key={`new-${virtualItem.key}`}
+                  key={virtualItem.key}
                   style={{
                     position: 'absolute',
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: `${virtualItem.size}px`,
                     transform: `translateY(${virtualItem.start}px)`,
                   }}
                 >
-                  {newLine ? (
-                    <div className="flex h-full">
-                      <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
-                        <span className="text-xs text-gray-500">{newLine.newLineNumber >= 0 ? newLine.newLineNumber : ''}</span>
-                      </div>
-                      <div className="flex-1">
-                        <DiffLineRenderer
-                          line={newLine}
-                          isHighlighted={highlightedIds.has(newLine.id)}
-                          onClick={() => onLineSelect?.(newLine)}
-                          onHover={setHoveredLine}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex h-full">
-                      <div className="w-12 bg-gray-100 border-r border-gray-200"></div>
-                      <div className="flex-1 bg-gray-50"></div>
+                  {isNewFile && currentFile && (
+                    <div className="relative px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 sticky top-0 z-10 flex items-center gap-2">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        currentFile.status === 'add' ? 'bg-green-100 text-green-800' :
+                        currentFile.status === 'remove' ? 'bg-red-100 text-red-800' :
+                        currentFile.status === 'rename' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-200 text-gray-800'
+                      }`}>
+                        {currentFile.status}
+                      </span>
+                      {currentFile.oldPath === currentFile.newPath ? (
+                        <span className="font-mono">{currentFile.newPath}</span>
+                      ) : (
+                        <>
+                          <span className="font-mono text-gray-600">{currentFile.oldPath}</span>
+                          <span className="text-gray-400">→</span>
+                          <span className="font-mono">{currentFile.newPath}</span>
+                        </>
+                      )}
                     </div>
                   )}
+                  <div
+                    style={{
+                      height: `${virtualItem.size}px`,
+                    }}
+                  >
+                    {newLine ? (
+                      <div className="flex h-full">
+                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
+                          <span className="text-xs text-gray-500">{newLine.newLineNumber >= 0 ? newLine.newLineNumber : ''}</span>
+                        </div>
+                        <div className="flex-1">
+                          <DiffLineRenderer
+                            line={newLine}
+                            isHighlighted={highlightedIds.has(newLine.id)}
+                            onClick={() => onLineSelect?.(newLine)}
+                            onHover={setHoveredLine}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex h-full">
+                        <div className="w-12 bg-gray-100 border-r border-gray-200"></div>
+                        <div className="flex-1 bg-gray-50"></div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}

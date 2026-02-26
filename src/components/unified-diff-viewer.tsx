@@ -107,7 +107,7 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
                     </div>
                   </div>
                 )}
-                
+
                 {/* Line with line numbers */}
                 <div
                   data-index={virtualItem.index}
