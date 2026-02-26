@@ -22,7 +22,7 @@ interface SplitDiffViewerProps {
 /**
  * Split diff viewer with synchronized scrolling
  * Shows old (left) and new (right) versions side by side
- * Lines are synchronized horizontally; vertical scroll is also synchronized
+ * Both sides use the shared virtualizer for perfect sync
  */
 export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect }) => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -53,7 +53,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
     }
   }, [virtualizer])
 
-  // Synchronize scroll between left and right (both directions)
+  // Synchronize horizontal scroll between left and right
   useEffect(() => {
     if (!leftRef.current || !rightRef.current) return
 
@@ -150,7 +150,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                   }}
                 >
                   {isNewFile && currentFile && (
-                    <div className="relative px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 sticky top-0 z-10 flex items-center gap-2">
+                    <div className="px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 flex items-center gap-2 h-10">
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                         currentFile.status === 'add' ? 'bg-green-100 text-green-800' :
                         currentFile.status === 'remove' ? 'bg-red-100 text-red-800' :
@@ -160,29 +160,30 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                         {currentFile.status}
                       </span>
                       {currentFile.oldPath === currentFile.newPath ? (
-                        <span className="font-mono">{currentFile.newPath}</span>
+                        <span className="font-mono text-gray-700 truncate">{currentFile.newPath}</span>
                       ) : (
                         <>
-                          <span className="font-mono text-gray-600">{currentFile.oldPath}</span>
-                          <span className="text-gray-400">→</span>
-                          <span className="font-mono">{currentFile.newPath}</span>
+                          <span className="font-mono text-gray-600 truncate">{currentFile.oldPath}</span>
+                          <span className="text-gray-400 flex-shrink-0">→</span>
+                          <span className="font-mono text-gray-700 truncate">{currentFile.newPath}</span>
                         </>
                       )}
                     </div>
                   )}
                   <div
                     style={{
-                      height: `${virtualItem.size}px`,
+                      height: `${VIRTUAL_LINE_HEIGHT}px`,
                     }}
                   >
                     {oldLine ? (
                       <div className="flex h-full">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
+                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
                           <span className="text-xs text-gray-500">{oldLine.oldLineNumber >= 0 ? oldLine.oldLineNumber : ''}</span>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <DiffLineRenderer
                             line={oldLine}
+                            filePath={oldFile?.oldPath}
                             isHighlighted={highlightedIds.has(oldLine.id)}
                             onClick={() => onLineSelect?.(oldLine)}
                             onHover={setHoveredLine}
@@ -191,7 +192,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                       </div>
                     ) : (
                       <div className="flex h-full">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200"></div>
+                        <div className="w-12 bg-gray-100 border-r border-gray-200 flex-shrink-0"></div>
                         <div className="flex-1 bg-gray-50"></div>
                       </div>
                     )}
@@ -248,7 +249,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                   }}
                 >
                   {isNewFile && currentFile && (
-                    <div className="relative px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 sticky top-0 z-10 flex items-center gap-2">
+                    <div className="px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 flex items-center gap-2 h-10">
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                         currentFile.status === 'add' ? 'bg-green-100 text-green-800' :
                         currentFile.status === 'remove' ? 'bg-red-100 text-red-800' :
@@ -258,29 +259,30 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                         {currentFile.status}
                       </span>
                       {currentFile.oldPath === currentFile.newPath ? (
-                        <span className="font-mono">{currentFile.newPath}</span>
+                        <span className="font-mono text-gray-700 truncate">{currentFile.newPath}</span>
                       ) : (
                         <>
-                          <span className="font-mono text-gray-600">{currentFile.oldPath}</span>
-                          <span className="text-gray-400">→</span>
-                          <span className="font-mono">{currentFile.newPath}</span>
+                          <span className="font-mono text-gray-600 truncate">{currentFile.oldPath}</span>
+                          <span className="text-gray-400 flex-shrink-0">→</span>
+                          <span className="font-mono text-gray-700 truncate">{currentFile.newPath}</span>
                         </>
                       )}
                     </div>
                   )}
                   <div
                     style={{
-                      height: `${virtualItem.size}px`,
+                      height: `${VIRTUAL_LINE_HEIGHT}px`,
                     }}
                   >
                     {newLine ? (
                       <div className="flex h-full">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
+                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
                           <span className="text-xs text-gray-500">{newLine.newLineNumber >= 0 ? newLine.newLineNumber : ''}</span>
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <DiffLineRenderer
                             line={newLine}
+                            filePath={newFile?.newPath}
                             isHighlighted={highlightedIds.has(newLine.id)}
                             onClick={() => onLineSelect?.(newLine)}
                             onHover={setHoveredLine}
@@ -289,7 +291,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                       </div>
                     ) : (
                       <div className="flex h-full">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200"></div>
+                        <div className="w-12 bg-gray-100 border-r border-gray-200 flex-shrink-0"></div>
                         <div className="flex-1 bg-gray-50"></div>
                       </div>
                     )}

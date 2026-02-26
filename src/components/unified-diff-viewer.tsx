@@ -83,9 +83,9 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
 
             return (
               <div key={virtualItem.key}>
-                {/* File header */}
+                {/* File header - static, no sticky positioning to avoid flickering */}
                 {isNewFile && (
-                  <div className="relative px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 sticky top-0 z-10">
+                  <div className="px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700">
                     <div className="flex items-center gap-2">
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                         currentFile.status === 'add' ? 'bg-green-100 text-green-800' :
@@ -116,16 +116,17 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
                   }}
                   className="flex"
                 >
-                  <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
+                  <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none flex-shrink-0">
                     <span className="text-xs text-gray-500">
                       {line.type === 'remove' && line.oldLineNumber >= 0 ? line.oldLineNumber :
                        line.type === 'add' && line.newLineNumber >= 0 ? line.newLineNumber :
                        (line.oldLineNumber >= 0 ? line.oldLineNumber : line.newLineNumber >= 0 ? line.newLineNumber : '')}
                     </span>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <DiffLineRenderer
                       line={line}
+                      filePath={line.type === 'remove' ? currentFile.oldPath : currentFile.newPath}
                       isHighlighted={highlightedIds.has(line.id)}
                       onClick={() => onLineSelect?.(line)}
                       onHover={setHoveredLine}
