@@ -108,19 +108,29 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
                   </div>
                 )}
                 
-                {/* Line */}
+                {/* Line with line numbers */}
                 <div
                   data-index={virtualItem.index}
                   style={{
                     height: `${virtualItem.size}px`,
                   }}
+                  className="flex"
                 >
-                  <DiffLineRenderer
-                    line={line}
-                    isHighlighted={highlightedIds.has(line.id)}
-                    onClick={() => onLineSelect?.(line)}
-                    onHover={setHoveredLine}
-                  />
+                  <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-2 py-0.5 select-none">
+                    <span className="text-xs text-gray-500">
+                      {line.type === 'remove' && line.oldLineNumber >= 0 ? line.oldLineNumber :
+                       line.type === 'add' && line.newLineNumber >= 0 ? line.newLineNumber :
+                       (line.oldLineNumber >= 0 ? line.oldLineNumber : line.newLineNumber >= 0 ? line.newLineNumber : '')}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <DiffLineRenderer
+                      line={line}
+                      isHighlighted={highlightedIds.has(line.id)}
+                      onClick={() => onLineSelect?.(line)}
+                      onHover={setHoveredLine}
+                    />
+                  </div>
                 </div>
               </div>
             )

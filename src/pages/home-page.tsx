@@ -164,8 +164,19 @@ export const HomePage: FC = () => {
   const fromCommitInfo = commits.find(c => c.hash.startsWith(selectedFromCommit.slice(0, 7)) || selectedFromCommit === c.hash)
   const toCommitInfo = commits.find(c => c.hash.startsWith(selectedToCommit.slice(0, 7)) || selectedToCommit === c.hash)
   
-  const fromLabel = selectedFromCommit === 'HEAD~1' ? '(previous)' : fromCommitInfo ? fromCommitInfo.hash.slice(0, 7) : selectedFromCommit
-  const toLabel = selectedToCommit === 'HEAD' ? '(current)' : toCommitInfo ? toCommitInfo.hash.slice(0, 7) : selectedToCommit
+  const getCommitDisplay = (commit: string, info: typeof fromCommitInfo) => {
+    if (commit === 'HEAD~1' || commit === 'HEAD') {
+      return { hash: commit, message: info?.message || '', short: commit }
+    }
+    return {
+      hash: info?.hash || commit,
+      message: info?.message || '',
+      short: (info?.hash || commit).slice(0, 7)
+    }
+  }
+
+  const fromCommit = getCommitDisplay(selectedFromCommit, fromCommitInfo)
+  const toCommit = getCommitDisplay(selectedToCommit, toCommitInfo)
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text).catch(() => {})
@@ -203,22 +214,22 @@ export const HomePage: FC = () => {
             <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
               <span className="text-gray-600">→</span>
               <span 
-                className="font-mono cursor-pointer group relative"
-                title={selectedFromCommit}
+                className="font-mono cursor-pointer group relative hover:text-blue-600"
+                title={`${fromCommit.short}: ${fromCommit.message}`}
               >
-                {fromLabel}
-                <span className="absolute left-0 -bottom-6 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded whitespace-nowrap z-10 text-xs." onClick={() => copyToClipboard(selectedFromCommit)}>
-                  {selectedFromCommit} (click to copy)
+                {fromCommit.short}
+                <span className="absolute left-0 -bottom-8 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded z-20 text-xs whitespace-nowrap" onClick={() => copyToClipboard(fromCommit.hash)}>
+                  {fromCommit.message ? `${fromCommit.short} - ${fromCommit.message.slice(0, 30)}` : fromCommit.short}
                 </span>
               </span>
               <span className="text-gray-400">→</span>
               <span
-                className="font-mono cursor-pointer group relative"
-                title={selectedToCommit}
+                className="font-mono cursor-pointer group relative hover:text-blue-600"
+                title={`${toCommit.short}: ${toCommit.message}`}
               >
-                {toLabel}
-                <span className="absolute left-0 -bottom-6 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded whitespace-nowrap z-10 text-xs" onClick={() => copyToClipboard(selectedToCommit)}>
-                  {selectedToCommit} (click to copy)
+                {toCommit.short}
+                <span className="absolute left-0 -bottom-8 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded z-20 text-xs whitespace-nowrap" onClick={() => copyToClipboard(toCommit.hash)}>
+                  {toCommit.message ? `${toCommit.short} - ${toCommit.message.slice(0, 30)}` : toCommit.short}
                 </span>
               </span>
               {currentBranch && (
