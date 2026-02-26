@@ -76,25 +76,52 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
             const line = diff.flatLines[virtualItem.index]
             if (!line) return null
 
+            const prevLine = virtualItem.index > 0 ? diff.flatLines[virtualItem.index - 1] : null
+            const currentFile = diff.files[line.fileIndex]
+            const prevFile = prevLine ? diff.files[prevLine.fileIndex] : null
+            const isNewFile = !prevFile || prevFile.index !== currentFile.index
+
             return (
-              <div
-                key={virtualItem.key}
-                data-index={virtualItem.index}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: `${virtualItem.size}px`,
-                  transform: `translateY(${virtualItem.start}px)`,
-                }}
-              >
-                <DiffLineRenderer
-                  line={line}
-                  isHighlighted={highlightedIds.has(line.id)}
-                  onClick={() => onLineSelect?.(line)}
-                  onHover={setHoveredLine}
-                />
+              <div key={virtualItem.key}>
+                {/* File header */}
+                {isNewFile && (
+                  <div className="relative px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 sticky top-0 z-10">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        currentFile.status === 'add' ? 'bg-green-100 text-green-800' :
+                        currentFile.status === 'remove' ? 'bg-red-100 text-red-800' :
+                        currentFile.status === 'rename' ? 'bg-blue-100 text-blue-800' :
+                        'bg-gray-200 text-gray-800'
+                      }`}>
+                        {currentFile.status}
+                      </span>
+                      {currentFile.oldPath === currentFile.newPath ? (
+                        <span className="font-mono">{currentFile.newPath}</span>
+                      ) : (
+                        <>
+                          <span className="font-mono text-gray-600">{currentFile.oldPath}</span>
+                          <span className="text-gray-400">→</span>
+                          <span className="font-mono">{currentFile.newPath}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Line */}
+                <div
+                  data-index={virtualItem.index}
+                  style={{
+                    height: `${virtualItem.size}px`,
+                  }}
+                >
+                  <DiffLineRenderer
+                    line={line}
+                    isHighlighted={highlightedIds.has(line.id)}
+                    onClick={() => onLineSelect?.(line)}
+                    onHover={setHoveredLine}
+                  />
+                </div>
               </div>
             )
           })}

@@ -160,20 +160,75 @@ export const HomePage: FC = () => {
     localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState))
   }
 
+  // Find commit info to display branch names
+  const fromCommitInfo = commits.find(c => c.hash.startsWith(selectedFromCommit.slice(0, 7)) || selectedFromCommit === c.hash)
+  const toCommitInfo = commits.find(c => c.hash.startsWith(selectedToCommit.slice(0, 7)) || selectedToCommit === c.hash)
+  
+  const fromLabel = selectedFromCommit === 'HEAD~1' ? '(previous)' : fromCommitInfo ? fromCommitInfo.hash.slice(0, 7) : selectedFromCommit
+  const toLabel = selectedToCommit === 'HEAD' ? '(current)' : toCommitInfo ? toCommitInfo.hash.slice(0, 7) : selectedToCommit
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {})
+  }
+
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       {/* Compact Header */}
       <header className="border-b border-gray-200 bg-white px-4 py-2">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-lg font-semibold text-gray-900">Git Diff Reviewer</h1>
-          {selectedRepo && (
-            <div className="flex items-center gap-3 text-sm text-gray-700">
-              <span className="text-xs text-gray-500">{selectedRepo.name}</span>
-              <span className="inline-flex items-center rounded bg-blue-50 px-2 py-1 font-mono text-xs font-medium text-blue-700">
-                {currentBranch}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-semibold text-gray-900">Git Diff Reviewer</h1>
+            
+            {/* Repository selector in header */}
+            <select
+              value={selectedRepo?.path || ''}
+              onChange={(e) => {
+                const repo = repositories.find((r) => r.path === e.target.value)
+                if (repo) handleRepoChange(repo)
+              }}
+              className="rounded border border-gray-300 px-2 py-1 text-xs"
+              disabled={reposLoading}
+            >
+              <option value="">Select repository...</option>
+              {repositories.map((repo: Repository) => (
+                <option key={repo.path} value={repo.path}>
+                  {repo.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Commit range display */}
+          {selectedRepo && diff && (
+            <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
+              <span className="text-gray-600">→</span>
+              <span 
+                className="font-mono cursor-pointer group relative"
+                title={selectedFromCommit}
+              >
+                {fromLabel}
+                <span className="absolute left-0 -bottom-6 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded whitespace-nowrap z-10 text-xs." onClick={() => copyToClipboard(selectedFromCommit)}>
+                  {selectedFromCommit} (click to copy)
+                </span>
               </span>
+              <span className="text-gray-400">→</span>
+              <span
+                className="font-mono cursor-pointer group relative"
+                title={selectedToCommit}
+              >
+                {toLabel}
+                <span className="absolute left-0 -bottom-6 hidden group-hover:block bg-gray-900 text-white px-2 py-1 rounded whitespace-nowrap z-10 text-xs" onClick={() => copyToClipboard(selectedToCommit)}>
+                  {selectedToCommit} (click to copy)
+                </span>
+              </span>
+              {currentBranch && (
+                <span className="inline-flex items-center rounded bg-blue-50 px-2 py-1 font-mono text-xs font-medium text-blue-700 ml-2">
+                  {currentBranch}
+                </span>
+              )}
             </div>
           )}
+          
           <button
             onClick={toggleControlsCollapsed}
             className="ml-auto rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
@@ -186,28 +241,8 @@ export const HomePage: FC = () => {
       {/* Collapsible Controls Section */}
       {!controlsCollapsed && (
         <div className="border-b border-gray-200 bg-white p-3">
-          {/* Repository & Custom Paths */}
-          <div className="mb-3 grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Repository</label>
-              <select
-                value={selectedRepo?.path || ''}
-                onChange={(e) => {
-                  const repo = repositories.find((r) => r.path === e.target.value)
-                  if (repo) handleRepoChange(repo)
-                }}
-                className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-                disabled={reposLoading}
-              >
-                <option value="">Select a repository...</option>
-                {repositories.map((repo: Repository) => (
-                  <option key={repo.path} value={repo.path}>
-                    {repo.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          {/* Custom Paths & Branch Management */}
+          <div className="mb-3 grid grid-cols-2 gap-3">
             {selectedRepo && (
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Branch</label>
