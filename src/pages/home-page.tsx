@@ -12,12 +12,12 @@ interface Repository {
   name: string
 }
 
-type RefValue = { type: 'commit'; value: string } | { type: 'branch'; value: string }
-
 export const HomePage: FC = () => {
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
-  const [selectedFrom, setSelectedFrom] = useState<RefValue>({ type: 'commit', value: 'HEAD~1' })
-  const [selectedTo, setSelectedTo] = useState<RefValue>({ type: 'commit', value: 'HEAD' })
+  const [fromBranch, setFromBranch] = useState<string>('')
+  const [toBranch, setToBranch] = useState<string>('')
+  const [fromCommit, setFromCommit] = useState<string>('HEAD~1')
+  const [toCommit, setToCommit] = useState<string>('HEAD')
   const [customPathInput, setCustomPathInput] = useState('')
   const [customPaths, setCustomPaths] = useState<string[]>([])
   const [controlsCollapsed, setControlsCollapsed] = useState(true)
@@ -96,7 +96,6 @@ export const HomePage: FC = () => {
 
   const {
     data: branches = [],
-    isLoading: branchesLoading,
   } = useQuery({
     queryKey: ['branches', selectedRepo?.path],
     queryFn: async () => {
@@ -121,29 +120,38 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   })
 
-  const fromValue = selectedFrom.type === 'branch' ? selectedFrom.value : selectedFrom.value
-  const toValue = selectedTo.type === 'branch' ? selectedTo.value : selectedTo.value
+  const filteredCommitsFrom = useMemo(() => {
+    if (!fromBranch) return commits
+    return commits.slice(0, 20)
+  }, [commits, fromBranch])
+
+  const filteredCommitsTo = useMemo(() => {
+    if (!toBranch) return commits
+    return commits.slice(0, 20)
+  }, [commits, toBranch])
 
   const {
     data: diff,
     isLoading: diffLoading,
     error: diffError,
   } = useQuery({
-    queryKey: ['diff', fromValue, toValue, selectedRepo?.path],
+    queryKey: ['diff', fromCommit, toCommit, selectedRepo?.path],
     queryFn: async () => {
       const url = new URL('/api/diff', window.location.origin)
-      url.searchParams.set('from', fromValue)
-      url.searchParams.set('to', toValue)
+      url.searchParams.set('from', fromCommit)
+      url.searchParams.set('to', toCommit)
       if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
       const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch diff')
       return (await response.json()) as Diff
     },
-    enabled: !!selectedRepo && !!fromValue && !!toValue,
+    enabled: !!selectedRepo && !!fromCommit && !!toCommit,
   })
 
   const handleRepoChange = (repo: Repository) => {
     setSelectedRepo(repo)
+    setFromCommit('HEAD~1')
+    setToCommit('HEAD')
     localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo))
   }
 
@@ -153,61 +161,22 @@ export const HomePage: FC = () => {
     localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState))
   }
 
-  const getRefDisplay = (ref: RefValue) => {
-    if (ref.type === 'branch') {
-      return { label: ref.value, sublabel: 'branch' }
+  const getRefDisplay = (ref: string, isBranch: boolean, branch: string) => {
+    if (isBranch) {
+      return { label: branch, sublabel: 'branch' }
     }
-    const info = commits.find(c => c.hash.startsWith(ref.value.slice(0, 7)) || ref.value === c.hash)
-    if (ref.value === 'HEAD~1' || ref.value === 'HEAD') {
-      return { label: ref.value, sublabel: info?.message || '' }
+    const info = commits.find(c => c.hash.startsWith(ref.slice(0, 7)) || ref === c.hash)
+    if (ref === 'HEAD~1' || ref === 'HEAD') {
+      return { label: ref, sublabel: info?.message || '' }
     }
     return {
-      label: ref.value.slice(0, 7),
+      label: ref.slice(0, 7),
       sublabel: info?.message || ''
     }
   }
 
-  const fromDisplay = getRefDisplay(selectedFrom)
-  const toDisplay = getRefDisplay(selectedTo)
-
-  const renderRefSelect = (
-    label: string,
-    value: RefValue,
-    onChange: (v: RefValue) => void
-  ) => (
-    <div>
-      <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
-      <select
-        value={value.type === 'branch' ? `branch:${value.value}` : `commit:${value.value}`}
-        onChange={(e) => {
-          const val = e.target.value
-          if (val.startsWith('branch:')) {
-            onChange({ type: 'branch', value: val.replace('branch:', '') })
-          } else {
-            onChange({ type: 'commit', value: val.replace('commit:', '') })
-          }
-        }}
-        className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
-      >
-        <optgroup label="Branches">
-          {branches.map((branch) => (
-            <option key={`branch:${branch}`} value={`branch:${branch}`}>
-              {branch}
-            </option>
-          ))}
-        </optgroup>
-        <optgroup label="Commits">
-          <option value="commit:HEAD~1">HEAD~1 (previous)</option>
-          <option value="commit:HEAD">HEAD (current)</option>
-          {commits.map((commit: CommitInfo) => (
-            <option key={`commit:${commit.hash}`} value={`commit:${commit.hash}`}>
-              {commit.hash.slice(0, 7)} - {commit.message}
-            </option>
-          ))}
-        </optgroup>
-      </select>
-    </div>
-  )
+  const fromDisplay = getRefDisplay(fromCommit, false, fromBranch)
+  const toDisplay = getRefDisplay(toCommit, false, toBranch)
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -236,17 +205,11 @@ export const HomePage: FC = () => {
 
           {selectedRepo && diff && (
             <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
-              <span
-                className="font-mono cursor-pointer group relative hover:text-blue-600"
-                title={fromDisplay.sublabel}
-              >
+              <span className="font-mono" title={fromDisplay.sublabel}>
                 {fromDisplay.label}
               </span>
               <span className="text-gray-400">→</span>
-              <span
-                className="font-mono cursor-pointer group relative hover:text-blue-600"
-                title={toDisplay.sublabel}
-              >
+              <span className="font-mono" title={toDisplay.sublabel}>
                 {toDisplay.label}
               </span>
               {currentBranch && (
@@ -266,74 +229,113 @@ export const HomePage: FC = () => {
         </div>
       </header>
 
-      {!controlsCollapsed && (
+      {!controlsCollapsed && selectedRepo && (
         <div className="border-b border-gray-200 bg-white p-3">
-          <div className="mb-3 grid grid-cols-2 gap-3">
-            {selectedRepo && (
+          <div className="grid grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-gray-700">From</div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Current Branch</label>
+                <label className="block text-xs text-gray-500 mb-1">Branch (optional)</label>
                 <select
-                  value={currentBranch}
-                  disabled={branchesLoading}
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs disabled:bg-gray-50"
+                  value={fromBranch}
+                  onChange={(e) => setFromBranch(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
                 >
+                  <option value="">All branches</option>
                   {branches.map((branch) => (
-                    <option key={branch} value={branch}>
-                      {branch}
+                    <option key={branch} value={branch}>{branch}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Commit</label>
+                <select
+                  value={fromCommit}
+                  onChange={(e) => setFromCommit(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                >
+                  <option value="HEAD~1">HEAD~1</option>
+                  <option value="HEAD">HEAD</option>
+                  {filteredCommitsFrom.map((commit: CommitInfo) => (
+                    <option key={commit.hash} value={commit.hash}>
+                      {commit.hash.slice(0, 7)} - {commit.message}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
+            </div>
 
-            {selectedRepo && (
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-gray-700">To</div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Add Custom Path</label>
-                <div className="flex gap-1">
-                  <input
-                    type="text"
-                    value={customPathInput}
-                    onChange={(e) => setCustomPathInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addCustomPath()}
-                    placeholder="Path..."
-                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-                  />
-                  <button
-                    onClick={addCustomPath}
-                    className="rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white hover:bg-blue-600"
+                <label className="block text-xs text-gray-500 mb-1">Branch (optional)</label>
+                <select
+                  value={toBranch}
+                  onChange={(e) => setToBranch(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                >
+                  <option value="">All branches</option>
+                  {branches.map((branch) => (
+                    <option key={branch} value={branch}>{branch}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Commit</label>
+                <select
+                  value={toCommit}
+                  onChange={(e) => setToCommit(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                >
+                  <option value="HEAD~1">HEAD~1</option>
+                  <option value="HEAD">HEAD</option>
+                  {filteredCommitsTo.map((commit: CommitInfo) => (
+                    <option key={commit.hash} value={commit.hash}>
+                      {commit.hash.slice(0, 7)} - {commit.message}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Custom Paths</label>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={customPathInput}
+                onChange={(e) => setCustomPathInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addCustomPath()}
+                placeholder="Add path to search for repos..."
+                className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
+              />
+              <button
+                onClick={addCustomPath}
+                className="rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white hover:bg-blue-600"
+              >
+                Add
+              </button>
+            </div>
+            {customPaths.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {customPaths.map((p) => (
+                  <span
+                    key={p}
+                    className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs"
                   >
-                    Add
-                  </button>
-                </div>
+                    {p}
+                    <button
+                      onClick={() => removeCustomPath(p)}
+                      className="text-gray-500 hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
               </div>
             )}
           </div>
-
-          {customPaths.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1">
-              {customPaths.map((p) => (
-                <span
-                  key={p}
-                  className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs"
-                >
-                  {p}
-                  <button
-                    onClick={() => removeCustomPath(p)}
-                    className="text-gray-500 hover:text-red-500"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-
-          {selectedRepo && (
-            <div className="grid grid-cols-2 gap-3">
-              {renderRefSelect('From', selectedFrom, setSelectedFrom)}
-              {renderRefSelect('To', selectedTo, setSelectedTo)}
-            </div>
-          )}
 
           {(commitsError || diffError) && (
             <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">

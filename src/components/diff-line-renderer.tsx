@@ -138,7 +138,7 @@ export const DiffLineRenderer: FC<DiffLineRendererProps> = ({
       data-line-id={line.id}
       title={filePath ? `Click to open in VSCode: ${filePath}:${line.type === 'remove' ? line.oldLineNumber : line.newLineNumber}` : undefined}
     >
-      <span className="select-none mr-2 text-gray-400 w-4 inline-block">{prefix[line.type]}</span>
+      <span className="select-none mr-2 text-gray-400 w-4 inline-block flex-shrink-0">{prefix[line.type]}</span>
       {charDiff ? (
         charDiff.map((item, idx) => (
           <span

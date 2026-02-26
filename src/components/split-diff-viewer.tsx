@@ -86,22 +86,18 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
 
     let isSyncing = false
 
-    const handleLeftScroll = () => {
+    const syncScroll = (source: HTMLElement, target: HTMLElement) => {
       if (isSyncing) return
       isSyncing = true
-      rightPane.scrollTop = leftPane.scrollTop
-      requestAnimationFrame(() => { isSyncing = false })
+      target.scrollTop = source.scrollTop
+      setTimeout(() => { isSyncing = false }, 10)
     }
 
-    const handleRightScroll = () => {
-      if (isSyncing) return
-      isSyncing = true
-      leftPane.scrollTop = rightPane.scrollTop
-      requestAnimationFrame(() => { isSyncing = false })
-    }
+    const handleLeftScroll = () => syncScroll(leftPane, rightPane)
+    const handleRightScroll = () => syncScroll(rightPane, leftPane)
 
-    leftPane.addEventListener('scroll', handleLeftScroll)
-    rightPane.addEventListener('scroll', handleRightScroll)
+    leftPane.addEventListener('scroll', handleLeftScroll, { passive: true })
+    rightPane.addEventListener('scroll', handleRightScroll, { passive: true })
 
     return () => {
       leftPane.removeEventListener('scroll', handleLeftScroll)
@@ -147,7 +143,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
     }
 
     return (
-      <div className="flex">
+      <div className="flex shrink-0">
         <div className="w-12 bg-gray-50 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
           <span className="text-xs text-gray-500">
             {side === 'left'
@@ -185,39 +181,43 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
         </div>
       </div>
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         <div
           ref={leftPaneRef}
-          className="flex-1 overflow-auto"
+          className={`flex-1 overflow-auto ${!wordWrap ? 'max-w-[50%]' : ''}`}
         >
-          {diff.files.map((file) => (
-            <div key={`left-${file.index}`}>
-              {renderFileHeader(file, 'left')}
-              {alignedLines.filter(a => a.fileIndex === file.index).map((aligned, idx) => (
-                <div key={`left-line-${file.index}-${idx}`}>
-                  {renderLine(aligned, 'left')}
-                </div>
-              ))}
-            </div>
-          ))}
+          <div className={!wordWrap ? 'min-w-max' : ''}>
+            {diff.files.map((file) => (
+              <div key={`left-${file.index}`}>
+                {renderFileHeader(file, 'left')}
+                {alignedLines.filter(a => a.fileIndex === file.index).map((aligned, idx) => (
+                  <div key={`left-line-${file.index}-${idx}`}>
+                    {renderLine(aligned, 'left')}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="w-px bg-gray-300 shrink-0"></div>
 
         <div
           ref={rightPaneRef}
-          className="flex-1 overflow-auto"
+          className={`flex-1 overflow-auto ${!wordWrap ? 'max-w-[50%]' : ''}`}
         >
-          {diff.files.map((file) => (
-            <div key={`right-${file.index}`}>
-              {renderFileHeader(file, 'right')}
-              {alignedLines.filter(a => a.fileIndex === file.index).map((aligned, idx) => (
-                <div key={`right-line-${file.index}-${idx}`}>
-                  {renderLine(aligned, 'right')}
-                </div>
-              ))}
-            </div>
-          ))}
+          <div className={!wordWrap ? 'min-w-max' : ''}>
+            {diff.files.map((file) => (
+              <div key={`right-${file.index}`}>
+                {renderFileHeader(file, 'right')}
+                {alignedLines.filter(a => a.fileIndex === file.index).map((aligned, idx) => (
+                  <div key={`right-line-${file.index}-${idx}`}>
+                    {renderLine(aligned, 'right')}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
