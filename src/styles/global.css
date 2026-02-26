@@ -1,46 +1,59 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* Global styles */
-* {
-  @apply scroll-smooth;
+@theme {
+  --color-diff-add: #d4edda;
+  --color-diff-add-border: #c3e6cb;
+  --color-diff-add-text: #155724;
+  --color-diff-remove: #f8d7da;
+  --color-diff-remove-border: #f5c6cb;
+  --color-diff-remove-text: #721c24;
+  --color-diff-neutral: #f8f9fa;
+  --color-diff-neutral-border: #dee2e6;
+  --font-mono: "Fira Code", "Courier New", monospace;
 }
 
-body {
-  @apply antialiased;
+@layer base {
+  * {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply antialiased;
+  }
 }
 
-/* Diff viewer specific styles */
-.diff-line {
-  @apply font-mono text-sm;
-}
+@layer components {
+  /* Diff viewer specific styles */
+  .diff-line {
+    @apply font-mono text-sm;
+  }
 
-.diff-line-add {
-  @apply bg-diff-add/30;
-}
+  .diff-line-add {
+    @apply bg-diff-add/30;
+  }
 
-.diff-line-remove {
-  @apply bg-diff-remove/30;
-}
+  .diff-line-remove {
+    @apply bg-diff-remove/30;
+  }
 
-.diff-line-context {
-  @apply bg-diff-neutral/30;
-}
+  .diff-line-context {
+    @apply bg-diff-neutral/30;
+  }
 
-.diff-line-number {
-  @apply inline-block w-12 pr-4 text-right text-xs text-gray-500 select-none;
-}
+  .diff-line-number {
+    @apply inline-block w-12 pr-4 text-right text-xs text-gray-500 select-none;
+  }
 
-.search-highlight {
-  @apply bg-yellow-200/50;
-}
+  .search-highlight {
+    @apply bg-yellow-200/50;
+  }
 
-/* Scrollbar styling */
-.scrollbar-thin {
-  scrollbar-width: thin;
-}
+  /* Scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
 
-.scrollbar-thumb-gray {
-  scrollbar-color: rgb(156, 163, 175) rgba(0, 0, 0, 0.1);
+  .scrollbar-thumb-gray {
+    scrollbar-color: rgb(156, 163, 175) rgba(0, 0, 0, 0.1);
+  }
 }

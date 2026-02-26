@@ -1,8 +1,7 @@
-module.exports = {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+import type { Config } from 'tailwindcss'
+
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -16,9 +15,8 @@ module.exports = {
         'diff-neutral-border': '#dee2e6',
       },
       fontFamily: {
-        'mono': ['"Fira Code"', '"Courier New"', 'monospace'],
+        mono: ['"Fira Code"', '"Courier New"', 'monospace'],
       },
     },
   },
-  plugins: [],
-}
+} satisfies Config
