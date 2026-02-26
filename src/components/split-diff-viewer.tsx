@@ -39,11 +39,18 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
     count: maxLines,
     getScrollElement: () => leftRef.current,
     estimateSize: () => VIRTUAL_LINE_HEIGHT,
-    measureElement: typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1 ? undefined : () => VIRTUAL_LINE_HEIGHT,
+    overscan: 20,
   })
 
   const virtualItems = virtualizer.getVirtualItems()
   const totalSize = virtualizer.getTotalSize()
+
+  // Force virtualizer to re-measure after mount
+  useEffect(() => {
+    if (leftRef.current) {
+      virtualizer.measure()
+    }
+  }, [virtualizer])
 
   // Synchronize scroll between left and right
   useEffect(() => {

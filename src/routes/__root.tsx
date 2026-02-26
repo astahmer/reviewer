@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
+import { ErrorBoundary } from "~/components/error-boundary";
 
 interface MyRouterContext {
   queryClient: QueryClient;
@@ -30,15 +31,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
-        {/* {import.meta.env.DEV && (
-					<script
-						crossOrigin="anonymous"
-						src="//unpkg.com/react-scan/dist/auto.global.js"
-					></script>
-				)} */}
       </head>
       <body className="bg-background text-foreground">
-        <div className="flex h-full min-h-screen flex-col">{children}</div>
+        <ErrorBoundary>
+          <div className="flex h-full min-h-screen flex-col">{children}</div>
+        </ErrorBoundary>
         <Scripts />
       </body>
     </html>

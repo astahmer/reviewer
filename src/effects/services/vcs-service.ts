@@ -55,3 +55,15 @@ export const getBranches = (): Effect.Effect<string[], VCSError, VCSContext> => 
     return yield* vcs.getBranches()
   })
 }
+
+/**
+ * Get list of available repositories
+ */
+export const listRepositories = (
+  basePaths?: string[],
+): Effect.Effect<Array<{ path: string; name: string }>, VCSError, VCSContext> => {
+  return Effect.gen(function* () {
+    const vcs = yield* VCSContext
+    return yield* vcs.listRepositories(basePaths)
+  })
+}

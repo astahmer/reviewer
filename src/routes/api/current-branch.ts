@@ -4,9 +4,12 @@ import { getCurrentBranch } from '~/server/diff-reviewer.start'
 export const Route = createFileRoute('/api/current-branch')({
   server: {
     handlers: {
-      GET: async (_: { request: Request }) => {
+      GET: async ({ request }: { request: Request }) => {
         try {
-          const branch = await getCurrentBranch()
+          const url = new URL(request.url)
+          const repoPath = url.searchParams.get('repoPath') || undefined
+
+          const branch = await getCurrentBranch(repoPath)
           return new Response(branch, {
             status: 200,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' },

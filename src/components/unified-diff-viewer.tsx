@@ -1,4 +1,4 @@
-import { FC, useRef, useState } from 'react'
+import { FC, useRef, useState, useEffect } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Diff, Line } from '~/lib/types'
 import { VIRTUAL_LINE_HEIGHT } from '~/lib/constants'
@@ -32,11 +32,18 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
     count: diff.flatLines.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => VIRTUAL_LINE_HEIGHT,
-    measureElement: typeof window !== 'undefined' && navigator.userAgent.indexOf('Firefox') === -1 ? undefined : () => VIRTUAL_LINE_HEIGHT,
+    overscan: 20,
   })
 
   const virtualItems = virtualizer.getVirtualItems()
   const totalSize = virtualizer.getTotalSize()
+
+  // Force virtualizer to re-measure after mount
+  useEffect(() => {
+    if (parentRef.current) {
+      virtualizer.measure()
+    }
+  }, [virtualizer])
 
   return (
     <div className="flex flex-col h-full bg-white border border-gray-200 rounded-lg overflow-hidden">

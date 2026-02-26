@@ -9,6 +9,7 @@ export const Route = createFileRoute('/api/diff')({
           const url = new URL(request.url)
           const from = url.searchParams.get('from')
           const to = url.searchParams.get('to')
+          const repoPath = url.searchParams.get('repoPath') || undefined
 
           if (!from || !to) {
             return Response.json(
@@ -17,7 +18,7 @@ export const Route = createFileRoute('/api/diff')({
             )
           }
 
-          const diff = await getDiff(from, to)
+          const diff = await getDiff(from, to, repoPath)
           return Response.json(diff)
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Failed to fetch diff'

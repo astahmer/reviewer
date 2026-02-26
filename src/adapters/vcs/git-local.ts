@@ -1,11 +1,45 @@
 import { Effect } from 'effect'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import * as os from 'node:os'
 import { GIT_DIFF_TIMEOUT_MS } from '~/lib/constants'
 import { VCSError } from '~/lib/errors'
 import { VCSAdapter } from './vcs.interface'
 
 const execAsync = promisify(exec)
+
+const MAX_DEPTH = 3
+
+async function scanForGitRepos(
+  basePath: string,
+  repos: Array<{ path: string; name: string }>,
+  currentDepth = 0,
+): Promise<void> {
+  if (currentDepth > MAX_DEPTH) return
+
+  try {
+    const entries = await fs.readdir(basePath, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
+
+      const fullPath = path.join(basePath, entry.name)
+
+      try {
+        const gitPath = path.join(fullPath, '.git')
+        await fs.access(gitPath)
+        repos.push({ path: fullPath, name: entry.name })
+      } catch {
+        await scanForGitRepos(fullPath, repos, currentDepth + 1)
+      }
+    }
+  } catch {
+    // Skip inaccessible directories
+  }
+}
 
 /**
  * Git local VCS adapter
@@ -96,6 +130,29 @@ export class GitLocalAdapter implements VCSAdapter {
         new VCSError({
           message: `Failed to get branches: ${error instanceof Error ? error.message : String(error)}`,
           command: 'git branch --list',
+        }),
+    })
+  }
+
+  listRepositories(basePaths?: string[]): Effect.Effect<Array<{ path: string; name: string }>, VCSError> {
+    const paths = basePaths || [os.homedir()]
+    const repos: Array<{ path: string; name: string }> = []
+
+    return Effect.tryPromise({
+      try: async () => {
+        for (const basePath of paths) {
+          try {
+            await scanForGitRepos(basePath, repos)
+          } catch {
+            // Skip directories that don't exist or can't be read
+          }
+        }
+        return repos
+      },
+      catch: (error: unknown) =>
+        new VCSError({
+          message: `Failed to list repositories: ${error instanceof Error ? error.message : String(error)}`,
+          command: 'find git repos',
         }),
     })
   }

@@ -26,6 +26,11 @@ export interface VCSAdapter {
    * Get list of branches
    */
   getBranches(): Effect.Effect<string[], VCSError>
+
+  /**
+   * Get list of available repositories (git directories)
+   */
+  listRepositories(basePaths?: string[]): Effect.Effect<Array<{ path: string; name: string }>, VCSError>
 }
 
 export class VCSAdapterTag extends Context.Tag('VCSAdapter')<VCSAdapterTag, VCSAdapter>() {
