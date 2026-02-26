@@ -55,7 +55,7 @@ export const DiffLineRenderer: FC<DiffLineRendererProps> = ({ line, isHighlighte
       data-line-id={line.id}
     >
       <span className="select-none mr-1 text-gray-500">{prefix[line.type]}</span>
-      <span>{line.content}</span>
+      <span className='text-black'>{line.content}</span>
     </div>
   )
 }
