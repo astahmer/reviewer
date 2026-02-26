@@ -8,31 +8,37 @@ interface UnifiedDiffViewerProps {
   diff: Diff
   highlightedIds?: Set<string>
   onLineSelect?: (line: Line) => void
+  repoPath?: string
 }
 
-type RenderItem = 
+type RenderItem =
   | { type: 'header'; file: FileDiff; index: number }
   | { type: 'line'; line: Line; index: number }
 
 const FILE_HEADER_HEIGHT = 40
 
-export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect }) => {
+export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect, repoPath }) => {
   const parentRef = useRef<HTMLDivElement>(null)
   const [hoveredLine, setHoveredLine] = useState<Line | null>(null)
 
+  const getAbsolutePath = (relativePath: string): string => {
+    if (!repoPath) return relativePath
+    return `${repoPath}/${relativePath}`.replace(/\/+/g, '/')
+  }
+
   const renderItems = useMemo((): RenderItem[] => {
     const items: RenderItem[] = []
-    
+
     for (const file of diff.files) {
       items.push({ type: 'header', file, index: items.length })
-      
+
       for (const hunk of file.hunks) {
         for (const line of hunk.lines) {
           items.push({ type: 'line', line, index: items.length })
         }
       }
     }
-    
+
     return items
   }, [diff.files])
 
@@ -143,7 +149,7 @@ export const UnifiedDiffViewer: FC<UnifiedDiffViewerProps> = ({ diff, highlighte
                 <div className="flex-1 min-w-0">
                   <DiffLineRenderer
                     line={line}
-                    filePath={line.type === 'remove' ? file.oldPath : file.newPath}
+                    filePath={getAbsolutePath(line.type === 'remove' ? file.oldPath : file.newPath)}
                     isHighlighted={highlightedIds.has(line.id)}
                     onClick={() => onLineSelect?.(line)}
                     onHover={setHoveredLine}

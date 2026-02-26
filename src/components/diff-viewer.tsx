@@ -12,9 +12,10 @@ interface DiffViewerProps {
   highlightedIds?: Set<string>
   onLineSelect?: (line: Line) => void
   defaultMode?: ViewMode
+  repoPath?: string
 }
 
-export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSelect, defaultMode = 'unified' }) => {
+export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSelect, defaultMode = 'unified', repoPath }) => {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(VIEW_MODE_KEY)
     return (saved as ViewMode) || defaultMode
@@ -103,12 +104,14 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSe
             diff={filteredDiff}
             highlightedIds={highlightedLineIds}
             onLineSelect={onLineSelect}
+            repoPath={repoPath}
           />
         ) : (
           <SplitDiffViewer
             diff={filteredDiff}
             highlightedIds={highlightedLineIds}
             onLineSelect={onLineSelect}
+            repoPath={repoPath}
           />
         )}
       </div>

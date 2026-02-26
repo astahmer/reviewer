@@ -8,7 +8,12 @@ interface SplitDiffViewerProps {
   diff: Diff
   highlightedIds?: Set<string>
   onLineSelect?: (line: Line) => void
+  repoPath?: string
 }
+
+type RenderItem =
+  | { type: 'header'; file: FileDiff; index: number }
+  | { type: 'line'; aligned: AlignedLine; index: number }
 
 interface AlignedLine {
   left: Line | null
@@ -18,7 +23,9 @@ interface AlignedLine {
   rightPairedContent?: string
 }
 
-export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect }) => {
+const FILE_HEADER_HEIGHT = 40
+
+export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds = new Set(), onLineSelect, repoPath }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const leftRef = useRef<HTMLDivElement>(null)
   const rightRef = useRef<HTMLDivElement>(null)
@@ -80,10 +87,34 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
     return result
   }, [diff.files])
 
+  const renderItems = useMemo((): RenderItem[] => {
+    const items: RenderItem[] = []
+    const linesByFile = new Map<number, AlignedLine[]>()
+    
+    for (const aligned of alignedLines) {
+      const arr = linesByFile.get(aligned.fileIndex) || []
+      arr.push(aligned)
+      linesByFile.set(aligned.fileIndex, arr)
+    }
+    
+    for (const file of diff.files) {
+      items.push({ type: 'header', file, index: items.length })
+      
+      const fileLines = linesByFile.get(file.index) || []
+      for (const aligned of fileLines) {
+        items.push({ type: 'line', aligned, index: items.length })
+      }
+    }
+    
+    return items
+  }, [diff.files, alignedLines])
+
   const virtualizer = useVirtualizer({
-    count: alignedLines.length,
+    count: renderItems.length,
     getScrollElement: () => containerRef.current,
-    estimateSize: () => VIRTUAL_LINE_HEIGHT,
+    estimateSize: (index) => {
+      return renderItems[index]?.type === 'header' ? FILE_HEADER_HEIGHT : VIRTUAL_LINE_HEIGHT
+    },
     overscan: 20,
   })
 
@@ -135,19 +166,65 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
     }
   }, [])
 
-  const getFileAtIndex = (index: number): FileDiff | null => {
-    if (index < 0 || index >= diff.files.length) return null
-    return diff.files[index]
+  const getAbsolutePath = (relativePath: string): string => {
+    if (!repoPath) return relativePath
+    return `${repoPath}/${relativePath}`.replace(/\/+/g, '/')
   }
 
-  const isFileStart = (index: number): boolean => {
-    if (index < 0) return false
-    const currentFile = getFileAtIndex(alignedLines[index]?.fileIndex)
-    if (!currentFile) return false
+  const renderFileHeader = (file: FileDiff, side: 'left' | 'right') => (
+    <div className="px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 flex items-center gap-2 h-10">
+      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+        file.status === 'add' ? 'bg-green-100 text-green-800' :
+        file.status === 'remove' ? 'bg-red-100 text-red-800' :
+        file.status === 'rename' ? 'bg-blue-100 text-blue-800' :
+        'bg-gray-200 text-gray-800'
+      }`}>
+        {file.status}
+      </span>
+      <span className="font-mono text-gray-700 truncate">
+        {side === 'left' ? (file.oldPath || file.newPath) : file.newPath}
+      </span>
+    </div>
+  )
+
+  const renderEmptyLine = () => (
+    <div className="flex h-full bg-gray-50">
+      <div className="w-12 bg-gray-100 border-r border-gray-200 flex-shrink-0"></div>
+      <div className="flex-1"></div>
+    </div>
+  )
+
+  const renderLine = (aligned: AlignedLine, side: 'left' | 'right') => {
+    const line = side === 'left' ? aligned.left : aligned.right
+    const file = diff.files[aligned.fileIndex]
+    const filePath = side === 'left' ? file?.oldPath : file?.newPath
     
-    if (index === 0) return true
-    const prevFile = getFileAtIndex(alignedLines[index - 1]?.fileIndex)
-    return prevFile?.index !== currentFile.index
+    if (!line) {
+      return renderEmptyLine()
+    }
+
+    return (
+      <div className="flex h-full">
+        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
+          <span className="text-xs text-gray-500">
+            {side === 'left' 
+              ? (line.oldLineNumber >= 0 ? line.oldLineNumber : '')
+              : (line.newLineNumber >= 0 ? line.newLineNumber : '')
+            }
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <DiffLineRenderer
+            line={line}
+            filePath={filePath ? getAbsolutePath(filePath) : undefined}
+            isHighlighted={highlightedIds.has(line.id)}
+            onClick={() => onLineSelect?.(line)}
+            onHover={setHoveredLine}
+            pairedContent={side === 'left' ? aligned.rightPairedContent : aligned.leftPairedContent}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -182,11 +259,28 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
             }}
           >
             {virtualItems.map((virtualItem) => {
-              const aligned = alignedLines[virtualItem.index]
-              if (!aligned) return null
+              const item = renderItems[virtualItem.index]
+              if (!item) return null
 
-              const file = diff.files[aligned.fileIndex]
-              const isNewFile = isFileStart(virtualItem.index)
+              if (item.type === 'header') {
+                return (
+                  <div
+                    key={`header-left-${item.file.index}`}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      transform: `translateY(${virtualItem.start}px)`,
+                      height: `${virtualItem.size}px`,
+                    }}
+                  >
+                    {renderFileHeader(item.file, 'left')}
+                  </div>
+                )
+              }
+
+              const aligned = item.aligned
 
               return (
                 <div
@@ -197,55 +291,10 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                     left: 0,
                     right: 0,
                     transform: `translateY(${virtualItem.start}px)`,
+                    height: `${virtualItem.size}px`,
                   }}
                 >
-                  {isNewFile && file && (
-                    <div className="px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 flex items-center gap-2 h-10">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                        file.status === 'add' ? 'bg-green-100 text-green-800' :
-                        file.status === 'remove' ? 'bg-red-100 text-red-800' :
-                        file.status === 'rename' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-200 text-gray-800'
-                      }`}>
-                        {file.status}
-                      </span>
-                      {file.oldPath === file.newPath ? (
-                        <span className="font-mono text-gray-700 truncate">{file.newPath}</span>
-                      ) : (
-                        <>
-                          <span className="font-mono text-gray-600 truncate">{file.oldPath}</span>
-                          <span className="text-gray-400 flex-shrink-0">→</span>
-                          <span className="font-mono text-gray-700 truncate">{file.newPath}</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ height: `${VIRTUAL_LINE_HEIGHT}px` }}>
-                    {aligned.left ? (
-                      <div className="flex h-full">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
-                          <span className="text-xs text-gray-500">
-                            {aligned.left.oldLineNumber >= 0 ? aligned.left.oldLineNumber : ''}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <DiffLineRenderer
-                            line={aligned.left}
-                            filePath={file?.oldPath}
-                            isHighlighted={highlightedIds.has(aligned.left.id)}
-                            onClick={() => onLineSelect?.(aligned.left!)}
-                            onHover={setHoveredLine}
-                            pairedContent={aligned.rightPairedContent}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex h-full bg-gray-50">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200 flex-shrink-0"></div>
-                        <div className="flex-1"></div>
-                      </div>
-                    )}
-                  </div>
+                  {renderLine(aligned, 'left')}
                 </div>
               )
             })}
@@ -265,11 +314,28 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
             }}
           >
             {virtualItems.map((virtualItem) => {
-              const aligned = alignedLines[virtualItem.index]
-              if (!aligned) return null
+              const item = renderItems[virtualItem.index]
+              if (!item) return null
 
-              const file = diff.files[aligned.fileIndex]
-              const isNewFile = isFileStart(virtualItem.index)
+              if (item.type === 'header') {
+                return (
+                  <div
+                    key={`header-right-${item.file.index}`}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      transform: `translateY(${virtualItem.start}px)`,
+                      height: `${virtualItem.size}px`,
+                    }}
+                  >
+                    {renderFileHeader(item.file, 'right')}
+                  </div>
+                )
+              }
+
+              const aligned = item.aligned
 
               return (
                 <div
@@ -280,55 +346,10 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
                     left: 0,
                     right: 0,
                     transform: `translateY(${virtualItem.start}px)`,
+                    height: `${virtualItem.size}px`,
                   }}
                 >
-                  {isNewFile && file && (
-                    <div className="px-4 py-2 bg-gray-100 border-b border-gray-300 text-xs font-semibold text-gray-700 flex items-center gap-2 h-10">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                        file.status === 'add' ? 'bg-green-100 text-green-800' :
-                        file.status === 'remove' ? 'bg-red-100 text-red-800' :
-                        file.status === 'rename' ? 'bg-blue-100 text-blue-800' :
-                        'bg-gray-200 text-gray-800'
-                      }`}>
-                        {file.status}
-                      </span>
-                      {file.oldPath === file.newPath ? (
-                        <span className="font-mono text-gray-700 truncate">{file.newPath}</span>
-                      ) : (
-                        <>
-                          <span className="font-mono text-gray-600 truncate">{file.oldPath}</span>
-                          <span className="text-gray-400 flex-shrink-0">→</span>
-                          <span className="font-mono text-gray-700 truncate">{file.newPath}</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <div style={{ height: `${VIRTUAL_LINE_HEIGHT}px` }}>
-                    {aligned.right ? (
-                      <div className="flex h-full">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
-                          <span className="text-xs text-gray-500">
-                            {aligned.right.newLineNumber >= 0 ? aligned.right.newLineNumber : ''}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <DiffLineRenderer
-                            line={aligned.right}
-                            filePath={file?.newPath}
-                            isHighlighted={highlightedIds.has(aligned.right.id)}
-                            onClick={() => onLineSelect?.(aligned.right!)}
-                            onHover={setHoveredLine}
-                            pairedContent={aligned.leftPairedContent}
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex h-full bg-gray-50">
-                        <div className="w-12 bg-gray-100 border-r border-gray-200 flex-shrink-0"></div>
-                        <div className="flex-1"></div>
-                      </div>
-                    )}
-                  </div>
+                  {renderLine(aligned, 'right')}
                 </div>
               )
             })}

@@ -13,12 +13,12 @@ interface DiffLineRendererProps {
 function computeCharDiff(oldText: string, newText: string): { char: string; type: 'same' | 'add' | 'remove' }[] {
   const oldChars = oldText.split('')
   const newChars = newText.split('')
-  
+
   const result: { char: string; type: 'same' | 'add' | 'remove' }[] = []
-  
+
   let oldIdx = 0
   let newIdx = 0
-  
+
   while (oldIdx < oldChars.length || newIdx < newChars.length) {
     if (oldIdx >= oldChars.length) {
       result.push({ char: newChars[newIdx], type: 'add' })
@@ -33,7 +33,7 @@ function computeCharDiff(oldText: string, newText: string): { char: string; type
     } else {
       let foundMatch = false
       for (let lookAhead = 1; lookAhead <= 3 && !foundMatch; lookAhead++) {
-        if (oldIdx + lookAhead < oldChars.length && 
+        if (oldIdx + lookAhead < oldChars.length &&
             newChars[newIdx] === oldChars[oldIdx + lookAhead]) {
           for (let i = 0; i < lookAhead; i++) {
             result.push({ char: oldChars[oldIdx + i], type: 'remove' })
@@ -41,7 +41,7 @@ function computeCharDiff(oldText: string, newText: string): { char: string; type
           oldIdx += lookAhead
           foundMatch = true
         }
-        if (newIdx + lookAhead < newChars.length && 
+        if (newIdx + lookAhead < newChars.length &&
             oldChars[oldIdx] === newChars[newIdx + lookAhead]) {
           for (let i = 0; i < lookAhead; i++) {
             result.push({ char: newChars[newIdx + i], type: 'add' })
@@ -58,17 +58,17 @@ function computeCharDiff(oldText: string, newText: string): { char: string; type
       }
     }
   }
-  
+
   return result
 }
 
-export const DiffLineRenderer: FC<DiffLineRendererProps> = ({ 
-  line, 
-  isHighlighted, 
-  onClick, 
-  onHover, 
+export const DiffLineRenderer: FC<DiffLineRendererProps> = ({
+  line,
+  isHighlighted,
+  onClick,
+  onHover,
   filePath,
-  pairedContent 
+  pairedContent
 }) => {
   const prefix = {
     add: '+',
@@ -122,7 +122,7 @@ export const DiffLineRenderer: FC<DiffLineRendererProps> = ({
   return (
     <div
       className={`
-        font-mono text-sm px-3 py-0.5 whitespace-pre-wrap break-words 
+        font-mono text-sm px-3 py-0.5 whitespace-pre-wrap break-words
         hover:bg-opacity-50 transition-colors cursor-pointer
         flex
         ${style.bg} ${style.text} border-l-4 ${style.border}
