@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { SEARCH_DEBOUNCE_MS, DEFAULT_PREFERENCES, STORAGE_KEYS } from '~/lib/constants'
-import { UserPreferences } from '~/lib/types'
+import { UserPreferences, Line } from '~/lib/types'
 
 /**
  * Hook to manage user preferences with localStorage persistence
@@ -66,3 +66,35 @@ export function useSearchHistory(): [string[], (query: string) => void] {
 
   return [history, addToHistory]
 }
+
+/**
+ * Hook to manage selected line in the diff viewer
+ */
+export function useSelectedLine(): [Line | null, (line: Line | null) => void] {
+  const [selectedLine, setSelectedLine] = useState<Line | null>(null)
+
+  return [selectedLine, setSelectedLine]
+}
+
+/**
+ * Hook to manage view mode preference
+ */
+export function useViewMode(): ['unified' | 'split', (mode: 'unified' | 'split') => void] {
+  const [viewMode, setViewMode] = useState<'unified' | 'split'>(() => {
+    const stored = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEYS.preferences) : null
+    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES
+    return prefs.viewMode || 'unified'
+  })
+
+  const updateViewMode = useCallback((mode: 'unified' | 'split') => {
+    setViewMode(mode)
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(STORAGE_KEYS.preferences)
+      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES
+      localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ ...prefs, viewMode: mode }))
+    }
+  }, [])
+
+  return [viewMode, updateViewMode]
+}
+
