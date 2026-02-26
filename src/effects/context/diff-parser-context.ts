@@ -1,6 +1,5 @@
-import * as Effect from 'effect'
+import { Context } from 'effect'
 import { DiffParser } from '~/adapters/diff-parser/types'
 
-export class DiffParserContext extends Effect.Tag<DiffParserContext>()('DiffParserContext') {
-  readonly service: DiffParser = undefined!
+export class DiffParserContext extends Context.Tag('DiffParserContext')<DiffParserContext, DiffParser>() {
 }

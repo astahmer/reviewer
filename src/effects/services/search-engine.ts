@@ -1,7 +1,6 @@
-import * as Effect from 'effect'
+import { Effect } from 'effect'
 import { matchSorter } from 'match-sorter'
 import { Line, DiffFilter } from '~/lib/types'
-import { SEARCH_DEBOUNCE_MS } from '~/lib/constants'
 
 /**
  * Search engine service

@@ -1,4 +1,5 @@
-import * as Effect from 'effect'
+import { Context, Effect } from 'effect'
+import { StorageError } from '~/lib/errors'
 
 /**
  * Storage adapter interface
@@ -9,29 +10,28 @@ export interface StorageAdapter {
   /**
    * Get a value from storage
    */
-  get<T = unknown>(key: string): Effect.Effect<T | null>
+  get<T = unknown>(key: string): Effect.Effect<T | null, StorageError>
 
   /**
    * Set a value in storage
    */
-  set<T>(key: string, value: T): Effect.Effect<void>
+  set<T>(key: string, value: T): Effect.Effect<void, StorageError>
 
   /**
    * Remove a value from storage
    */
-  remove(key: string): Effect.Effect<void>
+  remove(key: string): Effect.Effect<void, StorageError>
 
   /**
    * Clear all storage
    */
-  clear(): Effect.Effect<void>
+  clear(): Effect.Effect<void, StorageError>
 
   /**
    * Get all keys in storage
    */
-  keys(): Effect.Effect<string[]>
+  keys(): Effect.Effect<string[], StorageError>
 }
 
-export class StorageAdapterTag extends Effect.Tag<StorageAdapterTag>()('StorageAdapter') {
-  readonly service: StorageAdapter = undefined!
+export class StorageAdapterTag extends Context.Tag('StorageAdapter')<StorageAdapterTag, StorageAdapter>() {
 }

@@ -1,4 +1,5 @@
-import * as Effect from 'effect'
+import { Effect } from 'effect'
+import { StorageError } from '~/lib/errors'
 import { StorageAdapter } from './storage.interface'
 
 /**
@@ -8,26 +9,26 @@ import { StorageAdapter } from './storage.interface'
 export class MemoryStorageAdapter implements StorageAdapter {
   private store = new Map<string, unknown>()
 
-  get<T = unknown>(key: string): Effect.Effect<T | null> {
+  get<T = unknown>(key: string): Effect.Effect<T | null, StorageError> {
     return Effect.sync(() => {
       const value = this.store.get(key)
       return (value ?? null) as T | null
     })
   }
 
-  set<T>(key: string, value: T): Effect.Effect<void> {
+  set<T>(key: string, value: T): Effect.Effect<void, StorageError> {
     return Effect.sync(() => {
       this.store.set(key, value)
     })
   }
 
-  remove(key: string): Effect.Effect<void> {
+  remove(key: string): Effect.Effect<void, StorageError> {
     return Effect.sync(() => {
       this.store.delete(key)
     })
   }
 
-  clear(): Effect.Effect<void> {
+  clear(): Effect.Effect<void, StorageError> {
     return Effect.sync(() => {
       this.store.clear()
     })

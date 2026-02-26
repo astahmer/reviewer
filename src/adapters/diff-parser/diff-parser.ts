@@ -1,35 +1,28 @@
-import * as Effect from 'effect'
-import * as Diff from 'jsdiff'
+import { Effect } from 'effect'
 import { PARSE_DIFF_TIMEOUT_MS } from '~/lib/constants'
 import { FileDiff, Hunk, Line as DiffLine, Diff as DiffType } from '~/lib/types'
+import { DiffParseError } from '~/lib/errors'
 import { DiffParser } from './types'
 
 /**
- * Parses unified diff format using jsdiff library
+ * Parses unified diff format
  */
 export class JsDiffParser implements DiffParser {
-  parse(rawDiff: string, id: string, from: string, to: string): Effect.Effect<DiffType> {
-    return Effect.gen(function* () {
-      try {
-        const result = yield* Effect.tryPromise({
-          try: async () => {
-            return await Promise.race([
-              parseDiffSync(rawDiff, id, from, to),
-              new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('Diff parsing timeout')), PARSE_DIFF_TIMEOUT_MS),
-              ),
-            ])
-          },
-          catch: (error) =>
-            new Error(`Failed to parse diff: ${error instanceof Error ? error.message : String(error)}`),
-        })
-
-        return result
-      } catch (error) {
-        return yield* Effect.fail(
-          error instanceof Error ? error : new Error(String(error)),
-        )
-      }
+  parse(rawDiff: string, id: string, from: string, to: string): Effect.Effect<DiffType, DiffParseError> {
+    return Effect.tryPromise({
+      try: async () => {
+        return await Promise.race([
+          parseDiffSync(rawDiff, id, from, to),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Diff parsing timeout')), PARSE_DIFF_TIMEOUT_MS),
+          ),
+        ])
+      },
+      catch: (error: unknown) =>
+        new DiffParseError({
+          message: `Failed to parse diff: ${error instanceof Error ? error.message : String(error)}`,
+          rawDiff: rawDiff.slice(0, 100),
+        }),
     })
   }
 }

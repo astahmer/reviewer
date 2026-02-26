@@ -1,6 +1,5 @@
-import * as Effect from 'effect'
+import { Context } from 'effect'
 import { VCSAdapter } from '~/adapters/vcs/vcs.interface'
 
-export class VCSContext extends Effect.Tag<VCSContext>()('VCSContext') {
-  readonly service: VCSAdapter = undefined!
+export class VCSContext extends Context.Tag('VCSContext')<VCSContext, VCSAdapter>() {
 }

@@ -1,7 +1,6 @@
-import * as Effect from 'effect'
-import { VCSAdapter } from '~/adapters/vcs/vcs.interface'
+import { Effect, Schedule } from 'effect'
 import { CommitInfo } from '~/lib/types'
-import { GIT_DIFF_TIMEOUT_MS } from '~/lib/constants'
+import { VCSError } from '~/lib/errors'
 import { VCSContext } from '~/effects/context/vcs-context'
 
 /**
@@ -17,16 +16,12 @@ export const getDiff = (
   from: string,
   to: string,
   options?: { ignoreWhitespace?: boolean },
-): Effect.Effect<string, Error, VCSContext> => {
+): Effect.Effect<string, VCSError, VCSContext> => {
   return Effect.gen(function* () {
     const vcs = yield* VCSContext
-    // Retry up to 3 times on failure
-    return yield* Effect.retry(
-      vcs.getDiff(from, to, options),
-      {
-        times: 3,
-        delay: () => Effect.sleep('100 millis'),
-      },
+    // Retry up to 3 times on failure with 100ms delay
+    return yield* vcs.getDiff(from, to, options).pipe(
+      Effect.retry(Schedule.recurs(3).pipe(Schedule.addDelay(() => '100 millis'))),
     )
   })
 }
@@ -34,7 +29,7 @@ export const getDiff = (
 /**
  * Get recent commits
  */
-export const getCommits = (limit?: number): Effect.Effect<CommitInfo[], Error, VCSContext> => {
+export const getCommits = (limit?: number): Effect.Effect<CommitInfo[], VCSError, VCSContext> => {
   return Effect.gen(function* () {
     const vcs = yield* VCSContext
     return yield* vcs.getCommits(limit)
@@ -44,7 +39,7 @@ export const getCommits = (limit?: number): Effect.Effect<CommitInfo[], Error, V
 /**
  * Get current branch
  */
-export const getCurrentBranch = (): Effect.Effect<string, Error, VCSContext> => {
+export const getCurrentBranch = (): Effect.Effect<string, VCSError, VCSContext> => {
   return Effect.gen(function* () {
     const vcs = yield* VCSContext
     return yield* vcs.getCurrentBranch()
@@ -54,7 +49,7 @@ export const getCurrentBranch = (): Effect.Effect<string, Error, VCSContext> => 
 /**
  * Get list of branches
  */
-export const getBranches = (): Effect.Effect<string[], Error, VCSContext> => {
+export const getBranches = (): Effect.Effect<string[], VCSError, VCSContext> => {
   return Effect.gen(function* () {
     const vcs = yield* VCSContext
     return yield* vcs.getBranches()

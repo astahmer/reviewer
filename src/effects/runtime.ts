@@ -1,5 +1,4 @@
-import * as Effect from 'effect'
-import * as Layer from 'effect/Layer'
+import { Effect, Layer, ManagedRuntime } from 'effect'
 import { createGitLocalAdapter } from '~/adapters/vcs/git-local'
 import { createMemoryStorageAdapter } from '~/adapters/storage/memory'
 import { createJsDiffParser } from '~/adapters/diff-parser/diff-parser'
@@ -28,17 +27,16 @@ const diffParserLayer = Layer.succeed(DiffParserContext, createJsDiffParser())
 export const appLayer = Layer.merge(Layer.merge(vcsLayer, storageLayer), diffParserLayer)
 
 /**
- * Managed runtime for running Effects with all dependencies injected
- * Use this to run Effects in server functions
+ * Singleton managed runtime with all dependencies pre-loaded
  */
-export const createManagedRuntime = () => {
-  return Layer.toRuntime(appLayer)
-}
+export const appRuntime = ManagedRuntime.make(appLayer)
 
 /**
  * Helper to run an Effect with all dependencies
  * Use this in .start.ts server functions
  */
-export const runEffectWithDeps = <A, E>(effect: Effect.Effect<A, E>): Promise<A> => {
-  return Effect.runPromise(effect.pipe(Effect.provide(appLayer)))
+export const runEffectWithDeps = <A, E>(
+  effect: Effect.Effect<A, E, VCSContext | StorageContext | DiffParserContext>,
+): Promise<A> => {
+  return appRuntime.runPromise(effect)
 }

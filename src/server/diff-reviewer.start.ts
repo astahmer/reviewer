@@ -4,7 +4,7 @@
  * They compose Effect-based services and cross the boundary only once
  */
 
-import * as Effect from 'effect'
+import { Effect } from 'effect'
 import { Diff, CommitInfo } from '~/lib/types'
 import { runEffectWithDeps } from '~/effects/runtime'
 import * as diffProcessor from '~/effects/services/diff-processor'

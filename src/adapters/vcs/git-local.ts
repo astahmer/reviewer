@@ -1,7 +1,8 @@
-import * as Effect from 'effect'
+import { Effect } from 'effect'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import { GIT_DIFF_TIMEOUT_MS } from '~/lib/constants'
+import { VCSError } from '~/lib/errors'
 import { VCSAdapter } from './vcs.interface'
 
 const execAsync = promisify(exec)
@@ -11,40 +12,39 @@ const execAsync = promisify(exec)
  * Executes git commands to fetch diffs and commits
  */
 export class GitLocalAdapter implements VCSAdapter {
-  constructor(private repoPath: string = process.cwd()) {}
+  constructor(private _repoPath: string = process.cwd()) {}
 
-  getDiff(from: string, to: string, options?: { ignoreWhitespace?: boolean }): Effect.Effect<string> {
-    return Effect.gen(function* () {
-      try {
-        const whitespaceFlag = options?.ignoreWhitespace ? '--ignore-all-space' : ''
-        const command = `git diff ${whitespaceFlag} ${from}..${to}`
+  getDiff(from: string, to: string, options?: { ignoreWhitespace?: boolean }): Effect.Effect<string, VCSError> {
+    const repoPath = this._repoPath
+    const whitespaceFlag = options?.ignoreWhitespace ? '--ignore-all-space' : ''
+    const command = `git diff ${whitespaceFlag} ${from}..${to}`
 
-        const { stdout } = yield* Effect.tryPromise(() =>
-          Promise.race([
-            execAsync(command, { cwd: this.repoPath }),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Git diff timeout')), GIT_DIFF_TIMEOUT_MS),
-            ),
-          ]),
-        )
-
-        return stdout
-      } catch (error) {
-        return yield* Effect.fail(new Error(`Failed to get diff: ${error instanceof Error ? error.message : String(error)}`))
-      }
+    return Effect.tryPromise({
+      try: () =>
+        Promise.race([
+          execAsync(command, { cwd: repoPath }).then(({ stdout }) => stdout),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Git diff timeout')), GIT_DIFF_TIMEOUT_MS),
+          ),
+        ]),
+      catch: (error: unknown) =>
+        new VCSError({
+          message: `Failed to get diff: ${error instanceof Error ? error.message : String(error)}`,
+          command,
+        }),
     })
   }
 
-  getCommits(limit: number = 20): Effect.Effect<Array<{ hash: string; message: string; author: string; date: Date }>> {
-    return Effect.gen(function* () {
-      try {
-        const format = '%H%n%s%n%an%n%ai'
-        const command = `git log --pretty=format:"${format}" -n ${limit}`
+  getCommits(limit: number = 20): Effect.Effect<Array<{ hash: string; message: string; author: string; date: Date }>, VCSError> {
+    const repoPath = this._repoPath
+    const format = '%H%n%s%n%an%n%ai'
+    const command = `git log --pretty=format:"${format}" -n ${limit}`
 
-        const { stdout } = yield* Effect.tryPromise(() => execAsync(command, { cwd: this.repoPath }))
-
+    return Effect.tryPromise({
+      try: async () => {
+        const { stdout } = await execAsync(command, { cwd: repoPath })
         const lines = stdout.trim().split('\n')
-        const commits = []
+        const commits: Array<{ hash: string; message: string; author: string; date: Date }> = []
 
         for (let i = 0; i < lines.length; i += 4) {
           if (i + 3 < lines.length) {
@@ -58,42 +58,45 @@ export class GitLocalAdapter implements VCSAdapter {
         }
 
         return commits
-      } catch (error) {
-        return yield* Effect.fail(new Error(`Failed to get commits: ${error instanceof Error ? error.message : String(error)}`))
-      }
+      },
+      catch: (error: unknown) =>
+        new VCSError({
+          message: `Failed to get commits: ${error instanceof Error ? error.message : String(error)}`,
+          command,
+        }),
     })
   }
 
-  getCurrentBranch(): Effect.Effect<string> {
-    return Effect.gen(function* () {
-      try {
-        const { stdout } = yield* Effect.tryPromise(() =>
-          execAsync('git rev-parse --abbrev-ref HEAD', { cwd: this.repoPath }),
-        )
-        return stdout.trim()
-      } catch (error) {
-        return yield* Effect.fail(
-          new Error(`Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`),
-        )
-      }
+  getCurrentBranch(): Effect.Effect<string, VCSError> {
+    const repoPath = this._repoPath
+
+    return Effect.tryPromise({
+      try: () => execAsync('git rev-parse --abbrev-ref HEAD', { cwd: repoPath }).then(({ stdout }) => stdout.trim()),
+      catch: (error: unknown) =>
+        new VCSError({
+          message: `Failed to get current branch: ${error instanceof Error ? error.message : String(error)}`,
+          command: 'git rev-parse --abbrev-ref HEAD',
+        }),
     })
   }
 
-  getBranches(): Effect.Effect<string[]> {
-    return Effect.gen(function* () {
-      try {
-        const { stdout } = yield* Effect.tryPromise(() =>
-          execAsync('git branch --list', { cwd: this.repoPath }),
-        )
-        const branches = stdout
+  getBranches(): Effect.Effect<string[], VCSError> {
+    const repoPath = this._repoPath
+
+    return Effect.tryPromise({
+      try: async () => {
+        const { stdout } = await execAsync('git branch --list', { cwd: repoPath })
+        return stdout
           .trim()
           .split('\n')
           .map((line) => line.replace(/^\*?\s+/, ''))
           .filter((line) => line.length > 0)
-        return branches
-      } catch (error) {
-        return yield* Effect.fail(new Error(`Failed to get branches: ${error instanceof Error ? error.message : String(error)}`))
-      }
+      },
+      catch: (error: unknown) =>
+        new VCSError({
+          message: `Failed to get branches: ${error instanceof Error ? error.message : String(error)}`,
+          command: 'git branch --list',
+        }),
     })
   }
 }

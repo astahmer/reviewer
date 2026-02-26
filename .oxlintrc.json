@@ -1,0 +1,36 @@
+{
+  "$schema": "https://oxc.rs/schema/configuration_schema.json",
+  "plugins": ["typescript", "react", "react-hooks"],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2020": true
+  },
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "build/",
+    "coverage/",
+    ".context/"
+  ],
+  "rules": {
+    "no-unused-vars": "off",
+    "typescript/no-unused-vars": ["error", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }],
+    "typescript/no-explicit-any": "warn",
+    "typescript/explicit-function-return-types": "off",
+    "react/react-in-jsx-scope": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["*.test.ts", "*.test.tsx", "*.spec.ts", "*.spec.tsx"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
+    }
+  ]
+}

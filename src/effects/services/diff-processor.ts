@@ -1,7 +1,6 @@
-import * as Effect from 'effect'
-import { DiffParser } from '~/adapters/diff-parser/types'
-import { StorageAdapter } from '~/adapters/storage/storage.interface'
+import { Effect } from 'effect'
 import { Diff } from '~/lib/types'
+import { DiffParseError, StorageError } from '~/lib/errors'
 import { StorageContext } from '~/effects/context/storage-context'
 import { DiffParserContext } from '~/effects/context/diff-parser-context'
 
@@ -20,7 +19,7 @@ export const processAndCache = (
   id: string,
   from: string,
   to: string,
-): Effect.Effect<Diff, Error, StorageContext | DiffParserContext> => {
+): Effect.Effect<Diff, DiffParseError | StorageError, StorageContext | DiffParserContext> => {
   return Effect.gen(function* () {
     const storage = yield* StorageContext
     const parser = yield* DiffParserContext
@@ -46,7 +45,7 @@ export const processAndCache = (
 /**
  * Get a cached diff by ID
  */
-export const getCached = (id: string): Effect.Effect<Diff | null, Error, StorageContext> => {
+export const getCached = (id: string): Effect.Effect<Diff | null, StorageError, StorageContext> => {
   return Effect.gen(function* () {
     const storage = yield* StorageContext
     const cacheKey = `diff:${id}`
@@ -57,7 +56,7 @@ export const getCached = (id: string): Effect.Effect<Diff | null, Error, Storage
 /**
  * Clear diff cache
  */
-export const clearCache = (id: string): Effect.Effect<void, Error, StorageContext> => {
+export const clearCache = (id: string): Effect.Effect<void, StorageError, StorageContext> => {
   return Effect.gen(function* () {
     const storage = yield* StorageContext
     const cacheKey = `diff:${id}`
@@ -68,7 +67,7 @@ export const clearCache = (id: string): Effect.Effect<void, Error, StorageContex
 /**
  * Clear all diffs from cache
  */
-export const clearAllCache = (): Effect.Effect<void, Error, StorageContext> => {
+export const clearAllCache = (): Effect.Effect<void, StorageError, StorageContext> => {
   return Effect.gen(function* () {
     const storage = yield* StorageContext
     yield* storage.clear()
