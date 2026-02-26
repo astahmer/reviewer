@@ -7,6 +7,7 @@
 import { Effect, Layer, ManagedRuntime } from 'effect'
 import * as path from 'node:path'
 import * as os from 'node:os'
+import { execSync } from 'node:child_process'
 import { Diff, CommitInfo } from '~/lib/types'
 import { runEffectWithDeps, appLayer } from '~/effects/runtime'
 import * as diffProcessor from '~/effects/services/diff-processor'
@@ -46,12 +47,45 @@ export async function getDiff(from: string, to: string, repoPath?: string): Prom
 /**
  * Server function: Get list of recent commits
  */
-export async function getCommitList(limit: number = 20, repoPath?: string): Promise<CommitInfo[]> {
-  const runtime = createRuntimeWithRepo(repoPath || process.cwd())
+export async function getCommitList(limit: number = 20, repoPath?: string, branch?: string): Promise<CommitInfo[]> {
+  const cwd = repoPath || process.cwd()
+  
   try {
-    return await runtime.runPromise(vcsService.getCommits(limit))
-  } finally {
-    runtime.dispose()
+    const format = '%H%n%s%n%an%n%aI'
+    const branchArg = branch ? [branch] : ['--all']
+    const cmd = `git log ${branchArg.join(' ')} --max-count=${limit} --format=${format}`
+    
+    const stdout = execSync(cmd, { cwd, encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 })
+    
+    if (!stdout) {
+      return []
+    }
+    
+    const lines = stdout.trim().split('\n')
+    const commits: CommitInfo[] = []
+    for (let i = 0; i < lines.length; i += 4) {
+      if (lines[i] && lines[i + 1]) {
+        commits.push({
+          hash: lines[i],
+          message: lines[i + 1],
+          author: lines[i + 2] || '',
+          date: new Date(lines[i + 3] || Date.now())
+        })
+      }
+    }
+    return commits
+  } catch {
+    const runtime = createRuntimeWithRepo(cwd)
+    try {
+      return await runtime.runPromise(vcsService.getCommits(limit)).then(commits => commits.map(c => ({
+        hash: c.hash,
+        message: c.message,
+        author: c.author,
+        date: c.date
+      })))
+    } finally {
+      runtime.dispose()
+    }
   }
 }
 

@@ -80,14 +80,32 @@ export const HomePage: FC = () => {
   }
 
   const {
-    data: commits = [],
-    isLoading: commitsLoading,
-    error: commitsError,
+    data: fromCommits = [],
+    isLoading: fromCommitsLoading,
+    error: fromCommitsError,
   } = useQuery({
-    queryKey: ['commits', selectedRepo?.path],
+    queryKey: ['commits', selectedRepo?.path, fromBranch],
     queryFn: async () => {
       const url = new URL('/api/commits', window.location.origin)
       if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
+      if (fromBranch) url.searchParams.set('branch', fromBranch)
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Failed to fetch commits')
+      return (await response.json()) as CommitInfo[]
+    },
+    enabled: !!selectedRepo,
+  })
+
+  const {
+    data: toCommits = [],
+    isLoading: toCommitsLoading,
+    error: toCommitsError,
+  } = useQuery({
+    queryKey: ['commits', selectedRepo?.path, toBranch],
+    queryFn: async () => {
+      const url = new URL('/api/commits', window.location.origin)
+      if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
+      if (toBranch) url.searchParams.set('branch', toBranch)
       const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch commits')
       return (await response.json()) as CommitInfo[]
@@ -152,8 +170,8 @@ export const HomePage: FC = () => {
     localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState))
   }
 
-  const getRefDisplay = (ref: string) => {
-    const info = commits.find(c => c.hash.startsWith(ref.slice(0, 7)) || ref === c.hash)
+  const getRefDisplay = (ref: string, commitList: CommitInfo[]) => {
+    const info = commitList.find(c => c.hash.startsWith(ref.slice(0, 7)) || ref === c.hash)
     if (ref === 'HEAD~1' || ref === 'HEAD') {
       return { label: ref, sublabel: info?.message || '' }
     }
@@ -163,8 +181,8 @@ export const HomePage: FC = () => {
     }
   }
 
-  const fromDisplay = getRefDisplay(fromCommit)
-  const toDisplay = getRefDisplay(toCommit)
+  const fromDisplay = getRefDisplay(fromCommit, fromCommits)
+  const toDisplay = getRefDisplay(toCommit, toCommits)
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -254,7 +272,7 @@ export const HomePage: FC = () => {
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
                 />
                 <datalist id="from-commits">
-                  {commits.slice(0, 50).map((commit: CommitInfo) => (
+                  {fromCommits.slice(0, 50).map((commit: CommitInfo) => (
                     <option key={commit.hash} value={commit.hash}>
                       {commit.hash.slice(0, 7)} - {commit.message}
                     </option>
@@ -289,7 +307,7 @@ export const HomePage: FC = () => {
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
                 />
                 <datalist id="to-commits">
-                  {commits.slice(0, 50).map((commit: CommitInfo) => (
+                  {toCommits.slice(0, 50).map((commit: CommitInfo) => (
                     <option key={commit.hash} value={commit.hash}>
                       {commit.hash.slice(0, 7)} - {commit.message}
                     </option>
@@ -337,13 +355,15 @@ export const HomePage: FC = () => {
             )}
           </div>
 
-          {(commitsError || diffError) && (
+          {(fromCommitsError || toCommitsError || diffError) && (
             <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">
-              {commitsError instanceof Error
-                ? commitsError.message
-                : diffError instanceof Error
-                  ? diffError.message
-                  : 'An error occurred'}
+              {fromCommitsError instanceof Error
+                ? fromCommitsError.message
+                : toCommitsError instanceof Error
+                  ? toCommitsError.message
+                  : diffError instanceof Error
+                    ? diffError.message
+                    : 'An error occurred'}
             </div>
           )}
         </div>
@@ -354,7 +374,7 @@ export const HomePage: FC = () => {
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
             Select a repository to get started.
           </div>
-        ) : commitsLoading || diffLoading ? (
+        ) : fromCommitsLoading || toCommitsLoading || diffLoading ? (
           <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>
             <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
