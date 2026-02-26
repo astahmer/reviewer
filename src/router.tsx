@@ -1,35 +1,47 @@
-import { createRouter } from '@tanstack/react-router'
-import { QueryClient } from '@tanstack/react-query'
-import { routeTree } from './routeTree.gen'
+import { QueryClientProvider } from "@tanstack/react-query";
+import { createRouter, parseSearchWith, stringifySearchWith } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { parse, stringify } from "zipson";
 
-export function getRouter() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60 * 1000, // 1 minute
-        retry: 1,
-      },
-    },
-  })
+// import { FullCenter } from "./components/ui/layout.tsx";
+// import { Spinner } from "./components/ui/spinner.tsx";
+// import { ToasterProvider } from "./components/ui/toaster.tsx";
+import { queryClient } from "./query-client.ts";
+import { decodeFromBinary, encodeToBinary } from "./router.encode.ts";
+import { routeTree } from "./routeTree.gen";
+// import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
+// ModuleRegistry.registerModules([AllCommunityModule]);
+
+// Create a new router instance
+export const getRouter = () => {
+  const rqContext = { queryClient };
 
   const router = createRouter({
     routeTree,
-    context: { queryClient },
-  })
+    context: { ...rqContext },
+    defaultStructuralSharing: true,
+    defaultPreload: "intent",
+    // defaultPendingComponent: () => (
+    //   <FullCenter>
+    //     <Spinner />
+    //   </FullCenter>
+    // ),
+    parseSearch: parseSearchWith((value) => parse(decodeFromBinary(value))),
+    stringifySearch: stringifySearchWith((value) => encodeToBinary(stringify(value))),
+    Wrap: (props: { children: React.ReactNode }) => {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {/* <ToasterProvider /> */}
+          {props.children}
+        </QueryClientProvider>
+      );
+    },
+  });
 
-  return router
-}
+  setupRouterSsrQueryIntegration({
+    router,
+    queryClient: rqContext.queryClient,
+  });
 
-export function createAppRouter() {
-  return getRouter()
-}
-
-declare module '@tanstack/react-router' {
-  interface Register {
-    router: ReturnType<typeof getRouter>
-  }
-
-  interface RouterContext {
-    queryClient: QueryClient
-  }
-}
+  return router;
+};

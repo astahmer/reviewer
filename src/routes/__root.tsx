@@ -1,11 +1,46 @@
-import { Outlet, createRootRoute } from '@tanstack/react-router'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { getQueryClient } from '~/lib/query-client'
+import type { QueryClient } from "@tanstack/react-query";
 
-export const Route = createRootRoute({
-  component: () => (
-    <QueryClientProvider client={getQueryClient()}>
-      <Outlet />
-    </QueryClientProvider>
-  ),
-})
+import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
+
+interface MyRouterContext {
+  queryClient: QueryClient;
+}
+
+export const Route = createRootRouteWithContext<MyRouterContext>()({
+  head: () => ({
+    meta: [
+      {
+        charSet: "utf-8",
+      },
+      {
+        name: "viewport",
+        content: "width=device-width, initial-scale=1",
+      },
+      {
+        title: "Reviewer",
+      },
+    ],
+  }),
+
+  shellComponent: RootDocument,
+});
+
+function RootDocument({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <HeadContent />
+        {/* {import.meta.env.DEV && (
+					<script
+						crossOrigin="anonymous"
+						src="//unpkg.com/react-scan/dist/auto.global.js"
+					></script>
+				)} */}
+      </head>
+      <body className="bg-background text-foreground">
+        <div className="flex h-full min-h-screen flex-col">{children}</div>
+        <Scripts />
+      </body>
+    </html>
+  );
+}
