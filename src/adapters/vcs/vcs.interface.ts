@@ -1,5 +1,5 @@
-import { Context, Effect } from 'effect'
-import { VCSError } from '~/lib/errors'
+import { Context, Effect } from "effect";
+import { VCSError } from "~/lib/errors";
 
 /**
  * VCS (Version Control System) adapter interface
@@ -10,28 +10,35 @@ export interface VCSAdapter {
   /**
    * Get unified diff between two commits
    */
-  getDiff(from: string, to: string, options?: { ignoreWhitespace?: boolean }): Effect.Effect<string, VCSError>
+  getDiff(
+    from: string,
+    to: string,
+    options?: { ignoreWhitespace?: boolean },
+  ): Effect.Effect<string, VCSError>;
 
   /**
    * Get list of recent commits
    */
-  getCommits(limit?: number): Effect.Effect<Array<{ hash: string; message: string; author: string; date: Date }>, VCSError>
+  getCommits(
+    limit?: number,
+  ): Effect.Effect<Array<{ hash: string; message: string; author: string; date: Date }>, VCSError>;
 
   /**
    * Get current branch name
    */
-  getCurrentBranch(): Effect.Effect<string, VCSError>
+  getCurrentBranch(): Effect.Effect<string, VCSError>;
 
   /**
    * Get list of branches
    */
-  getBranches(): Effect.Effect<string[], VCSError>
+  getBranches(): Effect.Effect<string[], VCSError>;
 
   /**
    * Get list of available repositories (git directories)
    */
-  listRepositories(basePaths?: string[]): Effect.Effect<Array<{ path: string; name: string }>, VCSError>
+  listRepositories(
+    basePaths?: string[],
+  ): Effect.Effect<Array<{ path: string; name: string }>, VCSError>;
 }
 
-export class VCSAdapterTag extends Context.Tag('VCSAdapter')<VCSAdapterTag, VCSAdapter>() {
-}
+export class VCSAdapterTag extends Context.Tag("VCSAdapter")<VCSAdapterTag, VCSAdapter>() {}

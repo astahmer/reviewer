@@ -1,9 +1,9 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient } from "@tanstack/react-query";
 
-let queryClient: QueryClient | undefined
+let queryClient: QueryClient | undefined;
 
 export function getQueryClient() {
-  if (typeof window === 'undefined') {
+  if (typeof window === "undefined") {
     // Server side - create a new client for each request
     return new QueryClient({
       defaultOptions: {
@@ -11,7 +11,7 @@ export function getQueryClient() {
           staleTime: 60 * 1000, // 1 minute
         },
       },
-    })
+    });
   }
 
   // Client side - reuse the same client
@@ -23,8 +23,8 @@ export function getQueryClient() {
           retry: 1,
         },
       },
-    })
+    });
   }
 
-  return queryClient
+  return queryClient;
 }

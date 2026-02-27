@@ -7,19 +7,23 @@
 ## Architecture Overview
 
 ### Adapter/Port Pattern (Using Effect)
+
 The app uses a **service-based architecture** to decouple business logic from implementation details. This allows you to:
+
 - Swap git for jj without touching core review logic
 - Switch storage backends (memory → IndexedDB → custom DB)
 - Add semantic diffing tools (ast-grep, diffsitter) as alternative diff sources
 - Test without external dependencies
 
 **Core Services**:
+
 1. **VCSAdapter** – Git diff fetching (port), multiple implementations (local git, remote GitHub, jj later)
 2. **DiffParser** – Parse unified diff format into structured line objects
 3. **StorageAdapter** – Persist search indexes, diffs, preferences (memory, IndexedDB, TanStack DB)
 4. **SearchEngine** – Real-time filtering with `match-sorter` + opt-in indexed search
 
 ### Data Flow
+
 ```
 User selects commit range (Dashboard)
   ↓
@@ -38,17 +42,17 @@ Search filters in-memory, updates Query cache (invalidation on filter change)
 
 ## Tech Stack Rationale
 
-| Layer | Choice | Why |
-|-------|--------|-----|
-| **Framework** | TanStack Start | Full-stack, file-based routing, server functions eliminate fetch boilerplate |
-| **State** | TanStack Query + TanStack DB | Query for server state; DB for local collections, live queries, and reactive mutations |
-| **Effects** | Effect-TS | Type-safe error handling, resource management, composable retries/timeouts |
-| **UI Components** | shadcn/ui | Copy-paste control, Tailwind-native, works with custom themes |
-| **Styling** | Tailwind CSS | Utility-first, fast iteration, integrated with shadcn |
-| **Virtual Scroll** | @tanstack/react-virtual | Headless, supports variable sizing (future: wrapped lines) |
-| **Search** | match-sorter | Intelligent fuzzy matching; `fuse.js` as optional upgrade path |
-| **Linting** | oxc | 10-100x faster than ESLint, same config format |
-| **Diff Parsing** | jsdiff + fast-diff | jsdiff for full features; fast-diff as lightweight fallback |
+| Layer              | Choice                       | Why                                                                                    |
+| ------------------ | ---------------------------- | -------------------------------------------------------------------------------------- |
+| **Framework**      | TanStack Start               | Full-stack, file-based routing, server functions eliminate fetch boilerplate           |
+| **State**          | TanStack Query + TanStack DB | Query for server state; DB for local collections, live queries, and reactive mutations |
+| **Effects**        | Effect-TS                    | Type-safe error handling, resource management, composable retries/timeouts             |
+| **UI Components**  | shadcn/ui                    | Copy-paste control, Tailwind-native, works with custom themes                          |
+| **Styling**        | Tailwind CSS                 | Utility-first, fast iteration, integrated with shadcn                                  |
+| **Virtual Scroll** | @tanstack/react-virtual      | Headless, supports variable sizing (future: wrapped lines)                             |
+| **Search**         | match-sorter                 | Intelligent fuzzy matching; `fuse.js` as optional upgrade path                         |
+| **Linting**        | oxc                          | 10-100x faster than ESLint, same config format                                         |
+| **Diff Parsing**   | jsdiff + fast-diff           | jsdiff for full features; fast-diff as lightweight fallback                            |
 
 ---
 
@@ -142,6 +146,7 @@ src/
 ## Implementation Phases
 
 ### Phase 1: Foundation & Setup (Days 1–2)
+
 1. **Project init**: TanStack Start + Vite, install Tailwind, oxc
 2. **Add shadcn components**: button, input, select, tabs, dropdown-menu
 3. **Define core types** in `lib/types.ts`: `Diff`, `Hunk`, `Line`, `File`
@@ -157,6 +162,7 @@ src/
 ---
 
 ### Phase 2: Diff Processing & Caching (Days 2–3)
+
 1. **Implement diff parser**:
    - `adapters/diff-parser/diff-parser.ts` – Use jsdiff, output `Line[][]` (files → hunks → lines)
    - Parse `+` / `-` / ` ` prefixes into line types
@@ -174,6 +180,7 @@ src/
 ---
 
 ### Phase 3: Virtual Scroll + Rendering (Days 3–4)
+
 1. **Implement line flattening** `lib/diff-utils.ts`:
    - Flatten file→hunk→line hierarchy into single array for virtualization
    - Add metadata: `{ lineNumber, fileIndex, hunkIndex, type, content, fileOldPath, fileNewPath }`
@@ -191,6 +198,7 @@ src/
 ---
 
 ### Phase 4: Search & Filtering (Days 4–5)
+
 1. **Implement real-time search** `components/search/search-bar.tsx`:
    - Input field + search against: file names, file paths, line content
    - Use `match-sorter` for intelligent ranking
@@ -211,6 +219,7 @@ src/
 ---
 
 ### Phase 5: Dashboard & Commit Selection (Days 5–6)
+
 1. **Create dashboard** `routes/index.tsx`:
    - Display recent commits, branches (from git)
    - Range picker: "From commit X to commit Y"
@@ -228,6 +237,7 @@ src/
 ---
 
 ### Phase 6: Preferences & Polish (Days 6–7)
+
 1. **Persist user preferences** via TanStack DB:
    - Split/unified mode
    - Whitespace ignore setting
@@ -249,26 +259,32 @@ src/
 ## Key Decisions
 
 ### Decision 1: Adapter Pattern for VCS
+
 **Why**: Allows swapping git → jj → GitHub API in future without touching core logic.
 **How**: Define `VCSAdapter` interface, provide multiple implementations, inject via Effect Context.
 
 ### Decision 2: Real-Time Search (Not Indexed MVP)
+
 **Why**: Simpler to start; virtualized rendering makes 50k line filtering still fast (<100ms).
 **Future**: If search becomes slow at scale, add indexed search layer with `match-sorter` caching or worker threads.
 
 ### Decision 3: Single Virtual Scroll Stream (Not File-by-File)
+
 **Why**: Better UX—scroll through all hunks continuously, no pagination breaks.
 **How**: Flatten file→hunk→line hierarchy into single array; Track file boundaries in metadata for display.
 
 ### Decision 4: Storage Adapter (Not localStorage Only)
+
 **Why**: localStorage has 5MB limit; IndexedDB needed for large diffs.
 **How**: Define StorageAdapter interface; impl memory (dev), IndexedDB (prod); swappable without logic changes.
 
 ### Decision 5: Unified + Split Views (Both in MVP)
+
 **Why**: You personally use split; others may prefer unified. Toggle is cheap (just UI changes).
 **How**: Implement both renderers; share virtual scroll state; toggle is user preference (stored).
 
 ### Decision 6: Whitespace Ignore (Can be Toggle)
+
 **Why**: Common review use case; implementation is just re-parse with flag in jsdiff.
 **Future**: Could add more sophisticated diff options (indent-aware, semantic).
 
@@ -276,25 +292,26 @@ src/
 
 ## Critical Files & Symbols
 
-| File | Symbol | Purpose |
-|------|--------|---------|
-| `adapters/vcs/vcs.interface.ts` | `VCSAdapter` | Service interface for diff sources |
-| `adapters/storage/storage.interface.ts` | `StorageAdapter` | Service interface for caching |
-| `adapters/diff-parser/diff-parser.ts` | `parseDiff()` | Convert raw diff string to structured lines |
-| `lib/types.ts` | `Diff`, `Hunk`, `Line` | Core types |
-| `lib/diff-utils.ts` | `flattenDiffForVirtualization()` | Prep diff for virtual scroll |
-| `effects/services/diff-processor.ts` | `DiffProcessorService` | Effect-based cache + parse orchestration |
-| `components/diff-viewer/unified-view.tsx` | `UnifiedDiffViewer` | Virtual scroll renderer + search |
-| `components/diff-viewer/split-view.tsx` | `SplitDiffViewer` | Side-by-side virtual scroll |
-| `components/diff-viewer/unified-view.tsx.hooks.ts` | `useDiffViewer()` | Unified/split mode state + persistence |
-| `routes/[repo].index.tsx` | TanStack loader | Async diff loading via Effect |
-| `routes/[repo].start.ts` | Server functions | TanStack Start server-side logic |
+| File                                               | Symbol                           | Purpose                                     |
+| -------------------------------------------------- | -------------------------------- | ------------------------------------------- |
+| `adapters/vcs/vcs.interface.ts`                    | `VCSAdapter`                     | Service interface for diff sources          |
+| `adapters/storage/storage.interface.ts`            | `StorageAdapter`                 | Service interface for caching               |
+| `adapters/diff-parser/diff-parser.ts`              | `parseDiff()`                    | Convert raw diff string to structured lines |
+| `lib/types.ts`                                     | `Diff`, `Hunk`, `Line`           | Core types                                  |
+| `lib/diff-utils.ts`                                | `flattenDiffForVirtualization()` | Prep diff for virtual scroll                |
+| `effects/services/diff-processor.ts`               | `DiffProcessorService`           | Effect-based cache + parse orchestration    |
+| `components/diff-viewer/unified-view.tsx`          | `UnifiedDiffViewer`              | Virtual scroll renderer + search            |
+| `components/diff-viewer/split-view.tsx`            | `SplitDiffViewer`                | Side-by-side virtual scroll                 |
+| `components/diff-viewer/unified-view.tsx.hooks.ts` | `useDiffViewer()`                | Unified/split mode state + persistence      |
+| `routes/[repo].index.tsx`                          | TanStack loader                  | Async diff loading via Effect               |
+| `routes/[repo].start.ts`                           | Server functions                 | TanStack Start server-side logic            |
 
 ---
 
 ## Verification & Testing
 
 ### MVP Acceptance Criteria
+
 1. **Performance**: Load 1MB git diff in <5s, render 50k lines without jank
 2. **Search**: Real-time filter <100ms for 50k lines; match-sorter ranking works
 3. **Infinite Scroll**: Virtual scroll with fixed line height displays all hunks continuously
@@ -304,6 +321,7 @@ src/
 7. **Offline**: Cache persists; can view cached diffs without git command
 
 ### Testing Plan
+
 - Unit tests: Diff parser, search filtering, line flattening
 - Integration tests: Effect services with mock adapters
 - Performance tests: Virtual scroll render time, search filter time
@@ -326,6 +344,7 @@ src/
 ## Questions for You Before Implementation
 
 **None remaining**—plan is ready for handoff. Key:
+
 - Confirmed git-first MVP with extensible adapter architecture
 - Both split/unified views with preference persistence
 - Real-time search on virtualized stream

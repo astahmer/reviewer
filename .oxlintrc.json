@@ -6,19 +6,16 @@
     "node": true,
     "es2020": true
   },
-  "ignorePatterns": [
-    "dist/",
-    "node_modules/",
-    "build/",
-    "coverage/",
-    ".context/"
-  ],
+  "ignorePatterns": ["dist/", "node_modules/", "build/", "coverage/", ".context/"],
   "rules": {
     "no-unused-vars": "off",
-    "typescript/no-unused-vars": ["error", {
-      "argsIgnorePattern": "^_",
-      "varsIgnorePattern": "^_"
-    }],
+    "typescript/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
     "typescript/no-explicit-any": "warn",
     "typescript/explicit-function-return-types": "off",
     "react/react-in-jsx-scope": "off",

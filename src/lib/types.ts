@@ -2,81 +2,83 @@
  * Core types for diff reviewing
  */
 
-export type LineType = 'add' | 'remove' | 'context'
+export type LineType = "add" | "remove" | "context";
 
 export interface Line {
   /** 0-based index in the flattened array */
-  id: string
+  id: string;
   /** Content of the line (without the prefix +/- / space) */
-  content: string
+  content: string;
   /** Type of line: added, removed, or context */
-  type: LineType
+  type: LineType;
   /** Line number in old file (1-based, or -1 if not applicable) */
-  oldLineNumber: number
+  oldLineNumber: number;
   /** Line number in new file (1-based, or -1 if not applicable) */
-  newLineNumber: number
+  newLineNumber: number;
   /** Index of the file this line belongs to */
-  fileIndex: number
+  fileIndex: number;
   /** Index of the hunk this line belongs to */
-  hunkIndex: number
+  hunkIndex: number;
 }
 
 export interface Hunk {
   /** Header line like '@@ -1,5 +1,6 @@' */
-  header: string
+  header: string;
   /** Lines in this hunk */
-  lines: Line[]
+  lines: Line[];
   /** Index in the file's hunks array */
-  index: number
+  index: number;
 }
 
 export interface FileDiff {
   /** Relative path from repo root */
-  oldPath: string
+  oldPath: string;
   /** Relative path from repo root */
-  newPath: string
+  newPath: string;
   /** Type of change: added, removed, modified, renamed */
-  status: 'add' | 'remove' | 'modify' | 'rename'
+  status: "add" | "remove" | "modify" | "rename";
   /** Hunks in this file */
-  hunks: Hunk[]
+  hunks: Hunk[];
   /** Index in the diff's files array */
-  index: number
+  index: number;
 }
 
 export interface Diff {
   /** Unique ID for this diff (hash of commit range or user-provided) */
-  id: string
+  id: string;
   /** Source commit (hash or branch name) */
-  from: string
+  from: string;
   /** Target commit (hash or branch name) */
-  to: string
+  to: string;
   /** All files in this diff */
-  files: FileDiff[]
+  files: FileDiff[];
   /** Flattened array of all lines for fast virtualization */
-  flatLines: Line[]
+  flatLines: Line[];
   /** Timestamps */
-  createdAt: Date
+  createdAt: Date;
 }
 
 export interface CommitInfo {
-  hash: string
-  message: string
-  author: string
-  date: Date
+  hash: string;
+  message: string;
+  author: string;
+  date: Date;
 }
 
 export interface DiffFilter {
-  query?: string
-  type?: LineType | 'all'
-  fileName?: string
-  folderPath?: string
+  query?: string;
+  type?: LineType | "all";
+  fileName?: string;
+  folderPath?: string;
 }
 
 export interface UserPreferences {
   /** 'unified' or 'split' */
-  viewMode: 'unified' | 'split'
+  viewMode: "unified" | "split";
   /** Whether to ignore whitespace diffs */
-  ignoreWhitespace: boolean
+  ignoreWhitespace: boolean;
   /** Recent search queries */
-  searchHistory: string[]
+  searchHistory: string[];
+  /** Theme for diff viewer */
+  theme?: string;
 }

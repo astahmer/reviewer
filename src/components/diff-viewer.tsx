@@ -1,143 +1,105 @@
-import { FC, useState, useEffect, useMemo } from 'react'
-import { Diff, Line } from '~/lib/types'
-import { UnifiedDiffViewer } from './unified-diff-viewer'
-import { SplitDiffViewer } from './split-diff-viewer'
-
-type ViewMode = 'unified' | 'split'
-
-const VIEW_MODE_KEY = 'diffViewMode'
-const WORD_WRAP_KEY = 'diffWordWrap'
+import { FC, useMemo } from "react";
+import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
+import type { FileDiffMetadata } from "@pierre/diffs";
+import { useViewMode, useTheme } from "~/components/hooks";
+import { AVAILABLE_THEMES } from "~/lib/constants";
+import { Diff } from "~/lib/types";
 
 interface DiffViewerProps {
-  diff: Diff
-  highlightedIds?: Set<string>
-  onLineSelect?: (line: Line) => void
-  defaultMode?: ViewMode
-  repoPath?: string
+  diff: Diff & { pierreData?: FileDiffMetadata[] };
 }
 
-export const DiffViewer: FC<DiffViewerProps> = ({ diff, highlightedIds, onLineSelect, defaultMode = 'unified', repoPath }) => {
-  const [viewMode, setViewMode] = useState<ViewMode>(() => {
-    const saved = localStorage.getItem(VIEW_MODE_KEY)
-    return (saved as ViewMode) || defaultMode
-  })
-  const [wordWrap, setWordWrap] = useState<boolean>(() => {
-    const saved = localStorage.getItem(WORD_WRAP_KEY)
-    return saved !== 'false'
-  })
-  const [searchQuery, setSearchQuery] = useState('')
+/**
+ * Unified and Split diff viewer using @pierre/diffs
+ */
+export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
+  const [viewMode, setViewMode] = useViewMode();
+  const [theme, setTheme] = useTheme();
 
-  useEffect(() => {
-    localStorage.setItem(VIEW_MODE_KEY, viewMode)
-  }, [viewMode])
+  // Files to render from @pierre/diffs
+  const pierreFiles = useMemo(() => {
+    return diff.pierreData || [];
+  }, [diff.pierreData]);
 
-  useEffect(() => {
-    localStorage.setItem(WORD_WRAP_KEY, String(wordWrap))
-  }, [wordWrap])
-
-  const filteredDiff = useMemo(() => {
-    if (!searchQuery) return diff
-
-    const query = searchQuery.toLowerCase()
-    return {
-      ...diff,
-      flatLines: diff.flatLines.filter((line) => {
-        return line.content.toLowerCase().includes(query)
-      }),
-      files: diff.files.map((file) => ({
-        ...file,
-        hunks: file.hunks.map((hunk) => ({
-          ...hunk,
-          lines: hunk.lines.filter((line) => {
-            return line.content.toLowerCase().includes(query)
-          }),
-        })).filter((hunk) => hunk.lines.length > 0),
-      })).filter((file) => file.hunks.length > 0),
-    }
-  }, [diff, searchQuery])
-
-  const highlightedLineIds = useMemo(() => {
-    if (!searchQuery) return highlightedIds || new Set<string>()
-    const ids = new Set<string>()
-    const query = searchQuery.toLowerCase()
-    diff.flatLines.forEach((line) => {
-      if (line.content.toLowerCase().includes(query)) {
-        ids.add(line.id)
-      }
-    })
-    return ids
-  }, [diff.flatLines, searchQuery, highlightedIds])
+  if (!pierreFiles || pierreFiles.length === 0) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        No diff data available
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full gap-3">
-      <div className="flex gap-2 flex-wrap items-center">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search in diff..."
-          className="flex-1 min-w-[200px] rounded border border-gray-300 px-3 py-2 text-sm"
-        />
+    <div className="h-full flex flex-col">
+      {/* Controls */}
+      <div className="flex-shrink-0 border-b border-gray-200 px-4 py-2 flex items-center gap-4">
+        {/* View mode toggle */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-gray-700">View:</span>
+          <button
+            onClick={() => setViewMode("unified")}
+            className={`px-3 py-1 text-sm font-medium rounded ${
+              viewMode === "unified"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+            title="Unified diff view (stacked)"
+          >
+            Unified
+          </button>
+          <button
+            onClick={() => setViewMode("split")}
+            className={`px-3 py-1 text-sm font-medium rounded ${
+              viewMode === "split"
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+            title="Split diff view (side-by-side)"
+          >
+            Split
+          </button>
+        </div>
 
-        <button
-          onClick={() => setWordWrap(!wordWrap)}
-          className={`px-3 py-2 text-sm font-medium rounded transition-colors ${
-            wordWrap
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-          title="Toggle word wrap"
-        >
-          Wrap
-        </button>
-
-        <button
-          onClick={() => setViewMode('unified')}
-          className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
-            viewMode === 'unified'
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          Unified
-        </button>
-        <button
-          onClick={() => setViewMode('split')}
-          className={`px-4 py-2 text-sm font-medium rounded transition-colors ${
-            viewMode === 'split'
-              ? 'bg-blue-500 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          Split
-        </button>
+        {/* Theme selector */}
+        <div className="flex items-center gap-2">
+          <label htmlFor="theme-select" className="text-sm font-medium text-gray-700">
+            Theme:
+          </label>
+          <select
+            id="theme-select"
+            value={theme}
+            onChange={(e) => setTheme(e.target.value)}
+            className="rounded border border-gray-300 px-2 py-1 text-xs bg-white"
+          >
+            {AVAILABLE_THEMES.map((t) => (
+              <option key={t} value={t}>
+                {t
+                  .split("-")
+                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ")}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {searchQuery && (
-        <div className="text-sm text-gray-600">
-          Showing {filteredDiff.flatLines.length} of {diff.flatLines.length} lines
+      {/* Diff content */}
+      <div className="flex-1 overflow-auto">
+        <div className="diffs-container">
+          {pierreFiles.map((file, idx) => (
+            <FileDiffComponent
+              key={`${file.prevName || file.name}-${idx}`}
+              fileDiff={file}
+              options={{
+                theme: theme as any,
+                diffStyle: viewMode,
+                overflow: "wrap",
+                disableLineNumbers: false,
+              }}
+            />
+          ))}
         </div>
-      )}
-
-      <div className="flex-1 min-h-0">
-        {viewMode === 'unified' ? (
-          <UnifiedDiffViewer
-            diff={filteredDiff}
-            highlightedIds={highlightedLineIds}
-            onLineSelect={onLineSelect}
-            repoPath={repoPath}
-            wordWrap={wordWrap}
-          />
-        ) : (
-          <SplitDiffViewer
-            diff={filteredDiff}
-            highlightedIds={highlightedLineIds}
-            onLineSelect={onLineSelect}
-            repoPath={repoPath}
-            wordWrap={wordWrap}
-          />
-        )}
       </div>
     </div>
-  )
-}
+  );
+};

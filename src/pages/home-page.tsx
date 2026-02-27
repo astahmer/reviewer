@@ -1,188 +1,217 @@
-import { FC, useState, useEffect, useMemo } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Line, CommitInfo, Diff } from '~/lib/types'
-import { DiffViewer } from '~/components/diff-viewer'
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { FC, useEffect, useMemo, useState } from "react";
+import { CommitInfo, Diff } from "~/lib/types";
+import type { SearchParams } from "~/routes/index";
+import { DiffViewer } from "~/components/diff-viewer";
 
-const REPO_STORAGE_KEY = 'selectedRepoPath'
-const CUSTOM_PATHS_KEY = 'customSearchPaths'
-const CONTROLS_COLLAPSED_KEY = 'controlsCollapsed'
+const REPO_STORAGE_KEY = "selectedRepoPath";
+const CUSTOM_PATHS_KEY = "customSearchPaths";
+const CONTROLS_COLLAPSED_KEY = "controlsCollapsed";
 
 interface Repository {
-  path: string
-  name: string
+  path: string;
+  name: string;
 }
 
 export const HomePage: FC = () => {
-  const queryClient = useQueryClient()
-  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null)
-  const [fromBranch, setFromBranch] = useState<string>('')
-  const [toBranch, setToBranch] = useState<string>('')
-  const [fromCommit, setFromCommit] = useState<string>('HEAD~1')
-  const [toCommit, setToCommit] = useState<string>('HEAD')
-  const [customPathInput, setCustomPathInput] = useState('')
-  const [customPaths, setCustomPaths] = useState<string[]>([])
-  const [controlsCollapsed, setControlsCollapsed] = useState(true)
+  const navigate = useNavigate({ from: "/" });
+  const searchParams = useSearch({ from: "/" });
+  const queryClient = useQueryClient();
+
+  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
+  const [fromBranch, setFromBranch] = useState<string>("");
+  const [toBranch, setToBranch] = useState<string>("");
+  const [fromCommit, setFromCommit] = useState<string>("HEAD~1");
+  const [toCommit, setToCommit] = useState<string>("HEAD");
+  const [customPathInput, setCustomPathInput] = useState("");
+  const [customPaths, setCustomPaths] = useState<string[]>([]);
+  const [controlsCollapsed, setControlsCollapsed] = useState(true);
+
+  // Update URL whenever relevant state changes
+  const updateUrl = (updates: Partial<SearchParams>) =>
+    navigate({
+      search: (prev: SearchParams) => ({
+        ...prev,
+        ...updates,
+      }),
+    });
 
   useEffect(() => {
-    const saved = localStorage.getItem(REPO_STORAGE_KEY)
+    const saved = localStorage.getItem(REPO_STORAGE_KEY);
     if (saved) {
       try {
-        setSelectedRepo(JSON.parse(saved))
-      } catch {
-      }
+        setSelectedRepo(JSON.parse(saved));
+      } catch {}
     }
-    const savedPaths = localStorage.getItem(CUSTOM_PATHS_KEY)
+    const savedPaths = localStorage.getItem(CUSTOM_PATHS_KEY);
     if (savedPaths) {
       try {
-        setCustomPaths(JSON.parse(savedPaths))
-      } catch {
-      }
+        setCustomPaths(JSON.parse(savedPaths));
+      } catch {}
     }
-    const savedCollapsed = localStorage.getItem(CONTROLS_COLLAPSED_KEY)
+    const savedCollapsed = localStorage.getItem(CONTROLS_COLLAPSED_KEY);
     if (savedCollapsed) {
-      setControlsCollapsed(JSON.parse(savedCollapsed))
+      setControlsCollapsed(JSON.parse(savedCollapsed));
     }
-  }, [])
+
+    // Load from URL search params if available
+    if (searchParams.repoPath && !selectedRepo) {
+      setSelectedRepo({
+        path: searchParams.repoPath,
+        name: searchParams.repoPath.split("/").pop() || "repo",
+      });
+    }
+    if (searchParams.fromBranch) setFromBranch(searchParams.fromBranch);
+    if (searchParams.toBranch) setToBranch(searchParams.toBranch);
+    if (searchParams.fromCommit) setFromCommit(searchParams.fromCommit);
+    if (searchParams.toCommit) setToCommit(searchParams.toCommit);
+  }, []);
 
   const allSearchPaths = useMemo(() => {
-    const defaults = ['/Users/astahmer/dev', '/Users/astahmer/projects']
-    return [...customPaths, ...defaults.filter(d => !customPaths.includes(d))]
-  }, [customPaths])
+    const defaults = ["/Users/astahmer/dev", "/Users/astahmer/projects"];
+    return [...customPaths, ...defaults.filter((d) => !customPaths.includes(d))];
+  }, [customPaths]);
 
-  const {
-    data: repositories = [],
-    isLoading: reposLoading,
-  } = useQuery({
-    queryKey: ['repositories', customPaths],
+  const { data: repositories = [], isLoading: reposLoading } = useQuery({
+    queryKey: ["repositories", customPaths],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      allSearchPaths.forEach(p => params.append('basePath', p))
-      const response = await fetch(`/api/repositories?${params}`)
-      if (!response.ok) throw new Error('Failed to fetch repositories')
-      return (await response.json()) as Repository[]
+      const params = new URLSearchParams();
+      allSearchPaths.forEach((p) => params.append("basePath", p));
+      const response = await fetch(`/api/repositories?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch repositories");
+      return (await response.json()) as Repository[];
     },
-  })
+  });
 
   const addCustomPath = () => {
-    const path = customPathInput.trim()
+    const path = customPathInput.trim();
     if (path && !customPaths.includes(path)) {
-      const newPaths = [...customPaths, path]
-      setCustomPaths(newPaths)
-      localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths))
-      setCustomPathInput('')
+      const newPaths = [...customPaths, path];
+      setCustomPaths(newPaths);
+      localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
+      setCustomPathInput("");
     }
-  }
+  };
 
   const removeCustomPath = (path: string) => {
-    const newPaths = customPaths.filter(p => p !== path)
-    setCustomPaths(newPaths)
-    localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths))
-  }
+    const newPaths = customPaths.filter((p) => p !== path);
+    setCustomPaths(newPaths);
+    localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
+  };
 
   const {
     data: fromCommits = [],
     isLoading: fromCommitsLoading,
     error: fromCommitsError,
   } = useQuery({
-    queryKey: ['commits', selectedRepo?.path, fromBranch],
+    queryKey: ["commits", selectedRepo?.path, fromBranch],
     queryFn: async () => {
-      const url = new URL('/api/commits', window.location.origin)
-      if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
-      if (fromBranch) url.searchParams.set('branch', fromBranch)
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch commits')
-      return (await response.json()) as CommitInfo[]
+      const url = new URL("/api/commits", window.location.origin);
+      if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
+      if (fromBranch) url.searchParams.set("branch", fromBranch);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch commits");
+      return (await response.json()) as CommitInfo[];
     },
     enabled: !!selectedRepo,
-  })
+  });
 
   const {
     data: toCommits = [],
     isLoading: toCommitsLoading,
     error: toCommitsError,
   } = useQuery({
-    queryKey: ['commits', selectedRepo?.path, toBranch],
+    queryKey: ["commits", selectedRepo?.path, toBranch],
     queryFn: async () => {
-      const url = new URL('/api/commits', window.location.origin)
-      if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
-      if (toBranch) url.searchParams.set('branch', toBranch)
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch commits')
-      return (await response.json()) as CommitInfo[]
+      const url = new URL("/api/commits", window.location.origin);
+      if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
+      if (toBranch) url.searchParams.set("branch", toBranch);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch commits");
+      return (await response.json()) as CommitInfo[];
     },
     enabled: !!selectedRepo,
-  })
+  });
 
-  const {
-    data: branches = [],
-  } = useQuery({
-    queryKey: ['branches', selectedRepo?.path],
+  const { data: branches = [] } = useQuery({
+    queryKey: ["branches", selectedRepo?.path],
     queryFn: async () => {
-      const url = new URL('/api/branches', window.location.origin)
-      if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch branches')
-      return (await response.json()) as string[]
+      const url = new URL("/api/branches", window.location.origin);
+      if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch branches");
+      return (await response.json()) as string[];
     },
     enabled: !!selectedRepo,
-  })
+  });
 
-  const { data: currentBranch = 'main' } = useQuery({
-    queryKey: ['currentBranch', selectedRepo?.path],
+  const { data: currentBranch = "main" } = useQuery({
+    queryKey: ["currentBranch", selectedRepo?.path],
     queryFn: async () => {
-      const url = new URL('/api/current-branch', window.location.origin)
-      if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch branch')
-      return response.text()
+      const url = new URL("/api/current-branch", window.location.origin);
+      if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch branch");
+      return response.text();
     },
     enabled: !!selectedRepo,
-  })
+  });
 
   const {
     data: diff,
     isLoading: diffLoading,
     error: diffError,
   } = useQuery({
-    queryKey: ['diff', fromCommit, toCommit, selectedRepo?.path],
+    queryKey: ["diff", fromCommit, toCommit, selectedRepo?.path],
     queryFn: async () => {
-      const url = new URL('/api/diff', window.location.origin)
-      url.searchParams.set('from', fromCommit)
-      url.searchParams.set('to', toCommit)
-      if (selectedRepo) url.searchParams.set('repoPath', selectedRepo.path)
-      const response = await fetch(url)
-      if (!response.ok) throw new Error('Failed to fetch diff')
-      return (await response.json()) as Diff
+      const url = new URL("/api/diff", window.location.origin);
+      url.searchParams.set("from", fromCommit);
+      url.searchParams.set("to", toCommit);
+      if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch diff");
+      return (await response.json()) as Diff;
     },
     enabled: !!selectedRepo && !!fromCommit && !!toCommit,
-  })
+  });
+  console.log(diff);
 
   const handleRepoChange = (repo: Repository) => {
-    setSelectedRepo(repo)
-    setFromCommit('HEAD~1')
-    setToCommit('HEAD')
-    localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo))
-  }
+    setSelectedRepo(repo);
+    setFromCommit("HEAD~1");
+    setToCommit("HEAD");
+    localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+
+    // Update URL with repo path
+    updateUrl({
+      repoPath: repo.path,
+      fromBranch: "",
+      toBranch: "",
+      fromCommit: "HEAD~1",
+      toCommit: "HEAD",
+    });
+  };
 
   const toggleControlsCollapsed = () => {
-    const newState = !controlsCollapsed
-    setControlsCollapsed(newState)
-    localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState))
-  }
+    const newState = !controlsCollapsed;
+    setControlsCollapsed(newState);
+    localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(newState));
+  };
 
   const getRefDisplay = (ref: string, commitList: CommitInfo[]) => {
-    const info = commitList.find(c => c.hash.startsWith(ref.slice(0, 7)) || ref === c.hash)
-    if (ref === 'HEAD~1' || ref === 'HEAD') {
-      return { label: ref, sublabel: info?.message || '' }
+    const info = commitList.find((c) => c.hash.startsWith(ref.slice(0, 7)) || ref === c.hash);
+    if (ref === "HEAD~1" || ref === "HEAD") {
+      return { label: ref, sublabel: info?.message || "" };
     }
     return {
       label: ref.slice(0, 7),
-      sublabel: info?.message || ''
-    }
-  }
+      sublabel: info?.message || "",
+    };
+  };
 
-  const fromDisplay = getRefDisplay(fromCommit, fromCommits)
-  const toDisplay = getRefDisplay(toCommit, toCommits)
+  const fromDisplay = getRefDisplay(fromCommit, fromCommits);
+  const toDisplay = getRefDisplay(toCommit, toCommits);
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -192,10 +221,10 @@ export const HomePage: FC = () => {
             <h1 className="text-lg font-semibold text-gray-900">Git Diff Reviewer</h1>
 
             <select
-              value={selectedRepo?.path || ''}
+              value={selectedRepo?.path || ""}
               onChange={(e) => {
-                const repo = repositories.find((r) => r.path === e.target.value)
-                if (repo) handleRepoChange(repo)
+                const repo = repositories.find((r) => r.path === e.target.value);
+                if (repo) handleRepoChange(repo);
               }}
               className="rounded border border-gray-300 px-2 py-1 text-xs"
               disabled={reposLoading}
@@ -227,7 +256,7 @@ export const HomePage: FC = () => {
           )}
 
           <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['diff'] })}
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["diff"] })}
             className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
             title="Refresh diff"
           >
@@ -238,7 +267,7 @@ export const HomePage: FC = () => {
             onClick={toggleControlsCollapsed}
             className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
           >
-            {controlsCollapsed ? '▼ Show' : '▲ Hide'} Controls
+            {controlsCollapsed ? "▼ Show" : "▲ Hide"} Controls
           </button>
         </div>
       </header>
@@ -253,7 +282,10 @@ export const HomePage: FC = () => {
                 <input
                   list="from-branches"
                   value={fromBranch}
-                  onChange={(e) => setFromBranch(e.target.value)}
+                  onChange={(e) => {
+                    setFromBranch(e.target.value);
+                    updateUrl({ fromBranch: e.target.value });
+                  }}
                   placeholder="All branches"
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
                 />
@@ -268,7 +300,10 @@ export const HomePage: FC = () => {
                 <input
                   list="from-commits"
                   value={fromCommit}
-                  onChange={(e) => setFromCommit(e.target.value)}
+                  onChange={(e) => {
+                    setFromCommit(e.target.value);
+                    updateUrl({ fromCommit: e.target.value });
+                  }}
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
                 />
                 <datalist id="from-commits">
@@ -288,7 +323,10 @@ export const HomePage: FC = () => {
                 <input
                   list="to-branches"
                   value={toBranch}
-                  onChange={(e) => setToBranch(e.target.value)}
+                  onChange={(e) => {
+                    setToBranch(e.target.value);
+                    updateUrl({ toBranch: e.target.value });
+                  }}
                   placeholder="All branches"
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
                 />
@@ -303,7 +341,10 @@ export const HomePage: FC = () => {
                 <input
                   list="to-commits"
                   value={toCommit}
-                  onChange={(e) => setToCommit(e.target.value)}
+                  onChange={(e) => {
+                    setToCommit(e.target.value);
+                    updateUrl({ toCommit: e.target.value });
+                  }}
                   className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
                 />
                 <datalist id="to-commits">
@@ -324,7 +365,7 @@ export const HomePage: FC = () => {
                 type="text"
                 value={customPathInput}
                 onChange={(e) => setCustomPathInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addCustomPath()}
+                onKeyDown={(e) => e.key === "Enter" && addCustomPath()}
                 placeholder="Add path to search for repos..."
                 className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
               />
@@ -363,7 +404,7 @@ export const HomePage: FC = () => {
                   ? toCommitsError.message
                   : diffError instanceof Error
                     ? diffError.message
-                    : 'An error occurred'}
+                    : "An error occurred"}
             </div>
           )}
         </div>
@@ -380,15 +421,7 @@ export const HomePage: FC = () => {
             <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
           </div>
         ) : diff ? (
-          <DiffViewer
-            diff={diff}
-            highlightedIds={new Set()}
-            onLineSelect={(line: Line) => {
-              console.log('Selected line:', line)
-            }}
-            defaultMode="unified"
-            repoPath={selectedRepo?.path}
-          />
+          <DiffViewer diff={diff as any} />
         ) : (
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
             No diff available for the selected refs.
@@ -396,5 +429,5 @@ export const HomePage: FC = () => {
         )}
       </main>
     </div>
-  )
-}
+  );
+};

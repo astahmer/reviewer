@@ -22,7 +22,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         title: "Reviewer",
       },
     ],
-     links: [
+    links: [
       {
         rel: "stylesheet",
         href: appCss,

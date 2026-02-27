@@ -1,9 +1,9 @@
-import { Schema } from 'effect'
+import { Schema } from "effect";
 
 /**
  * Error for VCS (git) operations
  */
-export class VCSError extends Schema.TaggedError<VCSError>()('VCSError', {
+export class VCSError extends Schema.TaggedError<VCSError>()("VCSError", {
   message: Schema.String,
   command: Schema.optional(Schema.String),
 }) {}
@@ -11,7 +11,7 @@ export class VCSError extends Schema.TaggedError<VCSError>()('VCSError', {
 /**
  * Error for diff parsing operations
  */
-export class DiffParseError extends Schema.TaggedError<DiffParseError>()('DiffParseError', {
+export class DiffParseError extends Schema.TaggedError<DiffParseError>()("DiffParseError", {
   message: Schema.String,
   rawDiff: Schema.optional(Schema.String),
 }) {}
@@ -19,7 +19,7 @@ export class DiffParseError extends Schema.TaggedError<DiffParseError>()('DiffPa
 /**
  * Error for storage operations
  */
-export class StorageError extends Schema.TaggedError<StorageError>()('StorageError', {
+export class StorageError extends Schema.TaggedError<StorageError>()("StorageError", {
   message: Schema.String,
   key: Schema.optional(Schema.String),
 }) {}
@@ -27,4 +27,4 @@ export class StorageError extends Schema.TaggedError<StorageError>()('StorageErr
 /**
  * Union of all application errors
  */
-export type AppError = VCSError | DiffParseError | StorageError
+export type AppError = VCSError | DiffParseError | StorageError;

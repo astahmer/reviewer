@@ -1,146 +1,81 @@
-import { Effect } from 'effect'
-import { PARSE_DIFF_TIMEOUT_MS } from '~/lib/constants'
-import { FileDiff, Hunk, Line as DiffLine, Diff as DiffType } from '~/lib/types'
-import { DiffParseError } from '~/lib/errors'
-import { DiffParser } from './types'
+import { Effect } from "effect";
+import { parsePatchFiles } from "@pierre/diffs";
+import type { FileDiffMetadata } from "@pierre/diffs";
+import { PARSE_DIFF_TIMEOUT_MS } from "~/lib/constants";
+import { FileDiff, Line as DiffLine, Diff as DiffType } from "~/lib/types";
+import { DiffParseError } from "~/lib/errors";
+import { DiffParser } from "./types";
+
+export interface ParsedDiffWithMetadata extends DiffType {
+  /** @pierre/diffs parsed data for rendering with FileDiff component */
+  pierreData?: FileDiffMetadata[];
+}
 
 /**
- * Parses unified diff format
+ * Parses unified diff format using @pierre/diffs
  */
-export class JsDiffParser implements DiffParser {
-  parse(rawDiff: string, id: string, from: string, to: string): Effect.Effect<DiffType, DiffParseError> {
+export class PierreDiffParser implements DiffParser {
+  parse(
+    rawDiff: string,
+    id: string,
+    from: string,
+    to: string,
+  ): Effect.Effect<ParsedDiffWithMetadata, DiffParseError> {
     return Effect.tryPromise({
       try: async () => {
         return await Promise.race([
-          parseDiffSync(rawDiff, id, from, to),
+          parseDiffWithPierre(rawDiff, id, from, to),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Diff parsing timeout')), PARSE_DIFF_TIMEOUT_MS),
+            setTimeout(() => reject(new Error("Diff parsing timeout")), PARSE_DIFF_TIMEOUT_MS),
           ),
-        ])
+        ]);
       },
       catch: (error: unknown) =>
         new DiffParseError({
           message: `Failed to parse diff: ${error instanceof Error ? error.message : String(error)}`,
           rawDiff: rawDiff.slice(0, 100),
         }),
-    })
+    });
   }
 }
 
 /**
- * Parse unified diff synchronously (but wrapped in async for timeout)
+ * Parse unified diff using @pierre/diffs for better rendering support
  */
-async function parseDiffSync(rawDiff: string, id: string, from: string, to: string): Promise<DiffType> {
-  const files: FileDiff[] = []
-  let currentFile: Partial<FileDiff> | null = null
-  let currentHunk: Partial<Hunk> | null = null
-  let fileIndex = 0
-  let hunkIndex = 0
-  let lineNumberOld = 0
-  let lineNumberNew = 0
-  let flatLines: DiffLine[] = []
-  let lineId = 0
+async function parseDiffWithPierre(
+  rawDiff: string,
+  id: string,
+  from: string,
+  to: string,
+): Promise<ParsedDiffWithMetadata> {
+  // Parse with @pierre/diffs - returns array of patches
+  const patches = parsePatchFiles(rawDiff, `${id}:${from}:${to}`);
 
-  const lines = rawDiff.split('\n')
+  // Flatten all patches into a single array of files
+  const pierreFiles: FileDiffMetadata[] = patches.flatMap(p => p.files || []);
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
+  // Convert to legacy format for backward compatibility
+  const files: FileDiff[] = pierreFiles.map((file, fileIndex) => ({
+    oldPath: file.prevName || file.name,
+    newPath: file.name,
+    status: (
+      file.type === "new" ? "add" :
+      file.type === "deleted" ? "remove" :
+      file.type === "rename-pure" || file.type === "rename-changed" ? "rename" :
+      "modify"
+    ) as FileDiff["status"],
+    hunks: file.hunks.map((hunk, hunkIndex) => ({
+      header: hunk.hunkSpecs || `@@ -${hunk.deletionStart},${hunk.deletionCount} +${hunk.additionStart},${hunk.additionCount} @@`,
+      lines: extractLinesFromHunk(hunk, file, fileIndex, hunkIndex),
+      index: hunkIndex,
+    })),
+    index: fileIndex,
+  }));
 
-    // File header: 'diff --git a/path b/path'
-    if (line.startsWith('diff --git')) {
-      // Save previous file
-      if (currentFile && currentHunk) {
-        currentFile.hunks = currentFile.hunks || []
-        currentFile.hunks.push(currentHunk as Hunk)
-      }
-      if (currentFile) {
-        files.push(currentFile as FileDiff)
-      }
-
-      // Parse new file
-      const match = line.match(/^diff --git a\/(.+) b\/(.+)$/)
-      if (match) {
-        currentFile = {
-          oldPath: match[1],
-          newPath: match[2],
-          status: 'modify',
-          hunks: [],
-          index: fileIndex++,
-        }
-        currentHunk = null
-        hunkIndex = 0
-      }
-    }
-
-    // Hunk header: '@@ -1,5 +1,6 @@'
-    if (currentFile && line.startsWith('@@')) {
-      // Save previous hunk
-      if (currentHunk && currentFile.hunks) {
-        currentFile.hunks.push(currentHunk as Hunk)
-      }
-
-      // Parse hunk header
-      const hunkMatch = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/)
-      if (hunkMatch) {
-        lineNumberOld = parseInt(hunkMatch[1], 10)
-        lineNumberNew = parseInt(hunkMatch[3], 10)
-
-        currentHunk = {
-          header: line,
-          lines: [],
-          index: hunkIndex++,
-        }
-      }
-    }
-
-    // Diff line
-    if (currentFile && currentHunk && (line.startsWith('+') || line.startsWith('-') || line.startsWith(' '))) {
-      if (line.startsWith('\\')) {
-        // Skip "\ No newline at end of file"
-        continue
-      }
-
-      const prefix = line[0]
-      const content = line.slice(1)
-      let type: 'add' | 'remove' | 'context'
-
-      if (prefix === '+') {
-        type = 'add'
-      } else if (prefix === '-') {
-        type = 'remove'
-      } else {
-        type = 'context'
-      }
-
-      const diffLine: DiffLine = {
-        id: `${currentFile.index}-${hunkIndex}-${lineId++}`,
-        content,
-        type,
-        oldLineNumber: type === 'add' ? -1 : lineNumberOld++,
-        newLineNumber: type === 'remove' ? -1 : lineNumberNew++,
-        fileIndex: currentFile.index!,
-        hunkIndex: hunkIndex - 1,
-      }
-
-      if (type !== 'add') {
-        lineNumberOld++
-      }
-      if (type !== 'remove') {
-        lineNumberNew++
-      }
-
-      currentHunk.lines!.push(diffLine)
-      flatLines.push(diffLine)
-    }
-  }
-
-  // Save final file and hunk
-  if (currentHunk && currentFile && currentFile.hunks) {
-    currentFile.hunks.push(currentHunk as Hunk)
-  }
-  if (currentFile) {
-    files.push(currentFile as FileDiff)
-  }
+  // Flatten all lines for searching/filtering
+  const flatLines: DiffLine[] = files.flatMap((file) =>
+    file.hunks.flatMap((hunk) => hunk.lines),
+  );
 
   return {
     id,
@@ -149,12 +84,82 @@ async function parseDiffSync(rawDiff: string, id: string, from: string, to: stri
     files,
     flatLines,
     createdAt: new Date(),
-  }
+    pierreData: pierreFiles, // Store @pierre/diffs data for component usage
+  };
 }
 
 /**
- * Create a jsdiff-based parser instance
+ * Extract lines from @pierre/diffs hunk structure
  */
-export const createJsDiffParser = (): DiffParser => {
-  return new JsDiffParser()
+function extractLinesFromHunk(
+  hunk: any,
+  fileMeta: any,
+  fileIndex: number,
+  hunkIndex: number,
+): DiffLine[] {
+  const lines: DiffLine[] = [];
+  let lineId = 0;
+
+  const deletionLines: string[] = fileMeta.deletionLines || [];
+  const additionLines: string[] = fileMeta.additionLines || [];
+  const hunkContent = hunk.hunkContent || [];
+
+  for (const content of hunkContent) {
+    if (content.type === "context") {
+      // Context lines - both versions are the same
+      for (let i = 0; i < content.lines; i++) {
+        const idx = content.additionLineIndex + i;
+        lines.push({
+          id: `${fileIndex}-${hunkIndex}-${lineId++}`,
+          content: additionLines[idx] || deletionLines[content.deletionLineIndex + i] || "",
+          type: "context",
+          oldLineNumber: hunk.deletionStart + (content.deletionLineIndex + i),
+          newLineNumber: hunk.additionStart + idx,
+          fileIndex,
+          hunkIndex,
+        });
+      }
+    } else if (content.type === "change") {
+      // Deletions
+      for (let i = 0; i < content.deletions; i++) {
+        const idx = content.deletionLineIndex + i;
+        lines.push({
+          id: `${fileIndex}-${hunkIndex}-${lineId++}`,
+          content: deletionLines[idx] || "",
+          type: "remove",
+          oldLineNumber: hunk.deletionStart + idx,
+          newLineNumber: -1,
+          fileIndex,
+          hunkIndex,
+        });
+      }
+      // Additions
+      for (let i = 0; i < content.additions; i++) {
+        const idx = content.additionLineIndex + i;
+        lines.push({
+          id: `${fileIndex}-${hunkIndex}-${lineId++}`,
+          content: additionLines[idx] || "",
+          type: "add",
+          oldLineNumber: -1,
+          newLineNumber: hunk.additionStart + idx,
+          fileIndex,
+          hunkIndex,
+        });
+      }
+    }
+  }
+
+  return lines;
 }
+
+/**
+ * Create a @pierre/diffs-based parser instance
+ */
+export const createDiffParser = (): DiffParser => {
+  return new PierreDiffParser();
+};
+
+/**
+ * Backward compatibility export
+ */
+export const createJsDiffParser = createDiffParser;

@@ -1,8 +1,8 @@
-import { Effect } from 'effect'
-import { Diff } from '~/lib/types'
-import { DiffParseError, StorageError } from '~/lib/errors'
-import { StorageContext } from '~/effects/context/storage-context'
-import { DiffParserContext } from '~/effects/context/diff-parser-context'
+import { Effect } from "effect";
+import { Diff } from "~/lib/types";
+import { DiffParseError, StorageError } from "~/lib/errors";
+import { StorageContext } from "~/effects/context/storage-context";
+import { DiffParserContext } from "~/effects/context/diff-parser-context";
 
 /**
  * Diff processor service
@@ -21,55 +21,55 @@ export const processAndCache = (
   to: string,
 ): Effect.Effect<Diff, DiffParseError | StorageError, StorageContext | DiffParserContext> => {
   return Effect.gen(function* () {
-    const storage = yield* StorageContext
-    const parser = yield* DiffParserContext
+    const storage = yield* StorageContext;
+    const parser = yield* DiffParserContext;
 
     // Try to get from cache first
-    const cacheKey = `diff:${id}`
-    const cached = yield* storage.get<Diff>(cacheKey)
+    const cacheKey = `diff:${id}`;
+    const cached = yield* storage.get<Diff>(cacheKey);
 
     if (cached) {
-      return cached
+      return cached;
     }
 
     // Parse the diff
-    const parsed = yield* parser.parse(rawDiff, id, from, to)
+    const parsed = yield* parser.parse(rawDiff, id, from, to);
 
     // Store in cache
-    yield* storage.set(cacheKey, parsed)
+    yield* storage.set(cacheKey, parsed);
 
-    return parsed
-  })
-}
+    return parsed;
+  });
+};
 
 /**
  * Get a cached diff by ID
  */
 export const getCached = (id: string): Effect.Effect<Diff | null, StorageError, StorageContext> => {
   return Effect.gen(function* () {
-    const storage = yield* StorageContext
-    const cacheKey = `diff:${id}`
-    return yield* storage.get<Diff | null>(cacheKey)
-  })
-}
+    const storage = yield* StorageContext;
+    const cacheKey = `diff:${id}`;
+    return yield* storage.get<Diff | null>(cacheKey);
+  });
+};
 
 /**
  * Clear diff cache
  */
 export const clearCache = (id: string): Effect.Effect<void, StorageError, StorageContext> => {
   return Effect.gen(function* () {
-    const storage = yield* StorageContext
-    const cacheKey = `diff:${id}`
-    yield* storage.remove(cacheKey)
-  })
-}
+    const storage = yield* StorageContext;
+    const cacheKey = `diff:${id}`;
+    yield* storage.remove(cacheKey);
+  });
+};
 
 /**
  * Clear all diffs from cache
  */
 export const clearAllCache = (): Effect.Effect<void, StorageError, StorageContext> => {
   return Effect.gen(function* () {
-    const storage = yield* StorageContext
-    yield* storage.clear()
-  })
-}
+    const storage = yield* StorageContext;
+    yield* storage.clear();
+  });
+};
