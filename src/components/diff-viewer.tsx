@@ -1,4 +1,4 @@
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import {
@@ -24,6 +24,24 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   const [colorMode, setColorMode] = useColorMode();
   const [wrapping, setWrapping] = useWrapping();
   const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
+
+  // Track last selected light and dark themes
+  const [lastLightTheme, setLastLightTheme] = useState<string>(LIGHT_THEMES[0]);
+  const [lastDarkTheme, setLastDarkTheme] = useState<string>(DARK_THEMES[0]);
+
+  // Update last light theme when light dropdown changes
+  const handleLightThemeChange = (newTheme: string) => {
+    setTheme(newTheme);
+    setLastLightTheme(newTheme);
+    setColorMode("light");
+  };
+
+  // Update last dark theme when dark dropdown changes
+  const handleDarkThemeChange = (newTheme: string) => {
+    setTheme(newTheme);
+    setLastDarkTheme(newTheme);
+    setColorMode("dark");
+  };
 
   // Files to render from @pierre/diffs
   const pierreFiles = useMemo(() => {
@@ -70,11 +88,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
           {/* Light theme selector */}
           <div className="flex items-center">
             <select
-              value={theme}
-              onChange={(e) => {
-                setTheme(e.target.value);
-                setColorMode("light");
-              }}
+              value={LIGHT_THEMES.includes(theme as any) ? theme : lastLightTheme || ""}
+              onChange={(e) => handleLightThemeChange(e.target.value)}
               className="rounded-l border border-r-0 border-gray-300 px-3 py-1 text-xs bg-white font-medium text-gray-700"
             >
               <option value="" disabled>
@@ -97,11 +112,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
           {/* Dark theme selector */}
           <div className="flex items-center">
             <select
-              value={theme}
-              onChange={(e) => {
-                setTheme(e.target.value);
-                setColorMode("dark");
-              }}
+              value={DARK_THEMES.includes(theme as any) ? theme : lastDarkTheme || ""}
+              onChange={(e) => handleDarkThemeChange(e.target.value)}
               className="rounded-l border border-r-0 border-gray-300 px-3 py-1 text-xs bg-white font-medium text-gray-700"
             >
               <option value="" disabled>
@@ -124,7 +136,11 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
           {/* Color mode toggle buttons */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-md p-1 border border-gray-300">
             <button
-              onClick={() => setColorMode("auto")}
+              onClick={() => {
+                setColorMode("auto");
+                // When switching to auto, prefer the light theme
+                setTheme(lastLightTheme);
+              }}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                 colorMode === "auto"
                   ? "bg-white text-gray-900 shadow-sm border border-gray-300"
@@ -135,7 +151,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
               ⚙️ Auto
             </button>
             <button
-              onClick={() => setColorMode("light")}
+              onClick={() => {
+                setColorMode("light");
+                setTheme(lastLightTheme);
+              }}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                 colorMode === "light"
                   ? "bg-white text-gray-900 shadow-sm border border-gray-300"
@@ -146,7 +165,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
               ☀️ Light
             </button>
             <button
-              onClick={() => setColorMode("dark")}
+              onClick={() => {
+                setColorMode("dark");
+                setTheme(lastDarkTheme);
+              }}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                 colorMode === "dark"
                   ? "bg-gray-700 text-white shadow-sm border border-gray-600"
