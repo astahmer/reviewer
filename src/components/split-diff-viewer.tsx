@@ -24,13 +24,13 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
 
   const alignedLines = useMemo((): AlignedLine[] => {
     const result: AlignedLine[] = []
-    
+
     for (const file of diff.files) {
       const fileIndex = file.index
-      
+
       const removeLines: Line[] = []
       const addLines: Line[] = []
-      
+
       for (const hunk of file.hunks) {
         for (const line of hunk.lines) {
           if (line.type === 'context') {
@@ -46,10 +46,10 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
           }
         }
       }
-      
+
       let removeIdx = 0
       let addIdx = 0
-      
+
       for (const hunk of file.hunks) {
         for (const line of hunk.lines) {
           if (line.type === 'remove') {
@@ -74,7 +74,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
         }
       }
     }
-    
+
     return result
   }, [diff.files])
 
@@ -119,7 +119,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
       <div className="flex shrink-0">
         <div className="w-12 bg-gray-50 border-r border-gray-200 text-right px-1 py-0.5 select-none flex-shrink-0">
           <span className="text-xs text-gray-500">
-            {side === 'left' 
+            {side === 'left'
               ? (line.oldLineNumber >= 0 ? line.oldLineNumber : '')
               : (line.newLineNumber >= 0 ? line.newLineNumber : '')
             }
@@ -168,9 +168,9 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
               </div>
             ))}
           </div>
-          
+
           <div className="w-px bg-gray-300 shrink-0"></div>
-          
+
           <div className="flex-1 min-w-0">
             {diff.files.map((file) => (
               <div key={`right-${file.index}`}>
@@ -187,7 +187,7 @@ export const SplitDiffViewer: FC<SplitDiffViewerProps> = ({ diff, highlightedIds
       </div>
 
       {hoveredLine && (
-        <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600 shrink-0">
+        <div className="px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600 shrink-0 absolute bottom-0 left-0">
           Old: Line {hoveredLine.oldLineNumber >= 0 ? hoveredLine.oldLineNumber : '-'} | New: Line {hoveredLine.newLineNumber >= 0 ? hoveredLine.newLineNumber : '-'}
         </div>
       )}
