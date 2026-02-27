@@ -81,4 +81,6 @@ export interface UserPreferences {
   searchHistory: string[];
   /** Theme for diff viewer */
   theme?: string;
+  /** Color mode: light, dark, or auto */
+  colorMode?: "light" | "dark" | "auto";
 }

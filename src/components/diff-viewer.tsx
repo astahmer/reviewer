@@ -1,8 +1,8 @@
 import { FC, useMemo } from "react";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import type { FileDiffMetadata } from "@pierre/diffs";
-import { useViewMode, useTheme } from "~/components/hooks";
-import { AVAILABLE_THEMES } from "~/lib/constants";
+import { useViewMode, useTheme, useColorMode } from "~/components/hooks";
+import { LIGHT_THEMES, DARK_THEMES } from "~/lib/constants";
 import { Diff } from "~/lib/types";
 
 interface DiffViewerProps {
@@ -15,6 +15,15 @@ interface DiffViewerProps {
 export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   const [viewMode, setViewMode] = useViewMode();
   const [theme, setTheme] = useTheme();
+  const [colorMode, setColorMode] = useColorMode();
+
+  // Get available themes based on color mode
+  const availableThemes = useMemo(() => {
+    if (colorMode === "light") return LIGHT_THEMES;
+    if (colorMode === "dark") return DARK_THEMES;
+    // For auto, show all themes
+    return [...LIGHT_THEMES, ...DARK_THEMES];
+  }, [colorMode]);
 
   // Files to render from @pierre/diffs
   const pierreFiles = useMemo(() => {
@@ -22,19 +31,15 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   }, [diff.pierreData]);
 
   if (!pierreFiles || pierreFiles.length === 0) {
-    return (
-      <div className="p-4 text-center text-gray-500">
-        No diff data available
-      </div>
-    );
+    return <div className="p-4 text-center text-gray-500">No diff data available</div>;
   }
 
   return (
     <div className="h-full flex flex-col">
       {/* Controls */}
-      <div className="flex-shrink-0 border-b border-gray-200 px-4 py-2 flex items-center gap-4">
+      <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3 flex items-center gap-6 overflow-x-auto">
         {/* View mode toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-sm font-medium text-gray-700">View:</span>
           <button
             onClick={() => setViewMode("unified")}
@@ -60,26 +65,64 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
           </button>
         </div>
 
-        {/* Theme selector */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="theme-select" className="text-sm font-medium text-gray-700">
-            Theme:
-          </label>
-          <select
-            id="theme-select"
-            value={theme}
-            onChange={(e) => setTheme(e.target.value)}
-            className="rounded border border-gray-300 px-2 py-1 text-xs bg-white"
-          >
-            {AVAILABLE_THEMES.map((t) => (
-              <option key={t} value={t}>
-                {t
-                  .split("-")
-                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                  .join(" ")}
-              </option>
-            ))}
-          </select>
+        {/* Color mode and theme selector */}
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Theme:</span>
+
+            {/* Theme selector dropdown */}
+            <select
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              className="rounded border border-gray-300 px-2 py-1 text-xs bg-white"
+            >
+              {availableThemes.map((t) => (
+                <option key={t} value={t}>
+                  {t
+                    .split("-")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Color mode toggle buttons */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-md p-1">
+            <button
+              onClick={() => setColorMode("light")}
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                colorMode === "light"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              title="Light theme"
+            >
+              ☀️ Light
+            </button>
+            <button
+              onClick={() => setColorMode("dark")}
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                colorMode === "dark"
+                  ? "bg-gray-700 text-white shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              title="Dark theme"
+            >
+              🌙 Dark
+            </button>
+            <button
+              onClick={() => setColorMode("auto")}
+              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+                colorMode === "auto"
+                  ? "bg-white text-gray-900 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              title="Auto theme (follows system)"
+            >
+              ⚙️ Auto
+            </button>
+          </div>
         </div>
       </div>
 

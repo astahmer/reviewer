@@ -1,6 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
-import { SEARCH_DEBOUNCE_MS, DEFAULT_PREFERENCES, STORAGE_KEYS, DEFAULT_THEME } from "~/lib/constants";
+import {
+  SEARCH_DEBOUNCE_MS,
+  DEFAULT_PREFERENCES,
+  STORAGE_KEYS,
+  DEFAULT_THEME,
+} from "~/lib/constants";
 import { UserPreferences, Line } from "~/lib/types";
+import type { ColorMode } from "~/lib/constants";
 
 /**
  * Hook to manage user preferences with localStorage persistence
@@ -116,12 +122,34 @@ export function useTheme(): [string, (theme: string) => void] {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(STORAGE_KEYS.preferences);
       const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-      localStorage.setItem(
-        STORAGE_KEYS.preferences,
-        JSON.stringify({ ...prefs, theme: newTheme })
-      );
+      localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ ...prefs, theme: newTheme }));
     }
   }, []);
 
   return [theme, updateTheme];
+}
+/**
+ * Hook to manage color mode preference
+ */
+export function useColorMode(): [ColorMode, (mode: ColorMode) => void] {
+  const [colorMode, setColorMode] = useState<ColorMode>(() => {
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
+    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
+    return prefs.colorMode || "auto";
+  });
+
+  const updateColorMode = useCallback((newMode: ColorMode) => {
+    setColorMode(newMode);
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
+      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
+      localStorage.setItem(
+        STORAGE_KEYS.preferences,
+        JSON.stringify({ ...prefs, colorMode: newMode }),
+      );
+    }
+  }, []);
+
+  return [colorMode, updateColorMode];
 }

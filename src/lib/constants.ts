@@ -20,25 +20,83 @@ export const DEFAULT_PREFERENCES = {
   viewMode: "unified" as const,
   ignoreWhitespace: false,
   searchHistory: [],
+  theme: "pierre-dark",
+  colorMode: "auto" as const,
 } as const;
 
-// @pierre/diffs theme configuration
-export const AVAILABLE_THEMES = [
-  "pierre-dark",
+// Light themes for @pierre/diffs
+export const LIGHT_THEMES = [
   "pierre-light",
-  "github-dark",
+  "catppuccin-latte",
+  "everforest-light",
   "github-light",
-  "dracula",
-  "catppuccin-mocha",
-  "gruvbox-dark-hard",
-  "nord",
-  "tokyo-night",
-  "ayu-dark",
-  "ayu-light",
-  "vitesse-dark",
+  "github-light-default",
+  "github-light-high-contrast",
+  "gruvbox-light-hard",
+  "gruvbox-light-medium",
+  "gruvbox-light-soft",
+  "kanagawa-lotus",
+  "light-plus",
+  "material-theme-lighter",
+  "min-light",
+  "one-light",
+  "rose-pine-dawn",
+  "slack-ochin",
+  "snazzy-light",
+  "solarized-light",
   "vitesse-light",
 ] as const;
 
+// Dark themes for @pierre/diffs
+export const DARK_THEMES = [
+  "pierre-dark",
+  "andromeeda",
+  "aurora-x",
+  "ayu-dark",
+  "catppuccin-frappe",
+  "catppuccin-macchiato",
+  "catppuccin-mocha",
+  "dark-plus",
+  "dracula",
+  "dracula-soft",
+  "everforest-dark",
+  "github-dark",
+  "github-dark-default",
+  "github-dark-dimmed",
+  "github-dark-high-contrast",
+  "gruvbox-dark-hard",
+  "gruvbox-dark-medium",
+  "gruvbox-dark-soft",
+  "houston",
+  "kanagawa-dragon",
+  "kanagawa-wave",
+  "laserwave",
+  "material-theme",
+  "material-theme-darker",
+  "material-theme-ocean",
+  "material-theme-palenight",
+  "min-dark",
+  "monokai",
+  "night-owl",
+  "nord",
+  "one-dark-pro",
+  "plastic",
+  "poimandres",
+  "red",
+  "rose-pine",
+  "rose-pine-moon",
+  "slack-dark",
+  "solarized-dark",
+  "synthwave-84",
+  "tokyo-night",
+  "vesper",
+  "vitesse-black",
+  "vitesse-dark",
+] as const;
+
+export const AVAILABLE_THEMES = [...LIGHT_THEMES, ...DARK_THEMES] as const;
+
 export type ThemeName = (typeof AVAILABLE_THEMES)[number];
+export type ColorMode = "light" | "dark" | "auto";
 
 export const DEFAULT_THEME: ThemeName = "pierre-dark";
