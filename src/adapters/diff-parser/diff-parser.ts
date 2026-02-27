@@ -105,10 +105,15 @@ function extractLinesFromHunk(
   let oldLineNum = hunk.deletionStart;
   let newLineNum = hunk.additionStart;
 
+  const deletionLines = fileMeta.deletionLines || [];
+  const additionLines = fileMeta.additionLines || [];
+
   for (const content of hunkContent) {
     if (content.type === "context") {
       // Context lines - same in both old and new versions
-      for (const lineContent of content.lines) {
+      const startIdx = content.deletionLineIndex;
+      for (let i = 0; i < content.lines; i++) {
+        const lineContent = deletionLines[startIdx + i] || additionLines[startIdx + i] || "";
         lines.push({
           id: `${fileIndex}-${hunkIndex}-${lineId++}`,
           content: lineContent,
@@ -123,7 +128,9 @@ function extractLinesFromHunk(
       }
     } else if (content.type === "change") {
       // Deletions (lines only in old version)
-      for (const lineContent of content.deletions) {
+      const delStartIdx = content.deletionLineIndex;
+      for (let i = 0; i < content.deletions; i++) {
+        const lineContent = deletionLines[delStartIdx + i] || "";
         lines.push({
           id: `${fileIndex}-${hunkIndex}-${lineId++}`,
           content: lineContent,
@@ -137,7 +144,9 @@ function extractLinesFromHunk(
       }
 
       // Additions (lines only in new version)
-      for (const lineContent of content.additions) {
+      const addStartIdx = content.additionLineIndex;
+      for (let i = 0; i < content.additions; i++) {
+        const lineContent = additionLines[addStartIdx + i] || "";
         lines.push({
           id: `${fileIndex}-${hunkIndex}-${lineId++}`,
           content: lineContent,
