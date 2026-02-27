@@ -1,6 +1,6 @@
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState } from "react";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
-import type { FileDiffMetadata } from "@pierre/diffs";
+import type { FileDiffMetadata, HunkExpansionRegion } from "@pierre/diffs";
 import {
   useViewMode,
   useTheme,
@@ -36,6 +36,11 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
     DARK_THEMES[0],
   );
 
+  // Track expanded hunks for each file: Map<fileIndex, Map<hunkIndex, HunkExpansionRegion>>
+  const [expandedHunksByFile, setExpandedHunksByFile] = useState<
+    Map<number, Map<number, HunkExpansionRegion>>
+  >(new Map());
+
   // Update last light theme when light dropdown changes
   const handleLightThemeChange = (newTheme: string) => {
     if (LIGHT_THEMES.includes(newTheme as any)) {
@@ -52,6 +57,54 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
       setLastDarkTheme(newTheme);
       setColorMode("dark");
     }
+  };
+
+  // Handle hunk expansion
+  const handleHunkExpand = (
+    fileIndex: number,
+    hunkIndex: number,
+    direction: "up" | "down" | "both",
+    expandFully?: boolean,
+  ) => {
+    setExpandedHunksByFile((prevMap) => {
+      const newMap = new Map(prevMap);
+      const fileHunks = newMap.get(fileIndex) ?? new Map();
+      const currentExpansion = fileHunks.get(hunkIndex);
+      const expansionLineCount = 100; // Default expansion per click
+
+      let newExpansion: HunkExpansionRegion;
+
+      if (expandFully) {
+        // Expand fully - set very high numbers to show all lines
+        newExpansion = { fromStart: 999999, fromEnd: 999999 };
+      } else {
+        // Expand incrementally by expansionLineCount lines
+        const currentFromStart = currentExpansion?.fromStart ?? 0;
+        const currentFromEnd = currentExpansion?.fromEnd ?? 0;
+
+        if (direction === "up") {
+          newExpansion = {
+            fromStart: currentFromStart + expansionLineCount,
+            fromEnd: currentFromEnd,
+          };
+        } else if (direction === "down") {
+          newExpansion = {
+            fromStart: currentFromStart,
+            fromEnd: currentFromEnd + expansionLineCount,
+          };
+        } else {
+          // direction === "both"
+          newExpansion = {
+            fromStart: currentFromStart + expansionLineCount,
+            fromEnd: currentFromEnd + expansionLineCount,
+          };
+        }
+      }
+
+      fileHunks.set(hunkIndex, newExpansion);
+      newMap.set(fileIndex, fileHunks);
+      return newMap;
+    });
   };
 
   // Files to render from @pierre/diffs
@@ -233,6 +286,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
                 diffStyle: viewMode,
                 overflow: wrapping ? "wrap" : "scroll",
                 disableLineNumbers: false,
+                expandedHunks: expandedHunksByFile.get(idx),
+                onHunkExpand: (hunkIndex, direction, expandFully) => {
+                  handleHunkExpand(idx, hunkIndex, direction, expandFully);
+                },
               }}
             />
           ))}
