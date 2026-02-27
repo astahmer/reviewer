@@ -1,7 +1,13 @@
 import { FC, useMemo } from "react";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import type { FileDiffMetadata } from "@pierre/diffs";
-import { useViewMode, useTheme, useColorMode, useWrapping } from "~/components/hooks";
+import {
+  useViewMode,
+  useTheme,
+  useColorMode,
+  useWrapping,
+  useIgnoreWhitespace,
+} from "~/components/hooks";
 import { LIGHT_THEMES, DARK_THEMES } from "~/lib/constants";
 import { Diff } from "~/lib/types";
 
@@ -17,6 +23,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   const [theme, setTheme] = useTheme();
   const [colorMode, setColorMode] = useColorMode();
   const [wrapping, setWrapping] = useWrapping();
+  const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
 
   // Files to render from @pierre/diffs
   const pierreFiles = useMemo(() => {
@@ -162,6 +169,20 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
                 title="Toggle line wrapping"
               />
               <span className="text-xs font-medium text-gray-700">Wrapping</span>
+            </label>
+          </div>
+
+          {/* Ignore whitespace toggle */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ignoreWhitespace}
+                onChange={(e) => setIgnoreWhitespace(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300"
+                title="Ignore whitespace-only changes"
+              />
+              <span className="text-xs font-medium text-gray-700">Ignore whitespace</span>
             </label>
           </div>
         </div>

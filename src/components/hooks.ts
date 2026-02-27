@@ -179,3 +179,29 @@ export function useWrapping(): [boolean, (wrapping: boolean) => void] {
 
   return [wrapping, updateWrapping];
 }
+
+/**
+ * Hook to manage ignore whitespace preference
+ */
+export function useIgnoreWhitespace(): [boolean, (ignore: boolean) => void] {
+  const [ignoreWhitespace, setIgnoreWhitespace] = useState<boolean>(() => {
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
+    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
+    return prefs.ignoreWhitespace === true;
+  });
+
+  const updateIgnoreWhitespace = useCallback((newIgnore: boolean) => {
+    setIgnoreWhitespace(newIgnore);
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
+      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
+      localStorage.setItem(
+        STORAGE_KEYS.preferences,
+        JSON.stringify({ ...prefs, ignoreWhitespace: newIgnore }),
+      );
+    }
+  }, []);
+
+  return [ignoreWhitespace, updateIgnoreWhitespace];
+}

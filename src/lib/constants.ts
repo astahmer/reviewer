@@ -9,16 +9,16 @@ export const SEARCH_DEBOUNCE_MS = 300;
 
 // Storage keys
 export const STORAGE_KEYS = {
-  preferences: "app:preferences",
-  searchHistory: "app:searchHistory",
-  selectedRepo: "app:selectedRepo",
-  customPaths: "app:customPaths",
+  preferences: "reviewer_app:preferences",
+  searchHistory: "reviewer_app:searchHistory",
+  selectedRepo: "reviewer_app:selectedRepo",
+  customPaths: "reviewer_app:customPaths",
 } as const;
 
 // Default preferences
 export const DEFAULT_PREFERENCES = {
-  viewMode: "unified" as const,
-  ignoreWhitespace: false,
+  viewMode: "split" as const,
+  ignoreWhitespace: true,
   searchHistory: [],
   theme: "pierre-dark",
   colorMode: "auto" as const,
