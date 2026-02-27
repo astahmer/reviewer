@@ -2,6 +2,8 @@
  * Application-wide constants
  */
 
+import type { UserPreferences } from "~/lib/types";
+
 // Timing constants
 export const PARSE_DIFF_TIMEOUT_MS = 30000;
 export const GIT_DIFF_TIMEOUT_MS = 30000;
@@ -18,14 +20,14 @@ export const STORAGE_KEYS = {
 } as const;
 
 // Default preferences
-export const DEFAULT_PREFERENCES = {
-  viewMode: "split" as const,
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  viewMode: "split",
   ignoreWhitespace: true,
   searchHistory: [],
   theme: "pierre-dark",
-  colorMode: "auto" as const,
+  colorMode: "auto",
   wrapping: true,
-} as const;
+};
 
 // Light themes for @pierre/diffs
 export const LIGHT_THEMES = [

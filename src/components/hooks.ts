@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   SEARCH_DEBOUNCE_MS,
   DEFAULT_PREFERENCES,
@@ -22,19 +22,16 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T)
     }
   });
 
-  const updateValue = useCallback(
-    (newValue: T) => {
-      setValue(newValue);
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(key, JSON.stringify(newValue));
-        } catch {
-          // Silently fail if localStorage is unavailable
-        }
+  const updateValue = (newValue: T) => {
+    setValue(newValue);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(key, JSON.stringify(newValue));
+      } catch {
+        // Silently fail if localStorage is unavailable
       }
-    },
-    [key],
-  );
+    }
+  };
 
   return [value, updateValue];
 }
@@ -43,24 +40,16 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T)
  * Hook to manage user preferences with localStorage persistence
  */
 export function useUserPreferences(): [UserPreferences, (prefs: Partial<UserPreferences>) => void] {
-  const [prefs, setPrefs] = useState<UserPreferences>(() => {
-    // Load from localStorage
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
-    return stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-  });
+  const [storedPrefs, setStoredPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
 
-  const updatePrefs = useCallback((update: Partial<UserPreferences>) => {
-    setPrefs((current) => {
-      const updated = { ...current, ...update };
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify(updated));
-      }
-      return updated;
-    });
-  }, []);
+  const updatePrefs = (update: Partial<UserPreferences>) => {
+    setStoredPrefs({ ...storedPrefs, ...update });
+  };
 
-  return [prefs, updatePrefs];
+  return [storedPrefs, updatePrefs];
 }
 
 /**
@@ -87,21 +76,11 @@ export function useDebouncedSearch(
  * Hook to manage search history
  */
 export function useSearchHistory(): [string[], (query: string) => void] {
-  const [history, setHistory] = useState<string[]>(() => {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.searchHistory) : null;
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [history, setHistory] = useLocalStorage<string[]>(STORAGE_KEYS.searchHistory, []);
 
-  const addToHistory = useCallback((query: string) => {
-    setHistory((current) => {
-      const updated = [query, ...current.filter((q) => q !== query)].slice(0, 10);
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEYS.searchHistory, JSON.stringify(updated));
-      }
-      return updated;
-    });
-  }, []);
+  const addToHistory = (query: string) => {
+    setHistory([query, ...history.filter((q) => q !== query)].slice(0, 10));
+  };
 
   return [history, addToHistory];
 }
@@ -119,120 +98,76 @@ export function useSelectedLine(): [Line | null, (line: Line | null) => void] {
  * Hook to manage view mode preference
  */
 export function useViewMode(): ["unified" | "split", (mode: "unified" | "split") => void] {
-  const [viewMode, setViewMode] = useState<"unified" | "split">(() => {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
-    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-    return prefs.viewMode || "unified";
-  });
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
 
-  const updateViewMode = useCallback((mode: "unified" | "split") => {
-    setViewMode(mode);
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
-      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-      localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ ...prefs, viewMode: mode }));
-    }
-  }, []);
+  const updateViewMode = (mode: "unified" | "split") => {
+    setPrefs({ ...prefs, viewMode: mode });
+  };
 
-  return [viewMode, updateViewMode];
+  return [prefs.viewMode, updateViewMode];
 }
 /**
  * Hook to manage theme preference
  */
 export function useTheme(): [string, (theme: string) => void] {
-  const [theme, setTheme] = useState<string>(() => {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
-    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-    return prefs.theme || DEFAULT_THEME;
-  });
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
 
-  const updateTheme = useCallback((newTheme: string) => {
-    setTheme(newTheme);
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
-      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-      localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify({ ...prefs, theme: newTheme }));
-    }
-  }, []);
+  const updateTheme = (newTheme: string) => {
+    setPrefs({ ...prefs, theme: newTheme });
+  };
 
-  return [theme, updateTheme];
+  return [prefs.theme || DEFAULT_THEME, updateTheme];
 }
 /**
  * Hook to manage color mode preference
  */
 export function useColorMode(): [ColorMode, (mode: ColorMode) => void] {
-  const [colorMode, setColorMode] = useState<ColorMode>(() => {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
-    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-    return prefs.colorMode || "auto";
-  });
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
 
-  const updateColorMode = useCallback((newMode: ColorMode) => {
-    setColorMode(newMode);
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
-      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-      localStorage.setItem(
-        STORAGE_KEYS.preferences,
-        JSON.stringify({ ...prefs, colorMode: newMode }),
-      );
-    }
-  }, []);
+  const updateColorMode = (newMode: ColorMode) => {
+    setPrefs({ ...prefs, colorMode: newMode });
+  };
 
-  return [colorMode, updateColorMode];
+  return [prefs.colorMode || "auto", updateColorMode];
 }
 
 /**
  * Hook to manage wrapping preference
  */
 export function useWrapping(): [boolean, (wrapping: boolean) => void] {
-  const [wrapping, setWrapping] = useState<boolean>(() => {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
-    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-    return prefs.wrapping !== false; // Default to true
-  });
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
 
-  const updateWrapping = useCallback((newWrapping: boolean) => {
-    setWrapping(newWrapping);
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
-      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-      localStorage.setItem(
-        STORAGE_KEYS.preferences,
-        JSON.stringify({ ...prefs, wrapping: newWrapping }),
-      );
-    }
-  }, []);
+  const updateWrapping = (newWrapping: boolean) => {
+    setPrefs({ ...prefs, wrapping: newWrapping });
+  };
 
-  return [wrapping, updateWrapping];
+  return [prefs.wrapping !== false, updateWrapping];
 }
 
 /**
  * Hook to manage ignore whitespace preference
  */
 export function useIgnoreWhitespace(): [boolean, (ignore: boolean) => void] {
-  const [ignoreWhitespace, setIgnoreWhitespace] = useState<boolean>(() => {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
-    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-    return prefs.ignoreWhitespace === true;
-  });
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
 
-  const updateIgnoreWhitespace = useCallback((newIgnore: boolean) => {
-    setIgnoreWhitespace(newIgnore);
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
-      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
-      localStorage.setItem(
-        STORAGE_KEYS.preferences,
-        JSON.stringify({ ...prefs, ignoreWhitespace: newIgnore }),
-      );
-    }
-  }, []);
+  const updateIgnoreWhitespace = (newIgnore: boolean) => {
+    setPrefs({ ...prefs, ignoreWhitespace: newIgnore });
+  };
 
-  return [ignoreWhitespace, updateIgnoreWhitespace];
+  return [prefs.ignoreWhitespace === true, updateIgnoreWhitespace];
 }
