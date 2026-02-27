@@ -17,14 +17,6 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   const [theme, setTheme] = useTheme();
   const [colorMode, setColorMode] = useColorMode();
 
-  // Get available themes based on color mode
-  const availableThemes = useMemo(() => {
-    if (colorMode === "light") return LIGHT_THEMES;
-    if (colorMode === "dark") return DARK_THEMES;
-    // For auto, show all themes
-    return [...LIGHT_THEMES, ...DARK_THEMES];
-  }, [colorMode]);
-
   // Files to render from @pierre/diffs
   const pierreFiles = useMemo(() => {
     return diff.pierreData || [];
@@ -37,7 +29,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   return (
     <div className="h-full flex flex-col">
       {/* Controls */}
-      <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3 flex items-center gap-6 overflow-x-auto">
+      <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3 flex items-center gap-4 overflow-x-auto">
         {/* View mode toggle */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-sm font-medium text-gray-700">View:</span>
@@ -65,18 +57,22 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
           </button>
         </div>
 
-        {/* Color mode and theme selector */}
-        <div className="flex items-center gap-4 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">Theme:</span>
-
-            {/* Theme selector dropdown */}
+        {/* Theme selectors and color mode toggle */}
+        <div className="flex items-center gap-3 flex-shrink-0 border-l border-gray-300 pl-4">
+          {/* Light theme selector */}
+          <div className="flex items-center">
             <select
               value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              className="rounded border border-gray-300 px-2 py-1 text-xs bg-white"
+              onChange={(e) => {
+                setTheme(e.target.value);
+                setColorMode("light");
+              }}
+              className="rounded-l border border-r-0 border-gray-300 px-3 py-1 text-xs bg-white font-medium text-gray-700"
             >
-              {availableThemes.map((t) => (
+              <option value="" disabled>
+                Light Theme
+              </option>
+              {LIGHT_THEMES.map((t) => (
                 <option key={t} value={t}>
                   {t
                     .split("-")
@@ -85,15 +81,56 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
                 </option>
               ))}
             </select>
+            <div className="border border-l-0 border-gray-300 px-2 py-1 bg-white rounded-r text-xs">
+              ☀️
+            </div>
+          </div>
+
+          {/* Dark theme selector */}
+          <div className="flex items-center">
+            <select
+              value={theme}
+              onChange={(e) => {
+                setTheme(e.target.value);
+                setColorMode("dark");
+              }}
+              className="rounded-l border border-r-0 border-gray-300 px-3 py-1 text-xs bg-white font-medium text-gray-700"
+            >
+              <option value="" disabled>
+                Dark Theme
+              </option>
+              {DARK_THEMES.map((t) => (
+                <option key={t} value={t}>
+                  {t
+                    .split("-")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")}
+                </option>
+              ))}
+            </select>
+            <div className="border border-l-0 border-gray-300 px-2 py-1 bg-white rounded-r text-xs">
+              🌙
+            </div>
           </div>
 
           {/* Color mode toggle buttons */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-md p-1">
+          <div className="flex items-center gap-1 bg-gray-100 rounded-md p-1 border border-gray-300">
+            <button
+              onClick={() => setColorMode("auto")}
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                colorMode === "auto"
+                  ? "bg-white text-gray-900 shadow-sm border border-gray-300"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+              title="Auto theme (follows system)"
+            >
+              ⚙️ Auto
+            </button>
             <button
               onClick={() => setColorMode("light")}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                 colorMode === "light"
-                  ? "bg-white text-gray-900 shadow-sm"
+                  ? "bg-white text-gray-900 shadow-sm border border-gray-300"
                   : "text-gray-600 hover:text-gray-900"
               }`}
               title="Light theme"
@@ -102,25 +139,14 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
             </button>
             <button
               onClick={() => setColorMode("dark")}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
+              className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                 colorMode === "dark"
-                  ? "bg-gray-700 text-white shadow-sm"
+                  ? "bg-gray-700 text-white shadow-sm border border-gray-600"
                   : "text-gray-600 hover:text-gray-900"
               }`}
               title="Dark theme"
             >
               🌙 Dark
-            </button>
-            <button
-              onClick={() => setColorMode("auto")}
-              className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${
-                colorMode === "auto"
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-              title="Auto theme (follows system)"
-            >
-              ⚙️ Auto
             </button>
           </div>
         </div>
