@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import {
@@ -7,8 +7,9 @@ import {
   useColorMode,
   useWrapping,
   useIgnoreWhitespace,
+  useLocalStorage,
 } from "~/components/hooks";
-import { LIGHT_THEMES, DARK_THEMES } from "~/lib/constants";
+import { LIGHT_THEMES, DARK_THEMES, STORAGE_KEYS } from "~/lib/constants";
 import { Diff } from "~/lib/types";
 
 interface DiffViewerProps {
@@ -25,22 +26,32 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   const [wrapping, setWrapping] = useWrapping();
   const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
 
-  // Track last selected light and dark themes
-  const [lastLightTheme, setLastLightTheme] = useState<string>(LIGHT_THEMES[0]);
-  const [lastDarkTheme, setLastDarkTheme] = useState<string>(DARK_THEMES[0]);
+  // Track last selected light and dark themes with localStorage
+  const [lastLightTheme, setLastLightTheme] = useLocalStorage<string>(
+    STORAGE_KEYS.lastLightTheme,
+    LIGHT_THEMES[0],
+  );
+  const [lastDarkTheme, setLastDarkTheme] = useLocalStorage<string>(
+    STORAGE_KEYS.lastDarkTheme,
+    DARK_THEMES[0],
+  );
 
   // Update last light theme when light dropdown changes
   const handleLightThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    setLastLightTheme(newTheme);
-    setColorMode("light");
+    if (LIGHT_THEMES.includes(newTheme as any)) {
+      setTheme(newTheme);
+      setLastLightTheme(newTheme);
+      setColorMode("light");
+    }
   };
 
   // Update last dark theme when dark dropdown changes
   const handleDarkThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    setLastDarkTheme(newTheme);
-    setColorMode("dark");
+    if (DARK_THEMES.includes(newTheme as any)) {
+      setTheme(newTheme);
+      setLastDarkTheme(newTheme);
+      setColorMode("dark");
+    }
   };
 
   // Files to render from @pierre/diffs

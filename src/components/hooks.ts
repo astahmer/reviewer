@@ -9,6 +9,37 @@ import { UserPreferences, Line } from "~/lib/types";
 import type { ColorMode } from "~/lib/constants";
 
 /**
+ * Generic hook for localStorage persistence
+ */
+export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T) => void] {
+  const [value, setValue] = useState<T>(() => {
+    if (typeof window === "undefined") return defaultValue;
+    try {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  });
+
+  const updateValue = useCallback(
+    (newValue: T) => {
+      setValue(newValue);
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(key, JSON.stringify(newValue));
+        } catch {
+          // Silently fail if localStorage is unavailable
+        }
+      }
+    },
+    [key],
+  );
+
+  return [value, updateValue];
+}
+
+/**
  * Hook to manage user preferences with localStorage persistence
  */
 export function useUserPreferences(): [UserPreferences, (prefs: Partial<UserPreferences>) => void] {

@@ -13,6 +13,8 @@ export const STORAGE_KEYS = {
   searchHistory: "reviewer_app:searchHistory",
   selectedRepo: "reviewer_app:selectedRepo",
   customPaths: "reviewer_app:customPaths",
+  lastLightTheme: "reviewer_app:lastLightTheme",
+  lastDarkTheme: "reviewer_app:lastDarkTheme",
 } as const;
 
 // Default preferences
