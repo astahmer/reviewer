@@ -1,16 +1,12 @@
 {
   "files.watcherExclude": {
     "**/routeTree.gen.ts": true,
-    ".context/effect": true,
-    ".context/opencode": true,
-    ".context/tanstack-router": true
+    ".context/**": true,
   },
   "search.exclude": {
     "**/routeTree.gen.ts": true,
     "**/example/**": true,
-    ".context/effect": true,
-    ".context/opencode": true,
-    ".context/tanstack-router": true
+    ".context/**": true,
   },
   "files.readonlyInclude": {
     "**/routeTree.gen.ts": true
