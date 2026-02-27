@@ -1,7 +1,7 @@
 import { FC, useMemo } from "react";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import type { FileDiffMetadata } from "@pierre/diffs";
-import { useViewMode, useTheme, useColorMode } from "~/components/hooks";
+import { useViewMode, useTheme, useColorMode, useWrapping } from "~/components/hooks";
 import { LIGHT_THEMES, DARK_THEMES } from "~/lib/constants";
 import { Diff } from "~/lib/types";
 
@@ -16,6 +16,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
   const [viewMode, setViewMode] = useViewMode();
   const [theme, setTheme] = useTheme();
   const [colorMode, setColorMode] = useColorMode();
+  const [wrapping, setWrapping] = useWrapping();
 
   // Files to render from @pierre/diffs
   const pierreFiles = useMemo(() => {
@@ -149,6 +150,20 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
               🌙 Dark
             </button>
           </div>
+
+          {/* Wrapping toggle */}
+          <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={wrapping}
+                onChange={(e) => setWrapping(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300"
+                title="Toggle line wrapping"
+              />
+              <span className="text-xs font-medium text-gray-700">Wrapping</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -162,7 +177,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
               options={{
                 theme: theme as any,
                 diffStyle: viewMode,
-                overflow: "wrap",
+                overflow: wrapping ? "wrap" : "scroll",
                 disableLineNumbers: false,
               }}
             />

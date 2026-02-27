@@ -83,4 +83,6 @@ export interface UserPreferences {
   theme?: string;
   /** Color mode: light, dark, or auto */
   colorMode?: "light" | "dark" | "auto";
+  /** Whether to enable line wrapping */
+  wrapping?: boolean;
 }

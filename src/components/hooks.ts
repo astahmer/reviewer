@@ -153,3 +153,29 @@ export function useColorMode(): [ColorMode, (mode: ColorMode) => void] {
 
   return [colorMode, updateColorMode];
 }
+
+/**
+ * Hook to manage wrapping preference
+ */
+export function useWrapping(): [boolean, (wrapping: boolean) => void] {
+  const [wrapping, setWrapping] = useState<boolean>(() => {
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEYS.preferences) : null;
+    const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
+    return prefs.wrapping !== false; // Default to true
+  });
+
+  const updateWrapping = useCallback((newWrapping: boolean) => {
+    setWrapping(newWrapping);
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEYS.preferences);
+      const prefs = stored ? JSON.parse(stored) : DEFAULT_PREFERENCES;
+      localStorage.setItem(
+        STORAGE_KEYS.preferences,
+        JSON.stringify({ ...prefs, wrapping: newWrapping }),
+      );
+    }
+  }, []);
+
+  return [wrapping, updateWrapping];
+}
