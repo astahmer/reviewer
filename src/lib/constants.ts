@@ -26,7 +26,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   searchHistory: [],
   theme: "pierre-dark",
   colorMode: "auto",
-  wrapping: true,
+  wrapping: false,
 };
 
 // Light themes for @pierre/diffs

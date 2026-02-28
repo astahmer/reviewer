@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, useEffect, useMemo, useState, useRef } from "react";
 import { CommitInfo, Diff } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
 import { DiffViewer } from "~/components/diff-viewer";
@@ -31,6 +31,10 @@ export const HomePage: FC = () => {
   const [customPaths, setCustomPaths] = useState<string[]>([]);
   const [controlsCollapsed, setControlsCollapsed] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const prevFromBranchRef = useRef<string>("");
+  const prevToBranchRef = useRef<string>("");
+  const fromCommitsLoadedRef = useRef(false);
+  const toCommitsLoadedRef = useRef(false);
 
   // Update URL whenever relevant state changes
   const updateUrl = (updates: Partial<SearchParams>) =>
@@ -138,6 +142,16 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   });
 
+  // Filter toCommits when branches are the same - exclude fromCommit
+  const filteredToCommits = useMemo(() => {
+    if (fromBranch === toBranch && fromCommit) {
+      return toCommits.filter(
+        (c) => c.hash !== fromCommit && !c.hash.startsWith(fromCommit.slice(0, 7)),
+      );
+    }
+    return toCommits;
+  }, [toCommits, fromBranch, toBranch, fromCommit]);
+
   const { data: branches = [] } = useQuery({
     queryKey: ["branches", selectedRepo?.path],
     queryFn: async () => {
@@ -154,29 +168,6 @@ export const HomePage: FC = () => {
     const defaults = ["main", "master", "develop", "dev", "release"];
     return branches.find((b) => defaults.includes(b.toLowerCase())) || branches[0];
   }, [branches]);
-
-  // Initialize from/to branches to default branch when repo is first loaded
-  useEffect(() => {
-    if (selectedRepo && branches.length > 0 && !initialized) {
-      setInitialized(true);
-      if (!fromBranch && defaultBranch) {
-        setFromBranch(defaultBranch);
-        updateUrl({ fromBranch: defaultBranch });
-      }
-      if (!toBranch && defaultBranch) {
-        setToBranch(defaultBranch);
-        updateUrl({ toBranch: defaultBranch });
-      }
-    }
-  }, [selectedRepo, branches, defaultBranch]);
-
-  // Sync from -> to branch when from changes and to is empty
-  useEffect(() => {
-    if (fromBranch && !toBranch && initialized) {
-      setToBranch(fromBranch);
-      updateUrl({ toBranch: fromBranch });
-    }
-  }, [fromBranch, toBranch, initialized]);
 
   const { data: currentBranch = "main" } = useQuery({
     queryKey: ["currentBranch", selectedRepo?.path],
@@ -224,11 +215,87 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo && !!fromCommit && !!toCommit,
   });
 
+  // Initialize from/to branches to default branch when repo is first loaded
+  useEffect(() => {
+    if (selectedRepo && branches.length > 0 && !initialized) {
+      setInitialized(true);
+      if (!fromBranch && defaultBranch) {
+        setFromBranch(defaultBranch);
+        updateUrl({ fromBranch: defaultBranch });
+      }
+      if (!toBranch && defaultBranch) {
+        setToBranch(defaultBranch);
+        updateUrl({ toBranch: defaultBranch });
+      }
+    }
+  }, [selectedRepo, branches, defaultBranch]);
+
+  // Handle fromBranch change - clear fromCommit
+  useEffect(() => {
+    if (initialized && prevFromBranchRef.current !== fromBranch) {
+      prevFromBranchRef.current = fromBranch;
+      if (fromBranch) {
+        setFromCommit("");
+        updateUrl({ fromCommit: "" });
+      }
+    }
+  }, [fromBranch, initialized]);
+
+  // Handle toBranch change - clear toCommit
+  useEffect(() => {
+    if (initialized && prevToBranchRef.current !== toBranch) {
+      prevToBranchRef.current = toBranch;
+      if (toBranch) {
+        setToCommit("");
+        updateUrl({ toCommit: "" });
+      }
+    }
+  }, [toBranch, initialized]);
+
+  // Sync from -> to branch when from changes and to is empty
+  useEffect(() => {
+    if (fromBranch && !toBranch && initialized) {
+      setToBranch(fromBranch);
+      updateUrl({ toBranch: fromBranch });
+    }
+  }, [fromBranch, toBranch, initialized]);
+
+  // Auto-select most recent fromCommit when fromCommits load after branch change
+  useEffect(() => {
+    if (fromCommits.length > 0 && fromBranch && !fromCommit && initialized) {
+      const shouldAutoSelect =
+        !fromCommitsLoadedRef.current || prevFromBranchRef.current === fromBranch;
+      if (shouldAutoSelect) {
+        fromCommitsLoadedRef.current = true;
+        setFromCommit(fromCommits[0]?.hash || "");
+        updateUrl({ fromCommit: fromCommits[0]?.hash || "" });
+      }
+    }
+  }, [fromCommits, fromBranch, fromCommit, initialized]);
+
+  // Auto-select most recent toCommit when toCommits load after branch change
+  useEffect(() => {
+    if (toCommits.length > 0 && toBranch && !toCommit && initialized) {
+      const shouldAutoSelect = !toCommitsLoadedRef.current || prevToBranchRef.current === toBranch;
+      if (shouldAutoSelect) {
+        toCommitsLoadedRef.current = true;
+        setToCommit(toCommits[0]?.hash || "");
+        updateUrl({ toCommit: toCommits[0]?.hash || "" });
+      }
+    }
+  }, [toCommits, toBranch, toCommit, initialized]);
+
   const handleRepoChange = (repo: Repository) => {
     setSelectedRepo(repo);
     setFromCommit("");
     setToCommit("");
     localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+
+    // Reset refs
+    prevFromBranchRef.current = "";
+    prevToBranchRef.current = "";
+    fromCommitsLoadedRef.current = false;
+    toCommitsLoadedRef.current = false;
 
     // Update URL with repo path
     updateUrl({
@@ -344,7 +411,8 @@ export const HomePage: FC = () => {
                   value={fromCommit}
                   onChange={(hash) => {
                     setFromCommit(hash);
-                    updateUrl({ fromCommit: hash });
+                    setToCommit("");
+                    updateUrl({ fromCommit: hash, toCommit: "" });
                   }}
                   isLoading={fromCommitsLoading}
                   placeholder="Select commit..."
@@ -370,7 +438,7 @@ export const HomePage: FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Commit</label>
                 <CommitSelector
-                  commits={toCommits}
+                  commits={filteredToCommits}
                   value={toCommit}
                   onChange={(hash) => {
                     setToCommit(hash);
