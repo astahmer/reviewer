@@ -4,6 +4,9 @@ import { FC, useEffect, useMemo, useState } from "react";
 import { CommitInfo, Diff } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
 import { DiffViewer } from "~/components/diff-viewer";
+import { BranchSelector } from "~/components/branch-selector";
+import { CommitSelector } from "~/components/commit-selector";
+import { CommitCompare } from "~/components/commit-compare";
 
 const REPO_STORAGE_KEY = "selectedRepoPath";
 const CUSTOM_PATHS_KEY = "customSearchPaths";
@@ -27,6 +30,7 @@ export const HomePage: FC = () => {
   const [customPathInput, setCustomPathInput] = useState("");
   const [customPaths, setCustomPaths] = useState<string[]>([]);
   const [controlsCollapsed, setControlsCollapsed] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   // Update URL whenever relevant state changes
   const updateUrl = (updates: Partial<SearchParams>) =>
@@ -146,6 +150,34 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   });
 
+  const defaultBranch = useMemo(() => {
+    const defaults = ["main", "master", "develop", "dev", "release"];
+    return branches.find((b) => defaults.includes(b.toLowerCase())) || branches[0];
+  }, [branches]);
+
+  // Initialize from/to branches to default branch when repo is first loaded
+  useEffect(() => {
+    if (selectedRepo && branches.length > 0 && !initialized) {
+      setInitialized(true);
+      if (!fromBranch && defaultBranch) {
+        setFromBranch(defaultBranch);
+        updateUrl({ fromBranch: defaultBranch });
+      }
+      if (!toBranch && defaultBranch) {
+        setToBranch(defaultBranch);
+        updateUrl({ toBranch: defaultBranch });
+      }
+    }
+  }, [selectedRepo, branches, defaultBranch]);
+
+  // Sync from -> to branch when from changes and to is empty
+  useEffect(() => {
+    if (fromBranch && !toBranch && initialized) {
+      setToBranch(fromBranch);
+      updateUrl({ toBranch: fromBranch });
+    }
+  }, [fromBranch, toBranch, initialized]);
+
   const { data: currentBranch = "main" } = useQuery({
     queryKey: ["currentBranch", selectedRepo?.path],
     queryFn: async () => {
@@ -156,6 +188,22 @@ export const HomePage: FC = () => {
       return response.text();
     },
     enabled: !!selectedRepo,
+  });
+
+  const { data: commitDistance } = useQuery({
+    queryKey: ["commitDistance", fromCommit, toCommit, selectedRepo?.path, fromBranch, toBranch],
+    queryFn: async () => {
+      if (!fromCommit || !toCommit || fromBranch !== toBranch) return null;
+      const url = new URL("/api/commit-distance", window.location.origin);
+      url.searchParams.set("from", fromCommit);
+      url.searchParams.set("to", toCommit);
+      if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const data = await response.json();
+      return data.distance;
+    },
+    enabled: !!selectedRepo && !!fromCommit && !!toCommit && fromBranch === toBranch,
   });
 
   const {
@@ -277,82 +325,60 @@ export const HomePage: FC = () => {
             <div className="space-y-3">
               <div className="text-xs font-semibold text-gray-700">From</div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Branch (optional)</label>
-                <input
-                  list="from-branches"
+                <label className="block text-xs text-gray-500 mb-1">Branch</label>
+                <BranchSelector
+                  branches={branches}
                   value={fromBranch}
-                  onChange={(e) => {
-                    setFromBranch(e.target.value);
-                    updateUrl({ fromBranch: e.target.value });
+                  onChange={(branch) => {
+                    setFromBranch(branch);
+                    updateUrl({ fromBranch: branch });
                   }}
-                  placeholder="All branches"
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                  defaultBranch={defaultBranch}
+                  placeholder="Select branch..."
                 />
-                <datalist id="from-branches">
-                  {branches.map((branch) => (
-                    <option key={branch} value={branch} />
-                  ))}
-                </datalist>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Commit</label>
-                <input
-                  list="from-commits"
+                <CommitSelector
+                  commits={fromCommits}
                   value={fromCommit}
-                  onChange={(e) => {
-                    setFromCommit(e.target.value);
-                    updateUrl({ fromCommit: e.target.value });
+                  onChange={(hash) => {
+                    setFromCommit(hash);
+                    updateUrl({ fromCommit: hash });
                   }}
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
+                  isLoading={fromCommitsLoading}
+                  placeholder="Select commit..."
                 />
-                <datalist id="from-commits">
-                  {fromCommits.slice(0, 50).map((commit: CommitInfo) => (
-                    <option key={commit.hash} value={commit.hash}>
-                      {commit.hash.slice(0, 7)} - {commit.message}
-                    </option>
-                  ))}
-                </datalist>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="text-xs font-semibold text-gray-700">To</div>
               <div>
-                <label className="block text-xs text-gray-500 mb-1">Branch (optional)</label>
-                <input
-                  list="to-branches"
+                <label className="block text-xs text-gray-500 mb-1">Branch</label>
+                <BranchSelector
+                  branches={branches}
                   value={toBranch}
-                  onChange={(e) => {
-                    setToBranch(e.target.value);
-                    updateUrl({ toBranch: e.target.value });
+                  onChange={(branch) => {
+                    setToBranch(branch);
+                    updateUrl({ toBranch: branch });
                   }}
-                  placeholder="All branches"
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                  defaultBranch={defaultBranch}
+                  placeholder="Select branch..."
                 />
-                <datalist id="to-branches">
-                  {branches.map((branch) => (
-                    <option key={branch} value={branch} />
-                  ))}
-                </datalist>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Commit</label>
-                <input
-                  list="to-commits"
+                <CommitSelector
+                  commits={toCommits}
                   value={toCommit}
-                  onChange={(e) => {
-                    setToCommit(e.target.value);
-                    updateUrl({ toCommit: e.target.value });
+                  onChange={(hash) => {
+                    setToCommit(hash);
+                    updateUrl({ toCommit: hash });
                   }}
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs font-mono"
+                  isLoading={toCommitsLoading}
+                  placeholder="Select commit..."
                 />
-                <datalist id="to-commits">
-                  {toCommits.slice(0, 50).map((commit: CommitInfo) => (
-                    <option key={commit.hash} value={commit.hash}>
-                      {commit.hash.slice(0, 7)} - {commit.message}
-                    </option>
-                  ))}
-                </datalist>
               </div>
             </div>
           </div>
@@ -406,6 +432,20 @@ export const HomePage: FC = () => {
                     : "An error occurred"}
             </div>
           )}
+        </div>
+      )}
+
+      {fromCommit && toCommit && (
+        <div className="mt-4">
+          <CommitCompare
+            fromCommit={fromCommits.find(
+              (c) => c.hash === fromCommit || c.hash.startsWith(fromCommit),
+            )}
+            toCommit={toCommits.find((c) => c.hash === toCommit || c.hash.startsWith(toCommit))}
+            fromBranch={fromBranch}
+            toBranch={toBranch}
+            distance={commitDistance ?? null}
+          />
         </div>
       )}
 

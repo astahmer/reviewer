@@ -115,6 +115,25 @@ export async function getBranchesList(repoPath?: string): Promise<string[]> {
 }
 
 /**
+ * Server function: Get number of commits between two commits (distance)
+ */
+export async function getCommitDistance(
+  from: string,
+  to: string,
+  repoPath?: string,
+): Promise<number | null> {
+  const cwd = repoPath || process.cwd();
+  try {
+    const cmd = `git rev-list --count ${from}..${to}`;
+    const stdout = execSync(cmd, { cwd, encoding: "utf-8", maxBuffer: 1024 * 1024 });
+    const count = parseInt(stdout.trim(), 10);
+    return isNaN(count) ? null : count;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Server function: Get list of available repositories
  */
 export async function getRepositoryList(
