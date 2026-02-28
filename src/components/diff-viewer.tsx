@@ -33,78 +33,98 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   const [colorMode, setColorMode] = useColorMode();
   const [wrapping, setWrapping] = useWrapping();
   const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
-  
+
   const [expandedFiles, setExpandedFiles] = useState<Map<string, ExpandedFileData>>(new Map());
   const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
 
-  const handleExpandFile = useCallback(async (fileName: string, oldPath: string, newPath: string, expandType: "full" | "top" | "bottom") => {
-    const key = `${fileName}-${expandType}`;
-    if (expandedFiles.has(key) || loadingFiles.has(key)) {
-      return;
-    }
+  const handleExpandFile = useCallback(
+    async (
+      fileName: string,
+      oldPath: string,
+      newPath: string,
+      expandType: "full" | "top" | "bottom",
+    ) => {
+      const key = `${fileName}-${expandType}`;
+      if (expandedFiles.has(key) || loadingFiles.has(key)) {
+        return;
+      }
 
-    setLoadingFiles((prev) => new Set(prev).add(key));
+      setLoadingFiles((prev) => new Set(prev).add(key));
 
-    try {
-      const [oldContentRes, newContentRes] = await Promise.all([
-        fetch(`/api/file-content?filePath=${encodeURIComponent(oldPath)}&commit=${encodeURIComponent(diff.from)}&repoPath=${encodeURIComponent(repoPath || "")}`),
-        fetch(`/api/file-content?filePath=${encodeURIComponent(newPath)}&commit=${encodeURIComponent(diff.to)}&repoPath=${encodeURIComponent(repoPath || "")}`),
-      ]);
+      try {
+        const [oldContentRes, newContentRes] = await Promise.all([
+          fetch(
+            `/api/file-content?filePath=${encodeURIComponent(oldPath)}&commit=${encodeURIComponent(diff.from)}&repoPath=${encodeURIComponent(repoPath || "")}`,
+          ),
+          fetch(
+            `/api/file-content?filePath=${encodeURIComponent(newPath)}&commit=${encodeURIComponent(diff.to)}&repoPath=${encodeURIComponent(repoPath || "")}`,
+          ),
+        ]);
 
-      const [{ content: oldContent }, { content: newContent }] = await Promise.all([
-        oldContentRes.json(),
-        newContentRes.json(),
-      ]);
+        const [{ content: oldContent }, { content: newContent }] = await Promise.all([
+          oldContentRes.json(),
+          newContentRes.json(),
+        ]);
 
-      if (oldContentRes.ok && newContentRes.ok && oldContent && newContent) {
-        const oldFile: FileContents = {
-          name: oldPath,
-          contents: oldContent,
-        };
-        const newFile: FileContents = {
-          name: newPath,
-          contents: newContent,
-        };
+        if (oldContentRes.ok && newContentRes.ok && oldContent && newContent) {
+          const oldFile: FileContents = {
+            name: oldPath,
+            contents: oldContent,
+          };
+          const newFile: FileContents = {
+            name: newPath,
+            contents: newContent,
+          };
 
-        const fullDiff = parseDiffFromFile(oldFile, newFile);
-        
-        setExpandedFiles((prev) => {
-          const newMap = new Map(prev);
-          newMap.set(key, {
-            file: fullDiff,
-            oldContent,
-            newContent,
+          const fullDiff = parseDiffFromFile(oldFile, newFile);
+
+          setExpandedFiles((prev) => {
+            const newMap = new Map(prev);
+            newMap.set(key, {
+              file: fullDiff,
+              oldContent,
+              newContent,
+            });
+            return newMap;
           });
-          return newMap;
+        }
+      } catch (error) {
+        console.error("Failed to expand file:", error);
+      } finally {
+        setLoadingFiles((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(key);
+          return newSet;
         });
       }
-    } catch (error) {
-      console.error("Failed to expand file:", error);
-    } finally {
-      setLoadingFiles((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(key);
-        return newSet;
-      });
-    }
-  }, [diff.from, diff.to, repoPath]);
+    },
+    [diff.from, diff.to, repoPath],
+  );
 
-  const handleExpandHunk = useCallback((fileKey: string, hunkIndex: number, direction: "up" | "down" | "both", expandFully?: boolean) => {
-    const file = diff.pierreData?.find((f, idx) => `${f.prevName || f.name}-${idx}` === fileKey);
-    if (!file) return;
+  const handleExpandHunk = useCallback(
+    (
+      fileKey: string,
+      hunkIndex: number,
+      direction: "up" | "down" | "both",
+      expandFully?: boolean,
+    ) => {
+      const file = diff.pierreData?.find((f, idx) => `${f.prevName || f.name}-${idx}` === fileKey);
+      if (!file) return;
 
-    const fileName = file.name;
-    const oldPath = file.prevName || fileName;
-    const newPath = fileName;
+      const fileName = file.name;
+      const oldPath = file.prevName || fileName;
+      const newPath = fileName;
 
-    if (expandFully || direction === "both") {
-      handleExpandFile(fileName, oldPath, newPath, "full");
-    } else if (direction === "up") {
-      handleExpandFile(fileName, oldPath, newPath, "top");
-    } else if (direction === "down") {
-      handleExpandFile(fileName, oldPath, newPath, "bottom");
-    }
-  }, [diff.pierreData, handleExpandFile]);
+      if (expandFully || direction === "both") {
+        handleExpandFile(fileName, oldPath, newPath, "full");
+      } else if (direction === "up") {
+        handleExpandFile(fileName, oldPath, newPath, "top");
+      } else if (direction === "down") {
+        handleExpandFile(fileName, oldPath, newPath, "bottom");
+      }
+    },
+    [diff.pierreData, handleExpandFile],
+  );
 
   // Track last selected light and dark themes with localStorage
   const [lastLightTheme, setLastLightTheme] = useLocalStorage<string>(
@@ -314,9 +334,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
 
           {/* Expand info */}
           <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4 text-xs text-gray-500">
-            {expandedFiles.size > 0 && (
-              <span>{expandedFiles.size} file(s) fully expanded</span>
-            )}
+            {expandedFiles.size > 0 && <span>{expandedFiles.size} file(s) fully expanded</span>}
           </div>
         </div>
       </div>
@@ -337,7 +355,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
                     onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
                     className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
                   >
-                    Expand full file
+                    Load full file
                   </button>
                 )}
                 {isLoading && (

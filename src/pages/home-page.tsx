@@ -22,8 +22,8 @@ export const HomePage: FC = () => {
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
   const [fromBranch, setFromBranch] = useState<string>("");
   const [toBranch, setToBranch] = useState<string>("");
-  const [fromCommit, setFromCommit] = useState<string>("HEAD~1");
-  const [toCommit, setToCommit] = useState<string>("HEAD");
+  const [fromCommit, setFromCommit] = useState<string>("");
+  const [toCommit, setToCommit] = useState<string>("");
   const [customPathInput, setCustomPathInput] = useState("");
   const [customPaths, setCustomPaths] = useState<string[]>([]);
   const [controlsCollapsed, setControlsCollapsed] = useState(true);
@@ -175,12 +175,11 @@ export const HomePage: FC = () => {
     },
     enabled: !!selectedRepo && !!fromCommit && !!toCommit,
   });
-  console.log(diff);
 
   const handleRepoChange = (repo: Repository) => {
     setSelectedRepo(repo);
-    setFromCommit("HEAD~1");
-    setToCommit("HEAD");
+    setFromCommit("");
+    setToCommit("");
     localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
 
     // Update URL with repo path
@@ -188,8 +187,8 @@ export const HomePage: FC = () => {
       repoPath: repo.path,
       fromBranch: "",
       toBranch: "",
-      fromCommit: "HEAD~1",
-      toCommit: "HEAD",
+      fromCommit: "",
+      toCommit: "",
     });
   };
 
@@ -201,7 +200,7 @@ export const HomePage: FC = () => {
 
   const getRefDisplay = (ref: string, commitList: CommitInfo[]) => {
     const info = commitList.find((c) => c.hash.startsWith(ref.slice(0, 7)) || ref === c.hash);
-    if (ref === "HEAD~1" || ref === "HEAD") {
+    if (ref === "" || ref === "") {
       return { label: ref, sublabel: info?.message || "" };
     }
     return {
