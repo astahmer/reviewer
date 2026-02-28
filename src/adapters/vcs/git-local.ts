@@ -75,6 +75,26 @@ export class GitLocalAdapter implements VCSAdapter {
     });
   }
 
+  getFileContent(
+    path: string,
+    commit: string,
+  ): Effect.Effect<string, VCSError> {
+    const repoPath = this._repoPath;
+    const command = `git show ${commit}:${path}`;
+
+    return Effect.tryPromise({
+      try: () =>
+        execAsync(command, { cwd: repoPath, maxBuffer: 10 * 1024 * 1024 }).then(
+          ({ stdout }) => stdout,
+        ),
+      catch: (error: unknown) =>
+        new VCSError({
+          message: `Failed to get file content: ${error instanceof Error ? error.message : String(error)}`,
+          command,
+        }),
+    });
+  }
+
   getCommits(
     limit: number = 20,
   ): Effect.Effect<Array<{ hash: string; message: string; author: string; date: Date }>, VCSError> {

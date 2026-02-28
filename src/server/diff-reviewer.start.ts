@@ -125,3 +125,19 @@ export async function getRepositoryList(
     : [path.join(os.homedir(), "dev"), path.join(os.homedir(), "projects")];
   return runEffectWithDeps(vcsService.listRepositories(paths));
 }
+
+/**
+ * Server function: Get file content at a specific commit
+ */
+export async function getFileContent(
+  filePath: string,
+  commit: string,
+  repoPath?: string,
+): Promise<string> {
+  const runtime = createRuntimeWithRepo(repoPath || process.cwd());
+  try {
+    return await runtime.runPromise(vcsService.getFileContent(filePath, commit));
+  } finally {
+    runtime.dispose();
+  }
+}

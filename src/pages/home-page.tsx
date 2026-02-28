@@ -421,7 +421,7 @@ export const HomePage: FC = () => {
             <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
           </div>
         ) : diff ? (
-          <DiffViewer diff={diff as any} />
+          <DiffViewer diff={diff} repoPath={selectedRepo?.path} />
         ) : (
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
             No diff available for the selected refs.

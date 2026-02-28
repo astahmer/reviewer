@@ -67,3 +67,16 @@ export const listRepositories = (
     return yield* vcs.listRepositories(basePaths);
   });
 };
+
+/**
+ * Get file content at a specific commit
+ */
+export const getFileContent = (
+  filePath: string,
+  commit: string,
+): Effect.Effect<string, VCSError, VCSContext> => {
+  return Effect.gen(function* () {
+    const vcs = yield* VCSContext;
+    return yield* vcs.getFileContent(filePath, commit);
+  });
+};

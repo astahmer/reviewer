@@ -17,6 +17,14 @@ export interface VCSAdapter {
   ): Effect.Effect<string, VCSError>;
 
   /**
+   * Get file content at a specific commit
+   */
+  getFileContent(
+    path: string,
+    commit: string,
+  ): Effect.Effect<string, VCSError>;
+
+  /**
    * Get list of recent commits
    */
   getCommits(

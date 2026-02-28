@@ -1,6 +1,7 @@
-import { FC, useMemo } from "react";
+import { FC, useMemo, useState, useCallback } from "react";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
-import type { FileDiffMetadata } from "@pierre/diffs";
+import { parseDiffFromFile } from "@pierre/diffs";
+import type { FileDiffMetadata, FileContents } from "@pierre/diffs";
 import {
   useViewMode,
   useTheme,
@@ -14,17 +15,96 @@ import { Diff } from "~/lib/types";
 
 interface DiffViewerProps {
   diff: Diff & { pierreData?: FileDiffMetadata[] };
+  repoPath?: string;
+}
+
+interface ExpandedFileData {
+  file: FileDiffMetadata;
+  oldContent: string;
+  newContent: string;
 }
 
 /**
  * Unified and Split diff viewer using @pierre/diffs
  */
-export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
+export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   const [viewMode, setViewMode] = useViewMode();
   const [theme, setTheme] = useTheme();
   const [colorMode, setColorMode] = useColorMode();
   const [wrapping, setWrapping] = useWrapping();
   const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
+  
+  const [expandedFiles, setExpandedFiles] = useState<Map<string, ExpandedFileData>>(new Map());
+  const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
+
+  const handleExpandFile = useCallback(async (fileName: string, oldPath: string, newPath: string, expandType: "full" | "top" | "bottom") => {
+    const key = `${fileName}-${expandType}`;
+    if (expandedFiles.has(key) || loadingFiles.has(key)) {
+      return;
+    }
+
+    setLoadingFiles((prev) => new Set(prev).add(key));
+
+    try {
+      const [oldContentRes, newContentRes] = await Promise.all([
+        fetch(`/api/file-content?filePath=${encodeURIComponent(oldPath)}&commit=${encodeURIComponent(diff.from)}&repoPath=${encodeURIComponent(repoPath || "")}`),
+        fetch(`/api/file-content?filePath=${encodeURIComponent(newPath)}&commit=${encodeURIComponent(diff.to)}&repoPath=${encodeURIComponent(repoPath || "")}`),
+      ]);
+
+      const [{ content: oldContent }, { content: newContent }] = await Promise.all([
+        oldContentRes.json(),
+        newContentRes.json(),
+      ]);
+
+      if (oldContentRes.ok && newContentRes.ok && oldContent && newContent) {
+        const oldFile: FileContents = {
+          name: oldPath,
+          contents: oldContent,
+        };
+        const newFile: FileContents = {
+          name: newPath,
+          contents: newContent,
+        };
+
+        const fullDiff = parseDiffFromFile(oldFile, newFile);
+        
+        setExpandedFiles((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(key, {
+            file: fullDiff,
+            oldContent,
+            newContent,
+          });
+          return newMap;
+        });
+      }
+    } catch (error) {
+      console.error("Failed to expand file:", error);
+    } finally {
+      setLoadingFiles((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(key);
+        return newSet;
+      });
+    }
+  }, [diff.from, diff.to, repoPath]);
+
+  const handleExpandHunk = useCallback((fileKey: string, hunkIndex: number, direction: "up" | "down" | "both", expandFully?: boolean) => {
+    const file = diff.pierreData?.find((f, idx) => `${f.prevName || f.name}-${idx}` === fileKey);
+    if (!file) return;
+
+    const fileName = file.name;
+    const oldPath = file.prevName || fileName;
+    const newPath = fileName;
+
+    if (expandFully || direction === "both") {
+      handleExpandFile(fileName, oldPath, newPath, "full");
+    } else if (direction === "up") {
+      handleExpandFile(fileName, oldPath, newPath, "top");
+    } else if (direction === "down") {
+      handleExpandFile(fileName, oldPath, newPath, "bottom");
+    }
+  }, [diff.pierreData, handleExpandFile]);
 
   // Track last selected light and dark themes with localStorage
   const [lastLightTheme, setLastLightTheme] = useLocalStorage<string>(
@@ -54,12 +134,26 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
     }
   };
 
-  // Files to render from @pierre/diffs
-  const pierreFiles = useMemo(() => {
-    return diff.pierreData || [];
-  }, [diff.pierreData]);
+  // Get files to render - use expanded full diff if available, otherwise use partial
+  const getRenderFiles = useCallback(() => {
+    const baseFiles = diff.pierreData || [];
+    if (expandedFiles.size === 0) {
+      return baseFiles;
+    }
 
-  if (!pierreFiles || pierreFiles.length === 0) {
+    return baseFiles.map((file) => {
+      const key = `${file.name}-full`;
+      const expanded = expandedFiles.get(key);
+      if (expanded) {
+        return expanded.file;
+      }
+      return file;
+    });
+  }, [diff.pierreData, expandedFiles]);
+
+  const renderFiles = useMemo(() => getRenderFiles(), [getRenderFiles]);
+
+  if (!renderFiles || renderFiles.length === 0) {
     return <div className="p-4 text-center text-gray-500">No diff data available</div>;
   }
 
@@ -149,7 +243,6 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
             <button
               onClick={() => {
                 setColorMode("auto");
-                // When switching to auto, prefer the light theme
                 setTheme(lastLightTheme);
               }}
               className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
@@ -218,24 +311,52 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff }) => {
               <span className="text-xs font-medium text-gray-700">Ignore whitespace</span>
             </label>
           </div>
+
+          {/* Expand info */}
+          <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4 text-xs text-gray-500">
+            {expandedFiles.size > 0 && (
+              <span>{expandedFiles.size} file(s) fully expanded</span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Diff content */}
       <div className="flex-1 overflow-auto">
         <div className="diffs-container">
-          {pierreFiles.map((file, idx) => (
-            <FileDiffComponent
-              key={`${file.prevName || file.name}-${idx}`}
-              fileDiff={file}
-              options={{
-                theme: theme as any,
-                diffStyle: viewMode,
-                overflow: wrapping ? "wrap" : "scroll",
-                disableLineNumbers: false,
-              }}
-            />
-          ))}
+          {renderFiles.map((file, idx) => {
+            const fileKey = `${file.prevName || file.name}-${idx}`;
+            const isLoading = loadingFiles.has(`${file.name}-full`);
+            const isExpanded = expandedFiles.has(`${file.name}-full`);
+
+            return (
+              <div key={fileKey} className="relative">
+                {/* Expand button overlay */}
+                {!isExpanded && !isLoading && (
+                  <button
+                    onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
+                    className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
+                  >
+                    Expand full file
+                  </button>
+                )}
+                {isLoading && (
+                  <div className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-gray-500 text-white rounded">
+                    Loading...
+                  </div>
+                )}
+                <FileDiffComponent
+                  fileDiff={file}
+                  options={{
+                    theme: theme as any,
+                    diffStyle: viewMode,
+                    overflow: wrapping ? "wrap" : "scroll",
+                    disableLineNumbers: false,
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
