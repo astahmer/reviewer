@@ -4,3 +4,10 @@
 - we need a way to "check" (and uncheck!) files (and whole folders!) so I know which ones I've already reviewed; we will have to store this; for now it can be done in local storage but eventually we should have a backend for this so it can be shared across devices and users (note this somewhere but focus on the MVP first)
 - we also need a way to enable an option that automatically checks files when you scroll past them (this is a toggle in the UI but we need to store it in local storage)
 - vscode links on right click or something
+
+- filetree component
+
+- scrollable timeline / commit range with https://ark-ui.com/docs/components/slider ?
+- show previous/next commits
+- link to remote
+- compare 2 branches: 2 vertical columns with list of commits with a button to open the flattened diff

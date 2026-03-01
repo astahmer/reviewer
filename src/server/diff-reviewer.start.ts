@@ -5,8 +5,6 @@
  */
 
 import { Effect, Layer, ManagedRuntime } from "effect";
-import * as path from "node:path";
-import * as os from "node:os";
 import { execSync } from "node:child_process";
 import { Diff, CommitInfo } from "~/lib/types";
 import { runEffectWithDeps, appLayer } from "~/effects/runtime";
@@ -139,9 +137,7 @@ export async function getCommitDistance(
 export async function getRepositoryList(
   basePath?: string,
 ): Promise<Array<{ path: string; name: string }>> {
-  const paths = basePath
-    ? [basePath]
-    : [path.join(os.homedir(), "dev"), path.join(os.homedir(), "projects")];
+  const paths = basePath ? [basePath] : [];
   return runEffectWithDeps(vcsService.listRepositories(paths));
 }
 

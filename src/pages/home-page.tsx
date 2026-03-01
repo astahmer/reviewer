@@ -1,20 +1,18 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import React, { FC, useEffect, useMemo, useRef } from "react";
-import { CommitInfo, Diff, BranchInfo } from "~/lib/types";
-import type { SearchParams } from "~/routes/index";
-import { DiffViewer } from "~/components/diff-viewer";
 import { BranchSelector } from "~/components/branch-selector";
-import { CommitSelector } from "~/components/commit-selector";
 import { CommitCompare } from "~/components/commit-compare";
-import { RepositorySelector } from "~/components/repository-selector";
-import { CustomPathsInput } from "~/components/custom-paths-input";
-import { ErrorBanner } from "~/components/error-banner";
+import { CommitSelector } from "~/components/commit-selector";
+import { DiffViewer } from "~/components/diff-viewer";
 import { EmptyState } from "~/components/empty-state";
+import { ErrorBanner } from "~/components/error-banner.tsx";
+import { RepositorySelector } from "~/components/repository-selector";
+import { BranchInfo, CommitInfo, Diff } from "~/lib/types";
+import type { SearchParams } from "~/routes/index";
 
 const REPO_STORAGE_KEY = "selectedRepoPath";
 const CUSTOM_PATHS_KEY = "customSearchPaths";
-const CONTROLS_COLLAPSED_KEY = "controlsCollapsed";
 
 interface Repository {
   path: string;
@@ -27,7 +25,6 @@ export const HomePage: FC = () => {
   const queryClient = useQueryClient();
 
   const [customPaths, setCustomPaths] = React.useState<string[]>([]);
-  const [controlsCollapsed, setControlsCollapsed] = React.useState(true);
   const [initialized, setInitialized] = React.useState(false);
   const prevBaseBranchRef = useRef<string>("");
   const prevHeadBranchRef = useRef<string>("");
@@ -61,15 +58,10 @@ export const HomePage: FC = () => {
         setCustomPaths(JSON.parse(savedPaths));
       } catch {}
     }
-    const savedCollapsed = localStorage.getItem(CONTROLS_COLLAPSED_KEY);
-    if (savedCollapsed) {
-      setControlsCollapsed(JSON.parse(savedCollapsed));
-    }
   }, []);
 
   const allSearchPaths = useMemo(() => {
-    const defaults = ["/Users/astahmer/dev", "/Users/astahmer/projects"];
-    return [...customPaths, ...defaults.filter((d) => !customPaths.includes(d))];
+    return customPaths;
   }, [customPaths]);
 
   const { data: repositories = [] } = useQuery({
@@ -223,133 +215,147 @@ export const HomePage: FC = () => {
 
   const combinedError = baseCommitsError || headCommitsError || diffError;
 
-  return (
-    <div className="flex h-screen flex-col bg-gray-50">
-      <header className="relative z-1 border-b border-gray-200 bg-white"></header>
+  if (!selectedRepo) {
+    return (
+      <div className="flex h-screen flex-col bg-gray-50">
+        <main className="flex-1 min-h-0 p-2 overflow-hidden z-0">
+          <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
+          <EmptyState>
+            <RepositorySelector
+              repositories={repositories}
+              selectedRepo={selectedRepo}
+              onRepoChange={(repo) => {
+                console.log("onRepoChange", repo);
+                localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
 
-      {selectedRepo && (
-        <details
-          open={!controlsCollapsed}
-          onToggle={(e) => {
-            const open = (e.target as HTMLDetailsElement).open;
-            setControlsCollapsed(!open);
-            localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(!open));
-          }}
-          className="border-b border-gray-200 bg-white"
-        >
-          <summary className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3 hover:bg-gray-50 select-none">
-            <div className="flex items-center justify-between gap-4 px-4">
-              <h1 className="font-semibold text-gray-900">
-                <Link to="/">Reviewer</Link>
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <RepositorySelector
-                repositories={repositories}
-                selectedRepo={selectedRepo}
-                onRepoChange={(repo) => {
-                  localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+                prevBaseBranchRef.current = "";
+                prevHeadBranchRef.current = "";
+                baseCommitsLoadedRef.current = false;
+                headCommitsLoadedRef.current = false;
 
-                  prevBaseBranchRef.current = "";
-                  prevHeadBranchRef.current = "";
-                  baseCommitsLoadedRef.current = false;
-                  headCommitsLoadedRef.current = false;
-
-                  updateUrl({
-                    repoPath: repo.path,
-                    baseBranch: "",
-                    headBranch: "",
-                    baseCommit: "",
-                    headCommit: "",
-                  });
-                }}
-              />
-            </div>
-
-            <div className="flex items-center gap-3 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Base:</span>
-                <BranchSelector
-                  branches={branches}
-                  value={baseBranch}
-                  onChange={(branch) => {
-                    prevBaseBranchRef.current = branch;
-                    if (!headBranch) {
-                      updateUrl({ baseBranch: branch, baseCommit: "", headBranch: branch });
-                    } else {
-                      updateUrl({ baseBranch: branch, baseCommit: "" });
-                    }
-                  }}
-                  defaultBranch={defaultBranch}
-                  placeholder="branch"
-                  isLoading={branchesLoading}
-                />
-                <CommitSelector
-                  commits={baseCommits}
-                  value={baseCommit}
-                  onChange={(hash: string) => {
-                    updateUrl({ baseCommit: hash, headCommit: "" });
-                  }}
-                  isLoading={baseCommitsLoading}
-                  placeholder="commit"
-                />
-              </div>
-              <span className="text-gray-400">→</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Head:</span>
-                <BranchSelector
-                  branches={branches}
-                  value={headBranch}
-                  onChange={(branch) => {
-                    prevHeadBranchRef.current = branch;
-                    updateUrl({ headBranch: branch, headCommit: "" });
-                  }}
-                  defaultBranch={defaultBranch}
-                  placeholder="branch"
-                  isLoading={branchesLoading}
-                />
-                <CommitSelector
-                  commits={filteredHeadCommits}
-                  value={headCommit}
-                  onChange={(hash) => {
-                    updateUrl({ headCommit: hash });
-                  }}
-                  isLoading={headCommitsLoading}
-                  placeholder="commit"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => queryClient.invalidateQueries({ queryKey: ["diff"] })}
-                className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                title="Refresh diff"
-              >
-                ↻
-              </button>
-            </div>
-          </summary>
-          <div className="bg-white p-3">
-            <CustomPathsInput
-              customPaths={customPaths}
-              onAddPath={(path) => {
+                updateUrl({
+                  repoPath: repo.path,
+                  baseBranch: "",
+                  headBranch: "",
+                  baseCommit: "",
+                  headCommit: "",
+                });
+              }}
+              onAddCustomPath={(path: string) => {
                 if (path && !customPaths.includes(path)) {
                   const newPaths = [...customPaths, path];
                   setCustomPaths(newPaths);
                   localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
+                  queryClient.invalidateQueries({ queryKey: ["repositories"] });
                 }
               }}
-              onRemovePath={(path) => {
-                const newPaths = customPaths.filter((p) => p !== path);
+            />
+          </EmptyState>
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen flex-col bg-gray-50">
+      <div className="border-b border-gray-200 bg-white flex cursor-pointer items-center justify-between gap-4 px-4 py-3 hover:bg-gray-50 select-none">
+        <div className="flex items-center gap-3 flex-1">
+          <h1 className="font-semibold text-gray-900">
+            <Link to="/">Reviewer</Link>
+          </h1>
+          <RepositorySelector
+            repositories={repositories}
+            selectedRepo={selectedRepo}
+            onRepoChange={(repo) => {
+              localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+
+              prevBaseBranchRef.current = "";
+              prevHeadBranchRef.current = "";
+              baseCommitsLoadedRef.current = false;
+              headCommitsLoadedRef.current = false;
+
+              updateUrl({
+                repoPath: repo.path,
+                baseBranch: "",
+                headBranch: "",
+                baseCommit: "",
+                headCommit: "",
+              });
+            }}
+            onAddCustomPath={(path: string) => {
+              if (path && !customPaths.includes(path)) {
+                const newPaths = [...customPaths, path];
                 setCustomPaths(newPaths);
                 localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
+                queryClient.invalidateQueries({ queryKey: ["repositories"] });
+              }
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Base:</span>
+            <BranchSelector
+              branches={branches}
+              value={baseBranch}
+              onChange={(branch) => {
+                prevBaseBranchRef.current = branch;
+                if (!headBranch) {
+                  updateUrl({ baseBranch: branch, baseCommit: "", headBranch: branch });
+                } else {
+                  updateUrl({ baseBranch: branch, baseCommit: "" });
+                }
               }}
+              defaultBranch={defaultBranch}
+              placeholder="branch"
+              isLoading={branchesLoading}
             />
-            <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
+            <CommitSelector
+              commits={baseCommits}
+              value={baseCommit}
+              onChange={(hash: string) => {
+                updateUrl({ baseCommit: hash, headCommit: "" });
+              }}
+              isLoading={baseCommitsLoading}
+              placeholder="commit"
+            />
           </div>
-        </details>
-      )}
+          <span className="text-gray-400">→</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Head:</span>
+            <BranchSelector
+              branches={branches}
+              value={headBranch}
+              onChange={(branch) => {
+                prevHeadBranchRef.current = branch;
+                updateUrl({ headBranch: branch, headCommit: "" });
+              }}
+              defaultBranch={defaultBranch}
+              placeholder="branch"
+              isLoading={branchesLoading}
+            />
+            <CommitSelector
+              commits={filteredHeadCommits}
+              value={headCommit}
+              onChange={(hash) => {
+                updateUrl({ headCommit: hash });
+              }}
+              isLoading={headCommitsLoading}
+              placeholder="commit"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => queryClient.invalidateQueries({ queryKey: ["diff"] })}
+            className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            title="Refresh diff"
+          >
+            ↻
+          </button>
+        </div>
+      </div>
+
+      <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
 
       {baseCommit && headCommit && (
         <CommitCompare
@@ -366,25 +372,7 @@ export const HomePage: FC = () => {
       )}
 
       <main className="flex-1 min-h-0 p-2 overflow-hidden z-0">
-        {!selectedRepo ? (
-          <EmptyState
-            repositories={repositories}
-            onRepoSelect={(repo) => {
-              localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
-              prevBaseBranchRef.current = "";
-              prevHeadBranchRef.current = "";
-              baseCommitsLoadedRef.current = false;
-              headCommitsLoadedRef.current = false;
-              updateUrl({
-                repoPath: repo.path,
-                baseBranch: "",
-                headBranch: "",
-                baseCommit: "",
-                headCommit: "",
-              });
-            }}
-          />
-        ) : baseCommitsLoading || headCommitsLoading || diffLoading ? (
+        {baseCommitsLoading || headCommitsLoading || diffLoading ? (
           <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>
             <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
