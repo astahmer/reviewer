@@ -7,11 +7,10 @@ import { DiffViewer } from "~/components/diff-viewer";
 import { BranchSelector } from "~/components/branch-selector";
 import { CommitSelector } from "~/components/commit-selector";
 import { CommitCompare } from "~/components/commit-compare";
-import { Combobox, createListCollection } from "@ark-ui/react/combobox";
-import { useFilter } from "@ark-ui/react/locale";
-import { Portal } from "@ark-ui/react/portal";
-import { Popover } from "@ark-ui/react/popover";
-import { ChevronDown } from "lucide-react";
+import { RepositorySelector } from "~/components/repository-selector";
+import { CustomPathsInput } from "~/components/custom-paths-input";
+import { ErrorBanner } from "~/components/error-banner";
+import { EmptyState } from "~/components/empty-state";
 
 const REPO_STORAGE_KEY = "selectedRepoPath";
 const CUSTOM_PATHS_KEY = "customSearchPaths";
@@ -32,7 +31,6 @@ export const HomePage: FC = () => {
   const [headBranch, setHeadBranch] = useState<string>("");
   const [baseCommit, setBaseCommit] = useState<string>("");
   const [headCommit, setHeadCommit] = useState<string>("");
-  const [customPathInput, setCustomPathInput] = useState("");
   const [customPaths, setCustomPaths] = useState<string[]>([]);
   const [controlsCollapsed, setControlsCollapsed] = useState(true);
   const [initialized, setInitialized] = useState(false);
@@ -41,7 +39,6 @@ export const HomePage: FC = () => {
   const baseCommitsLoadedRef = useRef(false);
   const headCommitsLoadedRef = useRef(false);
 
-  // Update URL whenever relevant state changes
   const updateUrl = (updates: Partial<SearchParams>) =>
     navigate({
       search: (prev: SearchParams) => ({
@@ -69,7 +66,6 @@ export const HomePage: FC = () => {
       setControlsCollapsed(JSON.parse(savedCollapsed));
     }
 
-    // Load from URL search params if available
     if (searchParams.repoPath && !selectedRepo) {
       const repo = {
         path: searchParams.repoPath,
@@ -98,22 +94,6 @@ export const HomePage: FC = () => {
       return (await response.json()) as Repository[];
     },
   });
-
-  const addCustomPath = () => {
-    const path = customPathInput.trim();
-    if (path && !customPaths.includes(path)) {
-      const newPaths = [...customPaths, path];
-      setCustomPaths(newPaths);
-      localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
-      setCustomPathInput("");
-    }
-  };
-
-  const removeCustomPath = (path: string) => {
-    const newPaths = customPaths.filter((p) => p !== path);
-    setCustomPaths(newPaths);
-    localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
-  };
 
   const {
     data: baseCommits = [],
@@ -149,7 +129,6 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   });
 
-  // Filter headCommits when branches are the same - exclude baseCommit
   const filteredHeadCommits = useMemo(() => {
     if (baseBranch === headBranch && baseCommit) {
       return headCommits.filter(
@@ -217,7 +196,6 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo && !!baseCommit && !!headCommit,
   });
 
-  // Initialize base/head branches to default branch when repo is first loaded
   useEffect(() => {
     if (selectedRepo && branches.length > 0 && !initialized) {
       setInitialized(true);
@@ -232,7 +210,6 @@ export const HomePage: FC = () => {
     }
   }, [selectedRepo, branches, defaultBranch]);
 
-  // Auto-select most recent baseCommit when baseCommits load after branch change
   useEffect(() => {
     if (baseCommits.length > 0 && baseBranch && !baseCommit && initialized) {
       const shouldAutoSelect =
@@ -245,7 +222,6 @@ export const HomePage: FC = () => {
     }
   }, [baseCommits, baseBranch, baseCommit, initialized]);
 
-  // Auto-select most recent headCommit when headCommits load after branch change
   useEffect(() => {
     if (headCommits.length > 0 && headBranch && !headCommit && initialized) {
       const shouldAutoSelect =
@@ -258,52 +234,7 @@ export const HomePage: FC = () => {
     }
   }, [headCommits, headBranch, headCommit, initialized]);
 
-  const handleRepoChange = (repo: Repository) => {
-    setSelectedRepo(repo);
-    setBaseCommit("");
-    setHeadCommit("");
-    localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
-
-    // Reset refs
-    prevBaseBranchRef.current = "";
-    prevHeadBranchRef.current = "";
-    baseCommitsLoadedRef.current = false;
-    headCommitsLoadedRef.current = false;
-
-    // Update URL with repo path
-    updateUrl({
-      repoPath: repo.path,
-      baseBranch: "",
-      headBranch: "",
-      baseCommit: "",
-      headCommit: "",
-    });
-  };
-
-  const filters = useFilter({ sensitivity: "base" });
-  const collection = createListCollection({
-    items: repositories,
-    itemToString: (item) => item.name,
-    itemToValue: (item) => item.path,
-  });
-
-  const [repoInputValue, setRepoInputValue] = useState("");
-  const [repoOpen, setRepoOpen] = useState(false);
-
-  const filteredRepos = collection.items.filter(
-    (repo) =>
-      filters.contains(repo.name, repoInputValue) || filters.contains(repo.path, repoInputValue),
-  );
-
-  const handleRepoValueChange = (details: Combobox.ValueChangeDetails) => {
-    if (details.value.length > 0) {
-      const repo = repositories.find((r) => r.path === details.value[0]);
-      if (repo) {
-        handleRepoChange(repo);
-        setRepoOpen(false);
-      }
-    }
-  };
+  const combinedError = baseCommitsError || headCommitsError || diffError;
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -313,9 +244,9 @@ export const HomePage: FC = () => {
         <details
           open={!controlsCollapsed}
           onToggle={(e) => {
-            const newState = (e.target as HTMLDetailsElement).open;
-            setControlsCollapsed(!newState);
-            localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(!newState));
+            const open = (e.target as HTMLDetailsElement).open;
+            setControlsCollapsed(!open);
+            localStorage.setItem(CONTROLS_COLLAPSED_KEY, JSON.stringify(!open));
           }}
           className="border-b border-gray-200 bg-white"
         >
@@ -326,77 +257,29 @@ export const HomePage: FC = () => {
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <Popover.Root
-                open={repoOpen}
-                onOpenChange={(details) => {
-                  setRepoOpen(details.open);
-                  if (details.open) {
-                    setRepoInputValue("");
-                  }
+              <RepositorySelector
+                repositories={repositories}
+                selectedRepo={selectedRepo}
+                onRepoChange={(repo) => {
+                  setSelectedRepo(repo);
+                  setBaseCommit("");
+                  setHeadCommit("");
+                  localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+
+                  prevBaseBranchRef.current = "";
+                  prevHeadBranchRef.current = "";
+                  baseCommitsLoadedRef.current = false;
+                  headCommitsLoadedRef.current = false;
+
+                  updateUrl({
+                    repoPath: repo.path,
+                    baseBranch: "",
+                    headBranch: "",
+                    baseCommit: "",
+                    headCommit: "",
+                  });
                 }}
-                positioning={{ sameWidth: true }}
-              >
-                <Popover.Trigger asChild>
-                  <button className="flex w-56 items-center justify-between gap-2 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50">
-                    <span className="truncate text-gray-900">
-                      {selectedRepo?.name || "Select repository..."}
-                    </span>
-                    <ChevronDown className="h-3 w-3 flex-shrink-0 text-gray-400" />
-                  </button>
-                </Popover.Trigger>
-                <Portal>
-                  <Popover.Positioner>
-                    <Popover.Content className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
-                      <Combobox.Root
-                        openOnClick
-                        loopFocus
-                        inputBehavior="autohighlight"
-                        collection={collection}
-                        value={selectedRepo ? [selectedRepo.path] : []}
-                        onValueChange={handleRepoValueChange}
-                        onInputValueChange={(details) => setRepoInputValue(details.inputValue)}
-                      >
-                        <Combobox.Control className="relative border-b border-gray-200">
-                          <Combobox.Input
-                            autoFocus
-                            className="w-full bg-white px-2 py-1.5 text-xs outline-none placeholder:text-gray-400 focus:ring-0"
-                            placeholder="Search repositories..."
-                          />
-                        </Combobox.Control>
-                        <Combobox.List className="max-h-64 w-full overflow-y-auto p-1">
-                          <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
-                            No repositories found
-                          </Combobox.Empty>
-                          {filteredRepos.map((repo) => (
-                            <Combobox.Item
-                              key={repo.path}
-                              item={repo}
-                              className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
-                            >
-                              <span className="truncate">{repo.name}</span>
-                              <Combobox.ItemIndicator>
-                                <svg
-                                  className="h-4 w-4 flex-shrink-0 text-blue-500"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </Combobox.ItemIndicator>
-                            </Combobox.Item>
-                          ))}
-                        </Combobox.List>
-                      </Combobox.Root>
-                    </Popover.Content>
-                  </Popover.Positioner>
-                </Portal>
-              </Popover.Root>
+              />
             </div>
 
             <div className="flex items-center gap-3 flex-1">
@@ -423,7 +306,7 @@ export const HomePage: FC = () => {
                 <CommitSelector
                   commits={baseCommits}
                   value={baseCommit}
-                  onChange={(hash) => {
+                  onChange={(hash: string) => {
                     setBaseCommit(hash);
                     setHeadCommit("");
                     updateUrl({ baseCommit: hash, headCommit: "" });
@@ -472,55 +355,22 @@ export const HomePage: FC = () => {
             </div>
           </summary>
           <div className="bg-white p-3">
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <label className="block text-xs font-medium text-gray-700 mb-1">Custom Paths</label>
-              <div className="flex gap-1">
-                <input
-                  type="text"
-                  value={customPathInput}
-                  onChange={(e) => setCustomPathInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addCustomPath()}
-                  placeholder="Add path to search for repos..."
-                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs"
-                />
-                <button
-                  onClick={addCustomPath}
-                  className="rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white hover:bg-blue-600"
-                >
-                  Add
-                </button>
-              </div>
-              {customPaths.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {customPaths.map((p) => (
-                    <span
-                      key={p}
-                      className="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-xs"
-                    >
-                      {p}
-                      <button
-                        onClick={() => removeCustomPath(p)}
-                        className="text-gray-500 hover:text-red-500"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {(baseCommitsError || headCommitsError || diffError) && (
-              <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">
-                {baseCommitsError instanceof Error
-                  ? baseCommitsError.message
-                  : headCommitsError instanceof Error
-                    ? headCommitsError.message
-                    : diffError instanceof Error
-                      ? diffError.message
-                      : "An error occurred"}
-              </div>
-            )}
+            <CustomPathsInput
+              customPaths={customPaths}
+              onAddPath={(path) => {
+                if (path && !customPaths.includes(path)) {
+                  const newPaths = [...customPaths, path];
+                  setCustomPaths(newPaths);
+                  localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
+                }
+              }}
+              onRemovePath={(path) => {
+                const newPaths = customPaths.filter((p) => p !== path);
+                setCustomPaths(newPaths);
+                localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
+              }}
+            />
+            <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
           </div>
         </details>
       )}
@@ -541,9 +391,7 @@ export const HomePage: FC = () => {
 
       <main className="flex-1 min-h-0 p-2 overflow-hidden z-0">
         {!selectedRepo ? (
-          <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
-            Select a repository to get started.
-          </div>
+          <EmptyState />
         ) : baseCommitsLoading || headCommitsLoading || diffLoading ? (
           <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>
@@ -552,9 +400,7 @@ export const HomePage: FC = () => {
         ) : diff ? (
           <DiffViewer diff={diff} repoPath={selectedRepo?.path} />
         ) : (
-          <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
-            No diff available for the selected refs.
-          </div>
+          <EmptyState message="No diff available for the selected refs." />
         )}
       </main>
     </div>
