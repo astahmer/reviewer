@@ -1,5 +1,5 @@
 import { FC, useMemo } from "react";
-import { Select, createListCollection } from "@ark-ui/react";
+import { Combobox, Portal, createListCollection } from "@ark-ui/react";
 
 interface BranchSelectorProps {
   branches: string[];
@@ -25,22 +25,22 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
 
   const collection = useMemo(() => createListCollection({ items: branches }), [branches]);
 
-  const selectedValue = branches.includes(value) ? value : "";
-
   return (
-    <Select.Root
+    <Combobox.Root
+      openOnClick
       collection={collection}
-      value={selectedValue ? [selectedValue] : []}
-      onValueChange={(details) => onChange(details.value[0] || "")}
+      value={value ? [value] : []}
+      onValueChange={(details) => {
+        const branch = details.value[0] as string;
+        onChange(branch || "");
+      }}
     >
-      <Select.Trigger className="flex w-full items-center justify-between rounded border border-gray-300 bg-white px-2 py-1.5 text-xs transition-colors hover:border-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-        <Select.ValueText placeholder={placeholder}>
-          <span className={selectedValue ? "font-mono" : "text-gray-400"}>
-            {selectedValue || placeholder}
-          </span>
-        </Select.ValueText>
-
-        <Select.Indicator className="ml-1">
+      <Combobox.Control className="relative">
+        <Combobox.Input
+          className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          placeholder={value ? "" : placeholder}
+        />
+        <Combobox.Trigger className="absolute right-2 top-1/2 -translate-y-1/2">
           <svg
             className="h-3 w-3 text-gray-400"
             fill="none"
@@ -49,39 +49,44 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
-        </Select.Indicator>
-      </Select.Trigger>
-      <Select.Positioner>
-        <Select.Content className="max-h-64 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
-          <Select.List className="max-h-48 overflow-y-auto p-1">
-            {detectedDefault && (
-              <Select.Item
-                item={detectedDefault}
-                className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 data-[highlighted]:bg-blue-50"
-              >
-                <Select.ItemText>Default: {detectedDefault}</Select.ItemText>
-                <Select.ItemIndicator>Use</Select.ItemIndicator>
-              </Select.Item>
-            )}
-            {branches.map((branch) => (
-              <Select.Item
-                key={branch}
-                item={branch}
-                className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50 data-[selected]:text-blue-700"
-              >
-                <Select.ItemText>
-                  <span className="font-mono truncate">{branch}</span>
-                </Select.ItemText>
-                {branch === detectedDefault && (
-                  <Select.ItemIndicator className="text-xs text-blue-400">
-                    default
-                  </Select.ItemIndicator>
-                )}
-              </Select.Item>
-            ))}
-          </Select.List>
-        </Select.Content>
-      </Select.Positioner>
-    </Select.Root>
+        </Combobox.Trigger>
+      </Combobox.Control>
+      <Portal>
+        <Combobox.Positioner>
+          <Combobox.Content className="max-h-64 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+            <Combobox.List className="max-h-48 overflow-y-auto p-1">
+              <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
+                No branches found
+              </Combobox.Empty>
+              {detectedDefault && value !== detectedDefault && (
+                <Combobox.Item
+                  item={detectedDefault}
+                  className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 data-[highlighted]:bg-blue-50"
+                >
+                  <Combobox.ItemText>Default: {detectedDefault}</Combobox.ItemText>
+                  <Combobox.ItemIndicator>Use</Combobox.ItemIndicator>
+                </Combobox.Item>
+              )}
+              {collection.items.map((branch) => (
+                <Combobox.Item
+                  key={branch}
+                  item={branch}
+                  className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50 data-[selected]:text-blue-700"
+                >
+                  <Combobox.ItemText>
+                    <span className="font-mono truncate">{branch}</span>
+                  </Combobox.ItemText>
+                  {branch === detectedDefault && (
+                    <Combobox.ItemIndicator className="text-xs text-blue-400">
+                      default
+                    </Combobox.ItemIndicator>
+                  )}
+                </Combobox.Item>
+              ))}
+            </Combobox.List>
+          </Combobox.Content>
+        </Combobox.Positioner>
+      </Portal>
+    </Combobox.Root>
   );
 };
