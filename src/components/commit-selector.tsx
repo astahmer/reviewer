@@ -68,7 +68,7 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
           setInputValue("");
         }
       }}
-      positioning={{ sameWidth: true }}
+      // positioning={{ sameWidth: true }}
     >
       <Popover.Trigger asChild>
         <button className="flex w-full items-center justify-between gap-2 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs font-mono hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50">
