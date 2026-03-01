@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { FC, useEffect, useMemo, useState, useRef } from "react";
+import React, { FC, useEffect, useMemo, useRef } from "react";
 import { CommitInfo, Diff, BranchInfo } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
 import { DiffViewer } from "~/components/diff-viewer";
@@ -26,18 +26,25 @@ export const HomePage: FC = () => {
   const searchParams = useSearch({ from: "/" });
   const queryClient = useQueryClient();
 
-  const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
-  const [baseBranch, setBaseBranch] = useState<string>("");
-  const [headBranch, setHeadBranch] = useState<string>("");
-  const [baseCommit, setBaseCommit] = useState<string>("");
-  const [headCommit, setHeadCommit] = useState<string>("");
-  const [customPaths, setCustomPaths] = useState<string[]>([]);
-  const [controlsCollapsed, setControlsCollapsed] = useState(true);
-  const [initialized, setInitialized] = useState(false);
+  const [customPaths, setCustomPaths] = React.useState<string[]>([]);
+  const [controlsCollapsed, setControlsCollapsed] = React.useState(true);
+  const [initialized, setInitialized] = React.useState(false);
   const prevBaseBranchRef = useRef<string>("");
   const prevHeadBranchRef = useRef<string>("");
   const baseCommitsLoadedRef = useRef(false);
   const headCommitsLoadedRef = useRef(false);
+
+  const selectedRepo = searchParams.repoPath
+    ? {
+        path: searchParams.repoPath,
+        name: searchParams.repoPath.split("/").pop() || "repo",
+      }
+    : null;
+
+  const baseBranch = searchParams.baseBranch ?? "";
+  const headBranch = searchParams.headBranch ?? "";
+  const baseCommit = searchParams.baseCommit ?? "";
+  const headCommit = searchParams.headCommit ?? "";
 
   const updateUrl = (updates: Partial<SearchParams>) =>
     navigate({
@@ -48,13 +55,6 @@ export const HomePage: FC = () => {
     });
 
   useEffect(() => {
-    const saved = localStorage.getItem(REPO_STORAGE_KEY);
-    if (saved) {
-      try {
-        const repo = JSON.parse(saved);
-        setSelectedRepo(repo);
-      } catch {}
-    }
     const savedPaths = localStorage.getItem(CUSTOM_PATHS_KEY);
     if (savedPaths) {
       try {
@@ -65,18 +65,6 @@ export const HomePage: FC = () => {
     if (savedCollapsed) {
       setControlsCollapsed(JSON.parse(savedCollapsed));
     }
-
-    if (searchParams.repoPath && !selectedRepo) {
-      const repo = {
-        path: searchParams.repoPath,
-        name: searchParams.repoPath.split("/").pop() || "repo",
-      };
-      setSelectedRepo(repo);
-    }
-    if (searchParams.baseBranch) setBaseBranch(searchParams.baseBranch);
-    if (searchParams.headBranch) setHeadBranch(searchParams.headBranch);
-    if (searchParams.baseCommit) setBaseCommit(searchParams.baseCommit);
-    if (searchParams.headCommit) setHeadCommit(searchParams.headCommit);
   }, []);
 
   const allSearchPaths = useMemo(() => {
@@ -196,39 +184,38 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo && !!baseCommit && !!headCommit,
   });
 
+  // Initialize base/head branches to default branch when repo is first loaded
   useEffect(() => {
     if (selectedRepo && branches.length > 0 && !initialized) {
       setInitialized(true);
       if (!baseBranch && defaultBranch) {
-        setBaseBranch(defaultBranch);
         updateUrl({ baseBranch: defaultBranch });
       }
       if (!headBranch && defaultBranch) {
-        setHeadBranch(defaultBranch);
         updateUrl({ headBranch: defaultBranch });
       }
     }
-  }, [selectedRepo, branches, defaultBranch]);
+  }, [selectedRepo, branches, defaultBranch, initialized]);
 
+  // Auto-select most recent baseCommit when baseCommits load after branch change
   useEffect(() => {
     if (baseCommits.length > 0 && baseBranch && !baseCommit && initialized) {
       const shouldAutoSelect =
         !baseCommitsLoadedRef.current || prevBaseBranchRef.current === baseBranch;
       if (shouldAutoSelect) {
         baseCommitsLoadedRef.current = true;
-        setBaseCommit(baseCommits[0]?.hash || "");
         updateUrl({ baseCommit: baseCommits[0]?.hash || "" });
       }
     }
   }, [baseCommits, baseBranch, baseCommit, initialized]);
 
+  // Auto-select most recent headCommit when headCommits load after branch change
   useEffect(() => {
     if (headCommits.length > 0 && headBranch && !headCommit && initialized) {
       const shouldAutoSelect =
         !headCommitsLoadedRef.current || prevHeadBranchRef.current === headBranch;
       if (shouldAutoSelect) {
         headCommitsLoadedRef.current = true;
-        setHeadCommit(headCommits[0]?.hash || "");
         updateUrl({ headCommit: headCommits[0]?.hash || "" });
       }
     }
@@ -261,9 +248,6 @@ export const HomePage: FC = () => {
                 repositories={repositories}
                 selectedRepo={selectedRepo}
                 onRepoChange={(repo) => {
-                  setSelectedRepo(repo);
-                  setBaseCommit("");
-                  setHeadCommit("");
                   localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
 
                   prevBaseBranchRef.current = "";
@@ -290,10 +274,7 @@ export const HomePage: FC = () => {
                   value={baseBranch}
                   onChange={(branch) => {
                     prevBaseBranchRef.current = branch;
-                    setBaseBranch(branch);
-                    setBaseCommit("");
                     if (!headBranch) {
-                      setHeadBranch(branch);
                       updateUrl({ baseBranch: branch, baseCommit: "", headBranch: branch });
                     } else {
                       updateUrl({ baseBranch: branch, baseCommit: "" });
@@ -307,8 +288,6 @@ export const HomePage: FC = () => {
                   commits={baseCommits}
                   value={baseCommit}
                   onChange={(hash: string) => {
-                    setBaseCommit(hash);
-                    setHeadCommit("");
                     updateUrl({ baseCommit: hash, headCommit: "" });
                   }}
                   isLoading={baseCommitsLoading}
@@ -323,8 +302,6 @@ export const HomePage: FC = () => {
                   value={headBranch}
                   onChange={(branch) => {
                     prevHeadBranchRef.current = branch;
-                    setHeadBranch(branch);
-                    setHeadCommit("");
                     updateUrl({ headBranch: branch, headCommit: "" });
                   }}
                   defaultBranch={defaultBranch}
@@ -335,7 +312,6 @@ export const HomePage: FC = () => {
                   commits={filteredHeadCommits}
                   value={headCommit}
                   onChange={(hash) => {
-                    setHeadCommit(hash);
                     updateUrl({ headCommit: hash });
                   }}
                   isLoading={headCommitsLoading}
@@ -391,7 +367,23 @@ export const HomePage: FC = () => {
 
       <main className="flex-1 min-h-0 p-2 overflow-hidden z-0">
         {!selectedRepo ? (
-          <EmptyState />
+          <EmptyState
+            repositories={repositories}
+            onRepoSelect={(repo) => {
+              localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+              prevBaseBranchRef.current = "";
+              prevHeadBranchRef.current = "";
+              baseCommitsLoadedRef.current = false;
+              headCommitsLoadedRef.current = false;
+              updateUrl({
+                repoPath: repo.path,
+                baseBranch: "",
+                headBranch: "",
+                baseCommit: "",
+                headCommit: "",
+              });
+            }}
+          />
         ) : baseCommitsLoading || headCommitsLoading || diffLoading ? (
           <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>

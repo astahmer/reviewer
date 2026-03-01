@@ -1,6 +1,4 @@
-- split the homepage in multiple isolated components (dont prop drill too much its just to make it easier to maintain)
 - we need a way to filter by path in the "Search diffs" like with "path:..." and then the rest should match the file's content.
-- synchronize search params with tanstack router instead of useState
 - we need a "open file" button that opens the file in a new tab with the diff highlighted
 - we need to update the URL with search params based on the currently viewed file (this gets updated on scroll with a mutationobserver or intersectionobserver or w/e)
 - we need a way to "check" (and uncheck!) files (and whole folders!) so I know which ones I've already reviewed; we will have to store this; for now it can be done in local storage but eventually we should have a backend for this so it can be shared across devices and users (note this somewhere but focus on the MVP first)
