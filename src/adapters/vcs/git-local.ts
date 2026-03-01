@@ -75,10 +75,7 @@ export class GitLocalAdapter implements VCSAdapter {
     });
   }
 
-  getFileContent(
-    path: string,
-    commit: string,
-  ): Effect.Effect<string, VCSError> {
+  getFileContent(path: string, commit: string): Effect.Effect<string, VCSError> {
     const repoPath = this._repoPath;
     const command = `git show ${commit}:${path}`;
 
@@ -111,10 +108,10 @@ export class GitLocalAdapter implements VCSAdapter {
         for (let i = 0; i < lines.length; i += 4) {
           if (i + 3 < lines.length) {
             commits.push({
-              hash: lines[i],
-              message: lines[i + 1],
-              author: lines[i + 2],
-              date: new Date(lines[i + 3]),
+              hash: lines[i]!,
+              message: lines[i + 1]!,
+              author: lines[i + 2]!,
+              date: new Date(lines[i + 3]!),
             });
           }
         }

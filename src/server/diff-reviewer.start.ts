@@ -65,8 +65,8 @@ export async function getCommitList(
     for (let i = 0; i < lines.length; i += 4) {
       if (lines[i] && lines[i + 1]) {
         commits.push({
-          hash: lines[i],
-          message: lines[i + 1],
+          hash: lines[i]!,
+          message: lines[i + 1]!,
           author: lines[i + 2] || "",
           date: new Date(lines[i + 3] || Date.now()),
         });

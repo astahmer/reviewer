@@ -25,7 +25,7 @@ export const CommitCompare: FC<CommitCompareProps> = ({
 
   if (!fromCommit || !toCommit) return null;
 
-  const firstLine = (msg: string) => msg.split("\n")[0];
+  const firstLine = (msg: string) => msg.split("\n")[0] || "";
   const remainingLines = (msg: string) => msg.split("\n").slice(1).join("\n").trim();
 
   return (
@@ -43,8 +43,18 @@ export const CommitCompare: FC<CommitCompareProps> = ({
               {firstLine(fromCommit.message).length > 50 ? "..." : ""}
             </span>
           </div>
-          <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          <svg
+            className="h-4 w-4 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M14 5l7 7m0 0l-7 7m7-7H3"
+            />
           </svg>
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-green-600">{toCommit.hash.slice(0, 7)}</span>
@@ -99,7 +109,9 @@ export const CommitCompare: FC<CommitCompareProps> = ({
             <div className="rounded bg-white p-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500">FROM</span>
-                <span className="font-mono text-xs text-blue-600">{fromCommit.hash.slice(0, 7)}</span>
+                <span className="font-mono text-xs text-blue-600">
+                  {fromCommit.hash.slice(0, 7)}
+                </span>
               </div>
               <div className="text-xs text-gray-700">
                 <details>
@@ -121,7 +133,9 @@ export const CommitCompare: FC<CommitCompareProps> = ({
             <div className="rounded bg-white p-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500">TO</span>
-                <span className="font-mono text-xs text-green-600">{toCommit.hash.slice(0, 7)}</span>
+                <span className="font-mono text-xs text-green-600">
+                  {toCommit.hash.slice(0, 7)}
+                </span>
               </div>
               <div className="text-xs text-gray-700">
                 <details>

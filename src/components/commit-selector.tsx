@@ -36,7 +36,7 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
     filters.contains(commit.hash, inputValue),
   );
 
-  const selectedValue = selectedCommit?.hash || defaultCommit.hash || "";
+  const selectedValue = selectedCommit?.hash || defaultCommit?.hash || "";
 
   return (
     <Combobox.Root
