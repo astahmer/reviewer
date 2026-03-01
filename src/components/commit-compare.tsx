@@ -2,18 +2,18 @@ import { FC, useState } from "react";
 import { CommitInfo } from "~/lib/types";
 
 interface CommitCompareProps {
-  fromCommit: CommitInfo | undefined;
-  toCommit: CommitInfo | undefined;
-  fromBranch: string;
-  toBranch: string;
+  baseCommit: CommitInfo | undefined;
+  headCommit: CommitInfo | undefined;
+  baseBranch: string;
+  headBranch: string;
   distance: number | null;
 }
 
 export const CommitCompare: FC<CommitCompareProps> = ({
-  fromCommit,
-  toCommit,
-  fromBranch,
-  toBranch,
+  baseCommit,
+  headCommit,
+  baseBranch,
+  headBranch,
   distance,
 }) => {
   const [expanded, setExpanded] = useState(false);
@@ -23,7 +23,7 @@ export const CommitCompare: FC<CommitCompareProps> = ({
     return d.toLocaleString();
   };
 
-  if (!fromCommit || !toCommit) return null;
+  if (!baseCommit || !headCommit) return null;
 
   const firstLine = (msg: string) => msg.split("\n")[0] || "";
   const remainingLines = (msg: string) => msg.split("\n").slice(1).join("\n").trim();
@@ -37,10 +37,10 @@ export const CommitCompare: FC<CommitCompareProps> = ({
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-blue-600">{fromCommit.hash.slice(0, 7)}</span>
-            <span className="max-w-xs truncate text-xs text-gray-600" title={fromCommit.message}>
-              {firstLine(fromCommit.message).slice(0, 50)}
-              {firstLine(fromCommit.message).length > 50 ? "..." : ""}
+            <span className="font-mono text-xs text-blue-600">{baseCommit.hash.slice(0, 7)}</span>
+            <span className="max-w-xs truncate text-xs text-gray-600" title={baseCommit.message}>
+              {firstLine(baseCommit.message).slice(0, 50)}
+              {firstLine(baseCommit.message).length > 50 ? "..." : ""}
             </span>
           </div>
           <svg
@@ -57,18 +57,18 @@ export const CommitCompare: FC<CommitCompareProps> = ({
             />
           </svg>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-green-600">{toCommit.hash.slice(0, 7)}</span>
-            <span className="max-w-xs truncate text-xs text-gray-600" title={toCommit.message}>
-              {firstLine(toCommit.message).slice(0, 50)}
-              {firstLine(toCommit.message).length > 50 ? "..." : ""}
+            <span className="font-mono text-xs text-green-600">{headCommit.hash.slice(0, 7)}</span>
+            <span className="max-w-xs truncate text-xs text-gray-600" title={headCommit.message}>
+              {firstLine(headCommit.message).slice(0, 50)}
+              {firstLine(headCommit.message).length > 50 ? "..." : ""}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {fromBranch && toBranch && fromBranch === toBranch && (
+          {baseBranch && headBranch && baseBranch === headBranch && (
             <>
               <span className="rounded bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
-                {fromBranch}
+                {baseBranch}
               </span>
               {distance !== null && distance > 0 && (
                 <span className="rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
@@ -77,17 +77,17 @@ export const CommitCompare: FC<CommitCompareProps> = ({
               )}
             </>
           )}
-          {fromBranch !== toBranch && (
+          {baseBranch !== headBranch && (
             <div className="flex gap-1">
-              {fromBranch && (
+              {baseBranch && (
                 <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono text-gray-600">
-                  {fromBranch}
+                  {baseBranch}
                 </span>
               )}
               <span className="text-gray-400">→</span>
-              {toBranch && (
+              {headBranch && (
                 <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-mono text-gray-600">
-                  {toBranch}
+                  {headBranch}
                 </span>
               )}
             </div>
@@ -108,49 +108,49 @@ export const CommitCompare: FC<CommitCompareProps> = ({
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded bg-white p-2">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500">FROM</span>
+                <span className="text-xs font-semibold text-gray-500">BASE</span>
                 <span className="font-mono text-xs text-blue-600">
-                  {fromCommit.hash.slice(0, 7)}
+                  {baseCommit.hash.slice(0, 7)}
                 </span>
               </div>
               <div className="text-xs text-gray-700">
                 <details>
                   <summary className="cursor-pointer truncate hover:text-gray-900">
-                    {firstLine(fromCommit.message)}
+                    {firstLine(baseCommit.message)}
                   </summary>
-                  {remainingLines(fromCommit.message) && (
+                  {remainingLines(baseCommit.message) && (
                     <div className="mt-1 whitespace-pre-wrap text-gray-500">
-                      {remainingLines(fromCommit.message)}
+                      {remainingLines(baseCommit.message)}
                     </div>
                   )}
                 </details>
               </div>
               <div className="mt-2 text-xs text-gray-400">
-                {fromCommit.author} · {formatDate(fromCommit.date)}
+                {baseCommit.author} · {formatDate(baseCommit.date)}
               </div>
             </div>
 
             <div className="rounded bg-white p-2">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500">TO</span>
+                <span className="text-xs font-semibold text-gray-500">HEAD</span>
                 <span className="font-mono text-xs text-green-600">
-                  {toCommit.hash.slice(0, 7)}
+                  {headCommit.hash.slice(0, 7)}
                 </span>
               </div>
               <div className="text-xs text-gray-700">
                 <details>
                   <summary className="cursor-pointer truncate hover:text-gray-900">
-                    {firstLine(toCommit.message)}
+                    {firstLine(headCommit.message)}
                   </summary>
-                  {remainingLines(toCommit.message) && (
+                  {remainingLines(headCommit.message) && (
                     <div className="mt-1 whitespace-pre-wrap text-gray-500">
-                      {remainingLines(toCommit.message)}
+                      {remainingLines(headCommit.message)}
                     </div>
                   )}
                 </details>
               </div>
               <div className="mt-2 text-xs text-gray-400">
-                {toCommit.author} · {formatDate(toCommit.date)}
+                {headCommit.author} · {formatDate(headCommit.date)}
               </div>
             </div>
           </div>

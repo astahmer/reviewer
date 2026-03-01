@@ -7,18 +7,18 @@ export const Route = createFileRoute("/api/diff")({
       GET: async ({ request }: { request: Request }) => {
         try {
           const url = new URL(request.url);
-          const from = url.searchParams.get("from");
-          const to = url.searchParams.get("to");
+          const base = url.searchParams.get("base");
+          const head = url.searchParams.get("head");
           const repoPath = url.searchParams.get("repoPath") || undefined;
 
-          if (!from || !to) {
+          if (!base || !head) {
             return Response.json(
-              { error: "Missing required parameters: from and to" },
+              { error: "Missing required parameters: base and head" },
               { status: 400 },
             );
           }
 
-          const diff = await getDiff(from, to, repoPath);
+          const diff = await getDiff(base, head, repoPath);
           return Response.json(diff);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to fetch diff";

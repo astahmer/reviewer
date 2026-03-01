@@ -4,10 +4,10 @@ import { HomePage } from "~/pages/home-page";
 
 const SearchParamsSchema = Schema.Struct({
   repoPath: Schema.optional(Schema.String),
-  fromBranch: Schema.optional(Schema.String),
-  toBranch: Schema.optional(Schema.String),
-  fromCommit: Schema.optional(Schema.String),
-  toCommit: Schema.optional(Schema.String),
+  baseBranch: Schema.optional(Schema.String),
+  headBranch: Schema.optional(Schema.String),
+  baseCommit: Schema.optional(Schema.String),
+  headCommit: Schema.optional(Schema.String),
 });
 
 export type SearchParams = Schema.Schema.Type<typeof SearchParamsSchema>;

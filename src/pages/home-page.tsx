@@ -27,18 +27,18 @@ export const HomePage: FC = () => {
   const queryClient = useQueryClient();
 
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
-  const [fromBranch, setFromBranch] = useState<string>("");
-  const [toBranch, setToBranch] = useState<string>("");
-  const [fromCommit, setFromCommit] = useState<string>("");
-  const [toCommit, setToCommit] = useState<string>("");
+  const [baseBranch, setBaseBranch] = useState<string>("");
+  const [headBranch, setHeadBranch] = useState<string>("");
+  const [baseCommit, setBaseCommit] = useState<string>("");
+  const [headCommit, setHeadCommit] = useState<string>("");
   const [customPathInput, setCustomPathInput] = useState("");
   const [customPaths, setCustomPaths] = useState<string[]>([]);
   const [controlsCollapsed, setControlsCollapsed] = useState(true);
   const [initialized, setInitialized] = useState(false);
-  const prevFromBranchRef = useRef<string>("");
-  const prevToBranchRef = useRef<string>("");
-  const fromCommitsLoadedRef = useRef(false);
-  const toCommitsLoadedRef = useRef(false);
+  const prevBaseBranchRef = useRef<string>("");
+  const prevHeadBranchRef = useRef<string>("");
+  const baseCommitsLoadedRef = useRef(false);
+  const headCommitsLoadedRef = useRef(false);
 
   // Update URL whenever relevant state changes
   const updateUrl = (updates: Partial<SearchParams>) =>
@@ -74,10 +74,10 @@ export const HomePage: FC = () => {
         name: searchParams.repoPath.split("/").pop() || "repo",
       });
     }
-    if (searchParams.fromBranch) setFromBranch(searchParams.fromBranch);
-    if (searchParams.toBranch) setToBranch(searchParams.toBranch);
-    if (searchParams.fromCommit) setFromCommit(searchParams.fromCommit);
-    if (searchParams.toCommit) setToCommit(searchParams.toCommit);
+    if (searchParams.baseBranch) setBaseBranch(searchParams.baseBranch);
+    if (searchParams.headBranch) setHeadBranch(searchParams.headBranch);
+    if (searchParams.baseCommit) setBaseCommit(searchParams.baseCommit);
+    if (searchParams.headCommit) setHeadCommit(searchParams.headCommit);
   }, []);
 
   const allSearchPaths = useMemo(() => {
@@ -113,15 +113,15 @@ export const HomePage: FC = () => {
   };
 
   const {
-    data: fromCommits = [],
-    isLoading: fromCommitsLoading,
-    error: fromCommitsError,
+    data: baseCommits = [],
+    isLoading: baseCommitsLoading,
+    error: baseCommitsError,
   } = useQuery({
-    queryKey: ["commits", selectedRepo?.path, fromBranch],
+    queryKey: ["commits", selectedRepo?.path, baseBranch],
     queryFn: async () => {
       const url = new URL("/api/commits", window.location.origin);
       if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
-      if (fromBranch) url.searchParams.set("branch", fromBranch);
+      if (baseBranch) url.searchParams.set("branch", baseBranch);
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch commits");
       return (await response.json()) as CommitInfo[];
@@ -130,15 +130,15 @@ export const HomePage: FC = () => {
   });
 
   const {
-    data: toCommits = [],
-    isLoading: toCommitsLoading,
-    error: toCommitsError,
+    data: headCommits = [],
+    isLoading: headCommitsLoading,
+    error: headCommitsError,
   } = useQuery({
-    queryKey: ["commits", selectedRepo?.path, toBranch],
+    queryKey: ["commits", selectedRepo?.path, headBranch],
     queryFn: async () => {
       const url = new URL("/api/commits", window.location.origin);
       if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
-      if (toBranch) url.searchParams.set("branch", toBranch);
+      if (headBranch) url.searchParams.set("branch", headBranch);
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch commits");
       return (await response.json()) as CommitInfo[];
@@ -146,15 +146,15 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   });
 
-  // Filter toCommits when branches are the same - exclude fromCommit
-  const filteredToCommits = useMemo(() => {
-    if (fromBranch === toBranch && fromCommit) {
-      return toCommits.filter(
-        (c) => c.hash !== fromCommit && !c.hash.startsWith(fromCommit.slice(0, 7)),
+  // Filter headCommits when branches are the same - exclude baseCommit
+  const filteredHeadCommits = useMemo(() => {
+    if (baseBranch === headBranch && baseCommit) {
+      return headCommits.filter(
+        (c) => c.hash !== baseCommit && !c.hash.startsWith(baseCommit.slice(0, 7)),
       );
     }
-    return toCommits;
-  }, [toCommits, fromBranch, toBranch, fromCommit]);
+    return headCommits;
+  }, [headCommits, baseBranch, headBranch, baseCommit]);
 
   const { data: branches = [], isLoading: branchesLoading } = useQuery({
     queryKey: ["branchesWithCommits", selectedRepo?.path],
@@ -186,19 +186,26 @@ export const HomePage: FC = () => {
   });
 
   const { data: commitDistance } = useQuery({
-    queryKey: ["commitDistance", fromCommit, toCommit, selectedRepo?.path, fromBranch, toBranch],
+    queryKey: [
+      "commitDistance",
+      baseCommit,
+      headCommit,
+      selectedRepo?.path,
+      baseBranch,
+      headBranch,
+    ],
     queryFn: async () => {
-      if (!fromCommit || !toCommit || fromBranch !== toBranch) return null;
+      if (!baseCommit || !headCommit || baseBranch !== headBranch) return null;
       const url = new URL("/api/commit-distance", window.location.origin);
-      url.searchParams.set("from", fromCommit);
-      url.searchParams.set("to", toCommit);
+      url.searchParams.set("base", baseCommit);
+      url.searchParams.set("head", headCommit);
       if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
       const response = await fetch(url);
       if (!response.ok) return null;
       const data = await response.json();
       return data.distance;
     },
-    enabled: !!selectedRepo && !!fromCommit && !!toCommit && fromBranch === toBranch,
+    enabled: !!selectedRepo && !!baseCommit && !!headCommit && baseBranch === headBranch,
   });
 
   const {
@@ -206,108 +213,109 @@ export const HomePage: FC = () => {
     isLoading: diffLoading,
     error: diffError,
   } = useQuery({
-    queryKey: ["diff", fromCommit, toCommit, selectedRepo?.path],
+    queryKey: ["diff", baseCommit, headCommit, selectedRepo?.path],
     queryFn: async () => {
       const url = new URL("/api/diff", window.location.origin);
-      url.searchParams.set("from", fromCommit);
-      url.searchParams.set("to", toCommit);
+      url.searchParams.set("base", baseCommit);
+      url.searchParams.set("head", headCommit);
       if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch diff");
       return (await response.json()) as Diff;
     },
-    enabled: !!selectedRepo && !!fromCommit && !!toCommit,
+    enabled: !!selectedRepo && !!baseCommit && !!headCommit,
   });
 
-  // Initialize from/to branches to default branch when repo is first loaded
+  // Initialize base/head branches to default branch when repo is first loaded
   useEffect(() => {
     if (selectedRepo && branches.length > 0 && !initialized) {
       setInitialized(true);
-      if (!fromBranch && defaultBranch) {
-        setFromBranch(defaultBranch);
-        updateUrl({ fromBranch: defaultBranch });
+      if (!baseBranch && defaultBranch) {
+        setBaseBranch(defaultBranch);
+        updateUrl({ baseBranch: defaultBranch });
       }
-      if (!toBranch && defaultBranch) {
-        setToBranch(defaultBranch);
-        updateUrl({ toBranch: defaultBranch });
+      if (!headBranch && defaultBranch) {
+        setHeadBranch(defaultBranch);
+        updateUrl({ headBranch: defaultBranch });
       }
     }
   }, [selectedRepo, branches, defaultBranch]);
 
-  // Handle fromBranch change - clear fromCommit
+  // Handle baseBranch change - clear baseCommit
   useEffect(() => {
-    if (initialized && prevFromBranchRef.current !== fromBranch) {
-      prevFromBranchRef.current = fromBranch;
-      if (fromBranch) {
-        setFromCommit("");
-        updateUrl({ fromCommit: "" });
+    if (initialized && prevBaseBranchRef.current !== baseBranch) {
+      prevBaseBranchRef.current = baseBranch;
+      if (baseBranch) {
+        setBaseCommit("");
+        updateUrl({ baseCommit: "" });
       }
     }
-  }, [fromBranch, initialized]);
+  }, [baseBranch, initialized]);
 
-  // Handle toBranch change - clear toCommit
+  // Handle headBranch change - clear headCommit
   useEffect(() => {
-    if (initialized && prevToBranchRef.current !== toBranch) {
-      prevToBranchRef.current = toBranch;
-      if (toBranch) {
-        setToCommit("");
-        updateUrl({ toCommit: "" });
+    if (initialized && prevHeadBranchRef.current !== headBranch) {
+      prevHeadBranchRef.current = headBranch;
+      if (headBranch) {
+        setHeadCommit("");
+        updateUrl({ headCommit: "" });
       }
     }
-  }, [toBranch, initialized]);
+  }, [headBranch, initialized]);
 
-  // Sync from -> to branch when from changes and to is empty
+  // Sync base -> head branch when base changes and head is empty
   useEffect(() => {
-    if (fromBranch && !toBranch && initialized) {
-      setToBranch(fromBranch);
-      updateUrl({ toBranch: fromBranch });
+    if (baseBranch && !headBranch && initialized) {
+      setHeadBranch(baseBranch);
+      updateUrl({ headBranch: baseBranch });
     }
-  }, [fromBranch, toBranch, initialized]);
+  }, [baseBranch, headBranch, initialized]);
 
-  // Auto-select most recent fromCommit when fromCommits load after branch change
+  // Auto-select most recent baseCommit when baseCommits load after branch change
   useEffect(() => {
-    if (fromCommits.length > 0 && fromBranch && !fromCommit && initialized) {
+    if (baseCommits.length > 0 && baseBranch && !baseCommit && initialized) {
       const shouldAutoSelect =
-        !fromCommitsLoadedRef.current || prevFromBranchRef.current === fromBranch;
+        !baseCommitsLoadedRef.current || prevBaseBranchRef.current === baseBranch;
       if (shouldAutoSelect) {
-        fromCommitsLoadedRef.current = true;
-        setFromCommit(fromCommits[0]?.hash || "");
-        updateUrl({ fromCommit: fromCommits[0]?.hash || "" });
+        baseCommitsLoadedRef.current = true;
+        setBaseCommit(baseCommits[0]?.hash || "");
+        updateUrl({ baseCommit: baseCommits[0]?.hash || "" });
       }
     }
-  }, [fromCommits, fromBranch, fromCommit, initialized]);
+  }, [baseCommits, baseBranch, baseCommit, initialized]);
 
-  // Auto-select most recent toCommit when toCommits load after branch change
+  // Auto-select most recent headCommit when headCommits load after branch change
   useEffect(() => {
-    if (toCommits.length > 0 && toBranch && !toCommit && initialized) {
-      const shouldAutoSelect = !toCommitsLoadedRef.current || prevToBranchRef.current === toBranch;
+    if (headCommits.length > 0 && headBranch && !headCommit && initialized) {
+      const shouldAutoSelect =
+        !headCommitsLoadedRef.current || prevHeadBranchRef.current === headBranch;
       if (shouldAutoSelect) {
-        toCommitsLoadedRef.current = true;
-        setToCommit(toCommits[0]?.hash || "");
-        updateUrl({ toCommit: toCommits[0]?.hash || "" });
+        headCommitsLoadedRef.current = true;
+        setHeadCommit(headCommits[0]?.hash || "");
+        updateUrl({ headCommit: headCommits[0]?.hash || "" });
       }
     }
-  }, [toCommits, toBranch, toCommit, initialized]);
+  }, [headCommits, headBranch, headCommit, initialized]);
 
   const handleRepoChange = (repo: Repository) => {
     setSelectedRepo(repo);
-    setFromCommit("");
-    setToCommit("");
+    setBaseCommit("");
+    setHeadCommit("");
     localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
 
     // Reset refs
-    prevFromBranchRef.current = "";
-    prevToBranchRef.current = "";
-    fromCommitsLoadedRef.current = false;
-    toCommitsLoadedRef.current = false;
+    prevBaseBranchRef.current = "";
+    prevHeadBranchRef.current = "";
+    baseCommitsLoadedRef.current = false;
+    headCommitsLoadedRef.current = false;
 
     // Update URL with repo path
     updateUrl({
       repoPath: repo.path,
-      fromBranch: "",
-      toBranch: "",
-      fromCommit: "",
-      toCommit: "",
+      baseBranch: "",
+      headBranch: "",
+      baseCommit: "",
+      headCommit: "",
     });
   };
 
@@ -328,9 +336,8 @@ export const HomePage: FC = () => {
     };
   };
 
-  const fromDisplay = getRefDisplay(fromCommit, fromCommits);
-  const toDisplay = getRefDisplay(toCommit, toCommits);
-  console.log({ fromBranch, toBranch, fromDisplay, toDisplay, fromCommit, toCommit });
+  const baseDisplay = getRefDisplay(baseCommit, baseCommits);
+  const headDisplay = getRefDisplay(headCommit, headCommits);
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
@@ -361,12 +368,12 @@ export const HomePage: FC = () => {
 
           {selectedRepo && diff && (
             <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
-              <span className="font-mono" title={fromDisplay.sublabel}>
-                {fromDisplay.label}
+              <span className="font-mono" title={baseDisplay.sublabel}>
+                {baseDisplay.label}
               </span>
               <span className="text-gray-400">→</span>
-              <span className="font-mono" title={toDisplay.sublabel}>
-                {toDisplay.label}
+              <span className="font-mono" title={headDisplay.sublabel}>
+                {headDisplay.label}
               </span>
               {currentBranch && (
                 <span className="inline-flex items-center rounded bg-blue-50 px-2 py-1 font-mono text-xs font-medium text-blue-700 ml-2">
@@ -397,15 +404,15 @@ export const HomePage: FC = () => {
         <div className="border-b border-gray-200 bg-white p-3 relative">
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-3">
-              <div className="text-xs font-semibold text-gray-700">From</div>
+              <div className="text-xs font-semibold text-gray-700">Base</div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Branch</label>
                 <BranchSelector
                   branches={branches}
-                  value={fromBranch}
+                  value={baseBranch}
                   onChange={(branch) => {
-                    setFromBranch(branch);
-                    updateUrl({ fromBranch: branch });
+                    setBaseBranch(branch);
+                    updateUrl({ baseBranch: branch });
                   }}
                   defaultBranch={defaultBranch}
                   placeholder="Select branch..."
@@ -415,29 +422,29 @@ export const HomePage: FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Commit</label>
                 <CommitSelector
-                  commits={fromCommits}
-                  value={fromCommit}
+                  commits={baseCommits}
+                  value={baseCommit}
                   onChange={(hash) => {
-                    setFromCommit(hash);
-                    setToCommit("");
-                    updateUrl({ fromCommit: hash, toCommit: "" });
+                    setBaseCommit(hash);
+                    setHeadCommit("");
+                    updateUrl({ baseCommit: hash, headCommit: "" });
                   }}
-                  isLoading={fromCommitsLoading}
+                  isLoading={baseCommitsLoading}
                   placeholder="Select commit..."
                 />
               </div>
             </div>
 
             <div className="space-y-3">
-              <div className="text-xs font-semibold text-gray-700">To</div>
+              <div className="text-xs font-semibold text-gray-700">Head</div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Branch</label>
                 <BranchSelector
                   branches={branches}
-                  value={toBranch}
+                  value={headBranch}
                   onChange={(branch) => {
-                    setToBranch(branch);
-                    updateUrl({ toBranch: branch });
+                    setHeadBranch(branch);
+                    updateUrl({ headBranch: branch });
                   }}
                   defaultBranch={defaultBranch}
                   placeholder="Select branch..."
@@ -447,13 +454,13 @@ export const HomePage: FC = () => {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Commit</label>
                 <CommitSelector
-                  commits={filteredToCommits}
-                  value={toCommit}
+                  commits={filteredHeadCommits}
+                  value={headCommit}
                   onChange={(hash) => {
-                    setToCommit(hash);
-                    updateUrl({ toCommit: hash });
+                    setHeadCommit(hash);
+                    updateUrl({ headCommit: hash });
                   }}
-                  isLoading={toCommitsLoading}
+                  isLoading={headCommitsLoading}
                   placeholder="Select commit..."
                 />
               </div>
@@ -498,12 +505,12 @@ export const HomePage: FC = () => {
             )}
           </div>
 
-          {(fromCommitsError || toCommitsError || diffError) && (
+          {(baseCommitsError || headCommitsError || diffError) && (
             <div className="mt-2 rounded bg-red-50 px-2 py-1 text-xs text-red-700">
-              {fromCommitsError instanceof Error
-                ? fromCommitsError.message
-                : toCommitsError instanceof Error
-                  ? toCommitsError.message
+              {baseCommitsError instanceof Error
+                ? baseCommitsError.message
+                : headCommitsError instanceof Error
+                  ? headCommitsError.message
                   : diffError instanceof Error
                     ? diffError.message
                     : "An error occurred"}
@@ -512,15 +519,17 @@ export const HomePage: FC = () => {
         </div>
       )}
 
-      {fromCommit && toCommit && (
+      {baseCommit && headCommit && (
         <div className="mt-4">
           <CommitCompare
-            fromCommit={fromCommits.find(
-              (c) => c.hash === fromCommit || c.hash.startsWith(fromCommit),
+            baseCommit={baseCommits.find(
+              (c) => c.hash === baseCommit || c.hash.startsWith(baseCommit),
             )}
-            toCommit={toCommits.find((c) => c.hash === toCommit || c.hash.startsWith(toCommit))}
-            fromBranch={fromBranch}
-            toBranch={toBranch}
+            headCommit={headCommits.find(
+              (c) => c.hash === headCommit || c.hash.startsWith(headCommit),
+            )}
+            baseBranch={baseBranch}
+            headBranch={headBranch}
             distance={commitDistance ?? null}
           />
         </div>
@@ -531,7 +540,7 @@ export const HomePage: FC = () => {
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
             Select a repository to get started.
           </div>
-        ) : fromCommitsLoading || toCommitsLoading || diffLoading ? (
+        ) : baseCommitsLoading || headCommitsLoading || diffLoading ? (
           <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>
             <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
