@@ -1,12 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { FC, useEffect, useMemo, useState, useRef } from "react";
-import { CommitInfo, Diff } from "~/lib/types";
+import { CommitInfo, Diff, BranchInfo } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
 import { DiffViewer } from "~/components/diff-viewer";
 import { BranchSelector } from "~/components/branch-selector";
 import { CommitSelector } from "~/components/commit-selector";
 import { CommitCompare } from "~/components/commit-compare";
+import { Combobox, useListCollection } from "@ark-ui/react/combobox";
+import { useFilter } from "@ark-ui/react/locale";
+import { Portal } from "@ark-ui/react/portal";
+import { CheckIcon, ChevronsUpDownIcon, XIcon } from "lucide-react";
 
 const REPO_STORAGE_KEY = "selectedRepoPath";
 const CUSTOM_PATHS_KEY = "customSearchPaths";
@@ -152,21 +156,21 @@ export const HomePage: FC = () => {
     return toCommits;
   }, [toCommits, fromBranch, toBranch, fromCommit]);
 
-  const { data: branches = [] } = useQuery({
-    queryKey: ["branches", selectedRepo?.path],
+  const { data: branches = [], isLoading: branchesLoading } = useQuery({
+    queryKey: ["branchesWithCommits", selectedRepo?.path],
     queryFn: async () => {
-      const url = new URL("/api/branches", window.location.origin);
+      const url = new URL("/api/branches-with-commits", window.location.origin);
       if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch branches");
-      return (await response.json()) as string[];
+      return (await response.json()) as BranchInfo[];
     },
     enabled: !!selectedRepo,
   });
 
   const defaultBranch = useMemo(() => {
     const defaults = ["main", "master", "develop", "dev", "release"];
-    return branches.find((b) => defaults.includes(b.toLowerCase())) || branches[0];
+    return branches.find((b) => defaults.includes(b.name.toLowerCase()))?.name || branches[0]?.name;
   }, [branches]);
 
   const { data: currentBranch = "main" } = useQuery({
@@ -326,13 +330,16 @@ export const HomePage: FC = () => {
 
   const fromDisplay = getRefDisplay(fromCommit, fromCommits);
   const toDisplay = getRefDisplay(toCommit, toCommits);
+  console.log({ fromBranch, toBranch, fromDisplay, toDisplay, fromCommit, toCommit });
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       <header className="border-b border-gray-200 bg-white px-4 py-2">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-gray-900">Git Diff Reviewer</h1>
+            <h1 className="text-lg font-semibold text-gray-900">
+              <Link to="/">Reviewer</Link>
+            </h1>
 
             <select
               value={selectedRepo?.path || ""}
@@ -402,6 +409,7 @@ export const HomePage: FC = () => {
                   }}
                   defaultBranch={defaultBranch}
                   placeholder="Select branch..."
+                  isLoading={branchesLoading}
                 />
               </div>
               <div>
@@ -433,6 +441,7 @@ export const HomePage: FC = () => {
                   }}
                   defaultBranch={defaultBranch}
                   placeholder="Select branch..."
+                  isLoading={branchesLoading}
                 />
               </div>
               <div>
@@ -536,5 +545,66 @@ export const HomePage: FC = () => {
         )}
       </main>
     </div>
+  );
+};
+
+export const ComboboxExample = () => {
+  const { contains } = useFilter({ sensitivity: "base" });
+
+  const { collection, filter } = useListCollection({
+    initialItems: [
+      { label: "Engineering", value: "engineering" },
+      { label: "Marketing", value: "marketing" },
+      { label: "Sales", value: "sales" },
+      { label: "Finance", value: "finance" },
+      { label: "Human Resources", value: "hr" },
+      { label: "Operations", value: "operations" },
+      { label: "Product", value: "product" },
+      { label: "Customer Success", value: "customer-success" },
+      { label: "Legal", value: "legal" },
+      { label: "Information Technology", value: "information-technology" },
+      { label: "Design", value: "design" },
+    ],
+    filter: contains,
+  });
+
+  const handleInputChange = (details: Combobox.InputValueChangeDetails) => {
+    filter(details.inputValue);
+  };
+
+  return (
+    <Combobox.Root
+      collection={collection}
+      onInputValueChange={handleInputChange}
+      inputBehavior="autohighlight"
+    >
+      <Combobox.Label>Department</Combobox.Label>
+      <Combobox.Control>
+        <Combobox.Input placeholder="e.g. Engineering" />
+        <div>
+          <Combobox.ClearTrigger>
+            <XIcon />
+          </Combobox.ClearTrigger>
+          <Combobox.Trigger>
+            <ChevronsUpDownIcon />
+          </Combobox.Trigger>
+        </div>
+      </Combobox.Control>
+      <Portal>
+        <Combobox.Positioner>
+          <Combobox.Content>
+            <Combobox.Empty>No results found</Combobox.Empty>
+            {collection.items.map((item) => (
+              <Combobox.Item key={item.value} item={item}>
+                <Combobox.ItemText>{item.label}</Combobox.ItemText>
+                <Combobox.ItemIndicator>
+                  <CheckIcon />
+                </Combobox.ItemIndicator>
+              </Combobox.Item>
+            ))}
+          </Combobox.Content>
+        </Combobox.Positioner>
+      </Portal>
+    </Combobox.Root>
   );
 };

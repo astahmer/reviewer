@@ -65,6 +65,11 @@ export interface CommitInfo {
   date: Date;
 }
 
+export interface BranchInfo {
+  name: string;
+  latestCommit: CommitInfo;
+}
+
 export interface DiffFilter {
   query?: string;
   type?: LineType | "all";

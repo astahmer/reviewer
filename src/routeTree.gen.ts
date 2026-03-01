@@ -16,6 +16,7 @@ import { Route as ApiDiffRouteImport } from './routes/api/diff'
 import { Route as ApiCurrentBranchRouteImport } from './routes/api/current-branch'
 import { Route as ApiCommitsRouteImport } from './routes/api/commits'
 import { Route as ApiCommitDistanceRouteImport } from './routes/api/commit-distance'
+import { Route as ApiBranchesWithCommitsRouteImport } from './routes/api/branches-with-commits'
 import { Route as ApiBranchesRouteImport } from './routes/api/branches'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const ApiCommitDistanceRoute = ApiCommitDistanceRouteImport.update({
   path: '/api/commit-distance',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBranchesWithCommitsRoute = ApiBranchesWithCommitsRouteImport.update({
+  id: '/api/branches-with-commits',
+  path: '/api/branches-with-commits',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBranchesRoute = ApiBranchesRouteImport.update({
   id: '/api/branches',
   path: '/api/branches',
@@ -62,6 +68,7 @@ const ApiBranchesRoute = ApiBranchesRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/branches': typeof ApiBranchesRoute
+  '/api/branches-with-commits': typeof ApiBranchesWithCommitsRoute
   '/api/commit-distance': typeof ApiCommitDistanceRoute
   '/api/commits': typeof ApiCommitsRoute
   '/api/current-branch': typeof ApiCurrentBranchRoute
@@ -72,6 +79,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/branches': typeof ApiBranchesRoute
+  '/api/branches-with-commits': typeof ApiBranchesWithCommitsRoute
   '/api/commit-distance': typeof ApiCommitDistanceRoute
   '/api/commits': typeof ApiCommitsRoute
   '/api/current-branch': typeof ApiCurrentBranchRoute
@@ -83,6 +91,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/branches': typeof ApiBranchesRoute
+  '/api/branches-with-commits': typeof ApiBranchesWithCommitsRoute
   '/api/commit-distance': typeof ApiCommitDistanceRoute
   '/api/commits': typeof ApiCommitsRoute
   '/api/current-branch': typeof ApiCurrentBranchRoute
@@ -95,6 +104,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/api/branches'
+    | '/api/branches-with-commits'
     | '/api/commit-distance'
     | '/api/commits'
     | '/api/current-branch'
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/api/branches'
+    | '/api/branches-with-commits'
     | '/api/commit-distance'
     | '/api/commits'
     | '/api/current-branch'
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/api/branches'
+    | '/api/branches-with-commits'
     | '/api/commit-distance'
     | '/api/commits'
     | '/api/current-branch'
@@ -126,6 +138,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiBranchesRoute: typeof ApiBranchesRoute
+  ApiBranchesWithCommitsRoute: typeof ApiBranchesWithCommitsRoute
   ApiCommitDistanceRoute: typeof ApiCommitDistanceRoute
   ApiCommitsRoute: typeof ApiCommitsRoute
   ApiCurrentBranchRoute: typeof ApiCurrentBranchRoute
@@ -185,6 +198,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCommitDistanceRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/branches-with-commits': {
+      id: '/api/branches-with-commits'
+      path: '/api/branches-with-commits'
+      fullPath: '/api/branches-with-commits'
+      preLoaderRoute: typeof ApiBranchesWithCommitsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/branches': {
       id: '/api/branches'
       path: '/api/branches'
@@ -198,6 +218,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiBranchesRoute: ApiBranchesRoute,
+  ApiBranchesWithCommitsRoute: ApiBranchesWithCommitsRoute,
   ApiCommitDistanceRoute: ApiCommitDistanceRoute,
   ApiCommitsRoute: ApiCommitsRoute,
   ApiCurrentBranchRoute: ApiCurrentBranchRoute,

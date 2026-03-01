@@ -1,6 +1,7 @@
-import { FC, useMemo } from "react";
-import { Combobox, Portal, createListCollection } from "@ark-ui/react";
+import { Combobox, createListCollection, Portal, useFilter } from "@ark-ui/react";
+import { FC, useState } from "react";
 import { CommitInfo } from "~/lib/types";
+import { formatDate } from "./format-date";
 
 interface CommitSelectorProps {
   commits: CommitInfo[];
@@ -17,47 +18,43 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
   isLoading,
   placeholder = "Select commit...",
 }) => {
-  const selectedCommit = useMemo(() => {
-    return commits.find((c) => c.hash === value || c.hash.startsWith(value));
-  }, [commits, value]);
+  const defaultCommit = commits[0];
 
-  const collection = useMemo(
-    () => createListCollection({ items: commits, itemToString: (item) => item.hash }),
-    [commits],
+  const selectedCommit =
+    commits.find((c) => c.hash === value || c.hash.startsWith(value)) ||
+    (!value && defaultCommit ? defaultCommit : undefined);
+
+  const filters = useFilter({ sensitivity: "base" });
+  const collection = createListCollection({
+    items: commits,
+    itemToString: (item) => item.hash.slice(0, 7),
+    itemToValue: (item) => item.hash,
+  });
+
+  const [inputValue, setInputValue] = useState("");
+  const filteredItems = collection.items.filter((commit) =>
+    filters.contains(commit.hash, inputValue),
   );
 
-  const formatDate = (date: Date | string) => {
-    const d = typeof date === "string" ? new Date(date) : date;
-    const now = new Date();
-    const diff = now.getTime() - d.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "today";
-    if (days === 1) return "yesterday";
-    if (days < 7) return `${days} days ago`;
-    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-    return d.toLocaleDateString();
-  };
+  const selectedValue = selectedCommit?.hash || defaultCommit.hash || "";
 
   return (
     <Combobox.Root
       openOnClick
+      loopFocus
+      inputBehavior="autohighlight"
       collection={collection}
-      value={value ? [value] : []}
+      value={selectedValue ? [selectedValue] : []}
       onValueChange={(details) => {
         const hash = details.value[0] as string;
         onChange(hash || "");
       }}
+      onInputValueChange={(details) => setInputValue(details.inputValue)}
     >
       <Combobox.Control className="relative">
         <Combobox.Input
           className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-xs font-mono outline-none placeholder:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-          placeholder={
-            isLoading
-              ? "Loading..."
-              : selectedCommit
-                ? selectedCommit.hash.slice(0, 7)
-                : placeholder
-          }
+          placeholder={isLoading ? "Loading..." : placeholder}
           disabled={isLoading}
         />
         <Combobox.Trigger className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -78,7 +75,7 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
               <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
                 No commits found
               </Combobox.Empty>
-              {collection.items.map((commit) => (
+              {filteredItems.map((commit: CommitInfo) => (
                 <Combobox.Item
                   key={commit.hash}
                   item={commit}
