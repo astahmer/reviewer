@@ -7,10 +7,11 @@ import { DiffViewer } from "~/components/diff-viewer";
 import { BranchSelector } from "~/components/branch-selector";
 import { CommitSelector } from "~/components/commit-selector";
 import { CommitCompare } from "~/components/commit-compare";
-import { Combobox, useListCollection } from "@ark-ui/react/combobox";
+import { Combobox, createListCollection } from "@ark-ui/react/combobox";
 import { useFilter } from "@ark-ui/react/locale";
 import { Portal } from "@ark-ui/react/portal";
-import { CheckIcon, ChevronsUpDownIcon, XIcon } from "lucide-react";
+import { Popover } from "@ark-ui/react/popover";
+import { ChevronDown } from "lucide-react";
 
 const REPO_STORAGE_KEY = "selectedRepoPath";
 const CUSTOM_PATHS_KEY = "customSearchPaths";
@@ -53,7 +54,8 @@ export const HomePage: FC = () => {
     const saved = localStorage.getItem(REPO_STORAGE_KEY);
     if (saved) {
       try {
-        setSelectedRepo(JSON.parse(saved));
+        const repo = JSON.parse(saved);
+        setSelectedRepo(repo);
       } catch {}
     }
     const savedPaths = localStorage.getItem(CUSTOM_PATHS_KEY);
@@ -69,10 +71,11 @@ export const HomePage: FC = () => {
 
     // Load from URL search params if available
     if (searchParams.repoPath && !selectedRepo) {
-      setSelectedRepo({
+      const repo = {
         path: searchParams.repoPath,
         name: searchParams.repoPath.split("/").pop() || "repo",
-      });
+      };
+      setSelectedRepo(repo);
     }
     if (searchParams.baseBranch) setBaseBranch(searchParams.baseBranch);
     if (searchParams.headBranch) setHeadBranch(searchParams.headBranch);
@@ -85,7 +88,7 @@ export const HomePage: FC = () => {
     return [...customPaths, ...defaults.filter((d) => !customPaths.includes(d))];
   }, [customPaths]);
 
-  const { data: repositories = [], isLoading: reposLoading } = useQuery({
+  const { data: repositories = [] } = useQuery({
     queryKey: ["repositories", customPaths],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -241,36 +244,6 @@ export const HomePage: FC = () => {
     }
   }, [selectedRepo, branches, defaultBranch]);
 
-  // Handle baseBranch change - clear baseCommit
-  useEffect(() => {
-    if (initialized && prevBaseBranchRef.current !== baseBranch) {
-      prevBaseBranchRef.current = baseBranch;
-      if (baseBranch) {
-        setBaseCommit("");
-        updateUrl({ baseCommit: "" });
-      }
-    }
-  }, [baseBranch, initialized]);
-
-  // Handle headBranch change - clear headCommit
-  useEffect(() => {
-    if (initialized && prevHeadBranchRef.current !== headBranch) {
-      prevHeadBranchRef.current = headBranch;
-      if (headBranch) {
-        setHeadCommit("");
-        updateUrl({ headCommit: "" });
-      }
-    }
-  }, [headBranch, initialized]);
-
-  // Sync base -> head branch when base changes and head is empty
-  useEffect(() => {
-    if (baseBranch && !headBranch && initialized) {
-      setHeadBranch(baseBranch);
-      updateUrl({ headBranch: baseBranch });
-    }
-  }, [baseBranch, headBranch, initialized]);
-
   // Auto-select most recent baseCommit when baseCommits load after branch change
   useEffect(() => {
     if (baseCommits.length > 0 && baseBranch && !baseCommit && initialized) {
@@ -339,31 +312,116 @@ export const HomePage: FC = () => {
   const baseDisplay = getRefDisplay(baseCommit, baseCommits);
   const headDisplay = getRefDisplay(headCommit, headCommits);
 
+  const filters = useFilter({ sensitivity: "base" });
+  const collection = createListCollection({
+    items: repositories,
+    itemToString: (item) => item.name,
+    itemToValue: (item) => item.path,
+  });
+
+  const [repoInputValue, setRepoInputValue] = useState("");
+  const [repoOpen, setRepoOpen] = useState(false);
+
+  const filteredRepos = collection.items.filter(
+    (repo) =>
+      filters.contains(repo.name, repoInputValue) || filters.contains(repo.path, repoInputValue),
+  );
+
+  const handleRepoValueChange = (details: Combobox.ValueChangeDetails) => {
+    if (details.value.length > 0) {
+      const repo = repositories.find((r) => r.path === details.value[0]);
+      if (repo) {
+        handleRepoChange(repo);
+        setRepoOpen(false);
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen flex-col bg-gray-50">
-      <header className="border-b border-gray-200 bg-white px-4 py-2">
-        <div className="flex items-center justify-between gap-3">
+      <header className="relative z-1 border-b border-gray-200 bg-white px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <h1 className="text-lg font-semibold text-gray-900">
               <Link to="/">Reviewer</Link>
             </h1>
 
-            <select
-              value={selectedRepo?.path || ""}
-              onChange={(e) => {
-                const repo = repositories.find((r) => r.path === e.target.value);
-                if (repo) handleRepoChange(repo);
-              }}
-              className="rounded border border-gray-300 px-2 py-1 text-xs"
-              disabled={reposLoading}
-            >
-              <option value="">Select repository...</option>
-              {repositories.map((repo: Repository) => (
-                <option key={repo.path} value={repo.path}>
-                  {repo.name}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              {/* <label className="text-xs font-medium text-gray-500 whitespace-nowrap">
+                Repository:
+              </label> */}
+              <Popover.Root
+                open={repoOpen}
+                onOpenChange={(details) => {
+                  setRepoOpen(details.open);
+                  if (details.open) {
+                    setRepoInputValue("");
+                  }
+                }}
+                positioning={{ sameWidth: true }}
+              >
+                <Popover.Trigger asChild>
+                  <button className="flex w-56 items-center justify-between gap-2 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50">
+                    <span className="truncate text-gray-900">
+                      {selectedRepo?.name || "Select repository..."}
+                    </span>
+                    <ChevronDown className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                  </button>
+                </Popover.Trigger>
+                <Portal>
+                  <Popover.Positioner>
+                    <Popover.Content className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                      <Combobox.Root
+                        openOnClick
+                        loopFocus
+                        inputBehavior="autohighlight"
+                        collection={collection}
+                        value={selectedRepo ? [selectedRepo.path] : []}
+                        onValueChange={handleRepoValueChange}
+                        onInputValueChange={(details) => setRepoInputValue(details.inputValue)}
+                      >
+                        <Combobox.Control className="relative border-b border-gray-200">
+                          <Combobox.Input
+                            autoFocus
+                            className="w-full bg-white px-2 py-1.5 text-xs outline-none placeholder:text-gray-400 focus:ring-0"
+                            placeholder="Search repositories..."
+                          />
+                        </Combobox.Control>
+                        <Combobox.List className="max-h-64 w-full overflow-y-auto p-1">
+                          <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
+                            No repositories found
+                          </Combobox.Empty>
+                          {filteredRepos.map((repo) => (
+                            <Combobox.Item
+                              key={repo.path}
+                              item={repo}
+                              className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
+                            >
+                              <span className="truncate">{repo.name}</span>
+                              <Combobox.ItemIndicator>
+                                <svg
+                                  className="h-4 w-4 flex-shrink-0 text-blue-500"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </Combobox.ItemIndicator>
+                            </Combobox.Item>
+                          ))}
+                        </Combobox.List>
+                      </Combobox.Root>
+                    </Popover.Content>
+                  </Popover.Positioner>
+                </Portal>
+              </Popover.Root>
+            </div>
           </div>
 
           {selectedRepo && diff && (
@@ -383,20 +441,22 @@ export const HomePage: FC = () => {
             </div>
           )}
 
-          <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["diff"] })}
-            className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
-            title="Refresh diff"
-          >
-            ↻ Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["diff"] })}
+              className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+              title="Refresh diff"
+            >
+              ↻ Refresh
+            </button>
 
-          <button
-            onClick={toggleControlsCollapsed}
-            className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
-          >
-            {controlsCollapsed ? "▼ Show" : "▲ Hide"} Controls
-          </button>
+            <button
+              onClick={toggleControlsCollapsed}
+              className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            >
+              {controlsCollapsed ? "▼ Show" : "▲ Hide"} Controls
+            </button>
+          </div>
         </div>
       </header>
 
@@ -411,8 +471,15 @@ export const HomePage: FC = () => {
                   branches={branches}
                   value={baseBranch}
                   onChange={(branch) => {
+                    prevBaseBranchRef.current = branch;
                     setBaseBranch(branch);
-                    updateUrl({ baseBranch: branch });
+                    setBaseCommit("");
+                    if (!headBranch) {
+                      setHeadBranch(branch);
+                      updateUrl({ baseBranch: branch, baseCommit: "", headBranch: branch });
+                    } else {
+                      updateUrl({ baseBranch: branch, baseCommit: "" });
+                    }
                   }}
                   defaultBranch={defaultBranch}
                   placeholder="Select branch..."
@@ -443,8 +510,10 @@ export const HomePage: FC = () => {
                   branches={branches}
                   value={headBranch}
                   onChange={(branch) => {
+                    prevHeadBranchRef.current = branch;
                     setHeadBranch(branch);
-                    updateUrl({ headBranch: branch });
+                    setHeadCommit("");
+                    updateUrl({ headBranch: branch, headCommit: "" });
                   }}
                   defaultBranch={defaultBranch}
                   placeholder="Select branch..."
@@ -535,7 +604,7 @@ export const HomePage: FC = () => {
         </div>
       )}
 
-      <main className="flex-1 min-h-0 p-2 overflow-hidden">
+      <main className="flex-1 min-h-0 p-2 overflow-hidden z-0">
         {!selectedRepo ? (
           <div className="h-full rounded border border-gray-200 bg-white flex items-center justify-center text-gray-600 text-sm">
             Select a repository to get started.
@@ -554,66 +623,5 @@ export const HomePage: FC = () => {
         )}
       </main>
     </div>
-  );
-};
-
-export const ComboboxExample = () => {
-  const { contains } = useFilter({ sensitivity: "base" });
-
-  const { collection, filter } = useListCollection({
-    initialItems: [
-      { label: "Engineering", value: "engineering" },
-      { label: "Marketing", value: "marketing" },
-      { label: "Sales", value: "sales" },
-      { label: "Finance", value: "finance" },
-      { label: "Human Resources", value: "hr" },
-      { label: "Operations", value: "operations" },
-      { label: "Product", value: "product" },
-      { label: "Customer Success", value: "customer-success" },
-      { label: "Legal", value: "legal" },
-      { label: "Information Technology", value: "information-technology" },
-      { label: "Design", value: "design" },
-    ],
-    filter: contains,
-  });
-
-  const handleInputChange = (details: Combobox.InputValueChangeDetails) => {
-    filter(details.inputValue);
-  };
-
-  return (
-    <Combobox.Root
-      collection={collection}
-      onInputValueChange={handleInputChange}
-      inputBehavior="autohighlight"
-    >
-      <Combobox.Label>Department</Combobox.Label>
-      <Combobox.Control>
-        <Combobox.Input placeholder="e.g. Engineering" />
-        <div>
-          <Combobox.ClearTrigger>
-            <XIcon />
-          </Combobox.ClearTrigger>
-          <Combobox.Trigger>
-            <ChevronsUpDownIcon />
-          </Combobox.Trigger>
-        </div>
-      </Combobox.Control>
-      <Portal>
-        <Combobox.Positioner>
-          <Combobox.Content>
-            <Combobox.Empty>No results found</Combobox.Empty>
-            {collection.items.map((item) => (
-              <Combobox.Item key={item.value} item={item}>
-                <Combobox.ItemText>{item.label}</Combobox.ItemText>
-                <Combobox.ItemIndicator>
-                  <CheckIcon />
-                </Combobox.ItemIndicator>
-              </Combobox.Item>
-            ))}
-          </Combobox.Content>
-        </Combobox.Positioner>
-      </Portal>
-    </Combobox.Root>
   );
 };
