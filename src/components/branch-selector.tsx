@@ -114,78 +114,88 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
                 <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
                   No branches found
                 </Combobox.Empty>
-                {detectedDefault && value !== detectedDefault && (
-                  <Combobox.Item
-                    item={detectedDefault}
-                    className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 data-[highlighted]:bg-blue-50"
-                  >
-                    <Combobox.ItemText>Default: {detectedDefault}</Combobox.ItemText>
-                    <Combobox.ItemIndicator>
-                      <svg
-                        className="h-4 w-4 flex-shrink-0 text-blue-500"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </Combobox.ItemIndicator>
-                  </Combobox.Item>
-                )}
-                {Object.entries(groupedItems).map(([month, branches]) => (
-                  <div key={month}>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 sticky top-0 bg-gray-50">
-                      {month}
-                    </div>
-                    {branches.map((branch: BranchInfo) => (
-                      <Combobox.Item
-                        key={branch.name}
-                        item={branch}
-                        className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
-                      >
-                        <div className="min-w-0 flex-1 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono font-medium text-gray-700">
-                              {branch.name}
-                            </span>
-                            {detectedDefault === branch.name && (
-                              <span className="text-gray-400">(default)</span>
-                            )}
-                            <span className="text-gray-400">·</span>
-                            <span className="text-gray-400">
-                              {formatDate(branch.latestCommit.date)}
-                            </span>
-                            <span className="text-gray-400">·</span>
-                            <span className="text-gray-400">{branch.latestCommit.author}</span>
+                <Combobox.Context>
+                  {(api) => (
+                    <>
+                      {detectedDefault && value !== detectedDefault && (
+                        <Combobox.Item
+                          item={detectedDefault}
+                          className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 data-[highlighted]:bg-blue-50"
+                          onClick={() => api.selectValue(detectedDefault)}
+                        >
+                          <Combobox.ItemText>Default: {detectedDefault}</Combobox.ItemText>
+                          <Combobox.ItemIndicator>
+                            <svg
+                              className="h-4 w-4 flex-shrink-0 text-blue-500"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </Combobox.ItemIndicator>
+                        </Combobox.Item>
+                      )}
+                      {Object.entries(groupedItems).map(([month, branches]) => (
+                        <div key={month}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 sticky top-0 bg-gray-50">
+                            {month}
                           </div>
-                          <div className="truncate text-gray-600">
-                            {branch.latestCommit.message}
-                          </div>
+                          {branches.map((branch: BranchInfo) => (
+                            <Combobox.Item
+                              key={branch.name}
+                              item={branch}
+                              className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
+                              onClick={() => api.selectValue(branch.name)}
+                            >
+                              <div className="min-w-0 flex-1 text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-medium text-gray-700">
+                                    {branch.name}
+                                  </span>
+                                  {detectedDefault === branch.name && (
+                                    <span className="text-gray-400">(default)</span>
+                                  )}
+                                  <span className="text-gray-400">·</span>
+                                  <span className="text-gray-400">
+                                    {formatDate(branch.latestCommit.date)}
+                                  </span>
+                                  <span className="text-gray-400">·</span>
+                                  <span className="text-gray-400">
+                                    {branch.latestCommit.author}
+                                  </span>
+                                </div>
+                                <div className="truncate text-gray-600">
+                                  {branch.latestCommit.message}
+                                </div>
+                              </div>
+                              <Combobox.ItemIndicator>
+                                <svg
+                                  className="h-4 w-4 flex-shrink-0 text-blue-500"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </Combobox.ItemIndicator>
+                            </Combobox.Item>
+                          ))}
                         </div>
-                        <Combobox.ItemIndicator>
-                          <svg
-                            className="h-4 w-4 flex-shrink-0 text-blue-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </Combobox.ItemIndicator>
-                      </Combobox.Item>
-                    ))}
-                  </div>
-                ))}
+                      ))}
+                    </>
+                  )}
+                </Combobox.Context>
               </Combobox.List>
             </Combobox.Root>
           </Popover.Content>

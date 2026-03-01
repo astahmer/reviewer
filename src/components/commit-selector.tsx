@@ -115,40 +115,45 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
                     <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 sticky top-0 bg-gray-50">
                       {month}
                     </div>
-                    {commitList.map((commit: CommitInfo) => (
-                      <Combobox.Item
-                        key={commit.hash}
-                        item={commit}
-                        className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
-                      >
-                        <div className="min-w-0 flex-1 text-xs">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-mono text-blue-600">
-                              {commit.hash.slice(0, 7)}
-                            </span>
-                            <span className="text-gray-400">{formatDate(commit.date)}</span>
-                            <span className="text-gray-400">·</span>
-                            <span className="text-gray-400">{commit.author}</span>
-                          </div>
-                          <div className="truncate text-gray-600">{commit.message}</div>
-                        </div>
-                        <Combobox.ItemIndicator>
-                          <svg
-                            className="h-4 w-4 flex-shrink-0 text-blue-500"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
+                    <Combobox.Context>
+                      {(api) =>
+                        commitList.map((commit) => (
+                          <Combobox.Item
+                            key={commit.hash}
+                            item={commit}
+                            className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
+                            onClick={() => api.selectValue(commit.hash)}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        </Combobox.ItemIndicator>
-                      </Combobox.Item>
-                    ))}
+                            <div className="min-w-0 flex-1 text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono text-blue-600">
+                                  {commit.hash.slice(0, 7)}
+                                </span>
+                                <span className="text-gray-400">{formatDate(commit.date)}</span>
+                                <span className="text-gray-400">·</span>
+                                <span className="text-gray-400">{commit.author}</span>
+                              </div>
+                              <div className="truncate text-gray-600">{commit.message}</div>
+                            </div>
+                            <Combobox.ItemIndicator>
+                              <svg
+                                className="h-4 w-4 flex-shrink-0 text-blue-500"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </Combobox.ItemIndicator>
+                          </Combobox.Item>
+                        ))
+                      }
+                    </Combobox.Context>
                   </div>
                 ))}
               </Combobox.List>
