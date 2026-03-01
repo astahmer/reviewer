@@ -44,8 +44,11 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const filteredItems = collection.items.filter((branch) =>
-    filters.contains(branch.name, inputValue),
+  const filteredItems = collection.items.filter(
+    (branch) =>
+      filters.contains(branch.name, inputValue) ||
+      filters.contains(branch.latestCommit.message, inputValue) ||
+      filters.contains(branch.latestCommit.author, inputValue),
   );
 
   const selectedValue = selectedBranch?.name || detectedDefault || "";
@@ -136,6 +139,8 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
                         <span className="text-gray-400">
                           {formatDate(branch.latestCommit.date)}
                         </span>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-gray-400">{branch.latestCommit.author}</span>
                       </div>
                       <div className="truncate text-gray-600">{branch.latestCommit.message}</div>
                     </div>

@@ -394,7 +394,7 @@ export const HomePage: FC = () => {
       </header>
 
       {!controlsCollapsed && selectedRepo && (
-        <div className="border-b border-gray-200 bg-white p-3">
+        <div className="border-b border-gray-200 bg-white p-3 relative">
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-3">
               <div className="text-xs font-semibold text-gray-700">From</div>
