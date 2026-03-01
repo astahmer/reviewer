@@ -53,7 +53,12 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
   return (
     <Popover.Root
       open={open}
-      onOpenChange={(details) => setOpen(details.open)}
+      onOpenChange={(details) => {
+        setOpen(details.open);
+        if (details.open) {
+          setInputValue("");
+        }
+      }}
       positioning={{ sameWidth: true }}
     >
       <Popover.Trigger asChild>
