@@ -3,5 +3,4 @@
 - we need to update the URL with search params based on the currently viewed file (this gets updated on scroll with a mutationobserver or intersectionobserver or w/e)
 - we need a way to "check" (and uncheck!) files (and whole folders!) so I know which ones I've already reviewed; we will have to store this; for now it can be done in local storage but eventually we should have a backend for this so it can be shared across devices and users (note this somewhere but focus on the MVP first)
 - we also need a way to enable an option that automatically checks files when you scroll past them (this is a toggle in the UI but we need to store it in local storage)
-- we also need a way to enable an option to ignore whitespace changes (this is a toggle in the UI but we need to store it in local storage)
 - vscode links on right click or something
