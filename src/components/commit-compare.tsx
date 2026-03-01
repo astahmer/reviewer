@@ -25,8 +25,8 @@ export const CommitCompare: FC<CommitCompareProps> = ({
 
   if (!baseCommit || !headCommit) return null;
 
-  const firstLine = (msg: string) => msg.split("\n")[0] || "";
-  const remainingLines = (msg: string) => msg.split("\n").slice(1).join("\n").trim();
+  const [headFirstLine, headRemaining] = headCommit.message.split("\n", 2).map((v) => v.trim());
+  const [baseFirstLine, baseRemaining] = baseCommit.message.split("\n", 2).map((v) => v.trim());
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -39,8 +39,8 @@ export const CommitCompare: FC<CommitCompareProps> = ({
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-blue-600">{baseCommit.hash.slice(0, 7)}</span>
             <span className="max-w-xs truncate text-xs text-gray-600" title={baseCommit.message}>
-              {firstLine(baseCommit.message).slice(0, 50)}
-              {firstLine(baseCommit.message).length > 50 ? "..." : ""}
+              {baseFirstLine?.slice(0, 50)}
+              {(baseFirstLine || "").length > 50 ? "..." : ""}
             </span>
           </div>
           <svg
@@ -59,8 +59,8 @@ export const CommitCompare: FC<CommitCompareProps> = ({
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs text-green-600">{headCommit.hash.slice(0, 7)}</span>
             <span className="max-w-xs truncate text-xs text-gray-600" title={headCommit.message}>
-              {firstLine(headCommit.message).slice(0, 50)}
-              {firstLine(headCommit.message).length > 50 ? "..." : ""}
+              {headFirstLine?.slice(0, 50)}
+              {(headFirstLine || "").length > 50 ? "..." : ""}
             </span>
           </div>
         </div>
@@ -114,16 +114,18 @@ export const CommitCompare: FC<CommitCompareProps> = ({
                 </span>
               </div>
               <div className="text-xs text-gray-700">
-                <details>
-                  <summary className="cursor-pointer truncate hover:text-gray-900">
-                    {firstLine(baseCommit.message)}
-                  </summary>
-                  {remainingLines(baseCommit.message) && (
-                    <div className="mt-1 whitespace-pre-wrap text-gray-500">
-                      {remainingLines(baseCommit.message)}
-                    </div>
-                  )}
-                </details>
+                {baseRemaining ? (
+                  <details>
+                    <summary className="cursor-pointer truncate hover:text-gray-900">
+                      {baseFirstLine}
+                    </summary>
+                    {baseRemaining && (
+                      <div className="mt-1 whitespace-pre-wrap text-gray-500">{baseRemaining}</div>
+                    )}
+                  </details>
+                ) : (
+                  baseFirstLine
+                )}
               </div>
               <div className="mt-2 text-xs text-gray-400">
                 {baseCommit.author} · {formatDate(baseCommit.date)}
@@ -138,16 +140,18 @@ export const CommitCompare: FC<CommitCompareProps> = ({
                 </span>
               </div>
               <div className="text-xs text-gray-700">
-                <details>
-                  <summary className="cursor-pointer truncate hover:text-gray-900">
-                    {firstLine(headCommit.message)}
-                  </summary>
-                  {remainingLines(headCommit.message) && (
-                    <div className="mt-1 whitespace-pre-wrap text-gray-500">
-                      {remainingLines(headCommit.message)}
-                    </div>
-                  )}
-                </details>
+                {headRemaining ? (
+                  <details>
+                    <summary className="cursor-pointer truncate hover:text-gray-900">
+                      {headFirstLine}
+                    </summary>
+                    {headRemaining && (
+                      <div className="mt-1 whitespace-pre-wrap text-gray-500">{headRemaining}</div>
+                    )}
+                  </details>
+                ) : (
+                  headFirstLine
+                )}
               </div>
               <div className="mt-2 text-xs text-gray-400">
                 {headCommit.author} · {formatDate(headCommit.date)}
