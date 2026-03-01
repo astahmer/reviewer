@@ -8,6 +8,7 @@ const SearchParamsSchema = Schema.Struct({
   headBranch: Schema.optional(Schema.String),
   baseCommit: Schema.optional(Schema.String),
   headCommit: Schema.optional(Schema.String),
+  searchQuery: Schema.optional(Schema.String),
 });
 
 export type SearchParams = Schema.Schema.Type<typeof SearchParamsSchema>;

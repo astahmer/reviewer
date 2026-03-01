@@ -1,4 +1,5 @@
 import { FC, useMemo, useState, useCallback } from "react";
+import { useSearch, useNavigate } from "@tanstack/react-router";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import { parseDiffFromFile } from "@pierre/diffs";
 import type { FileDiffMetadata, FileContents } from "@pierre/diffs";
@@ -14,6 +15,7 @@ import {
 } from "~/components/hooks";
 import { LIGHT_THEMES, DARK_THEMES, STORAGE_KEYS } from "~/lib/constants";
 import { Diff } from "~/lib/types";
+import type { SearchParams } from "~/routes/index";
 import { Tooltip } from "./tooltip";
 
 interface DiffViewerProps {
@@ -31,6 +33,9 @@ interface ExpandedFileData {
  * Unified and Split diff viewer using @pierre/diffs
  */
 export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
+  const navigate = useNavigate({ from: "/" });
+  const searchParams = useSearch({ from: "/" });
+
   const [viewMode, setViewMode] = useViewMode();
   const [theme, setTheme] = useTheme();
   const [colorMode, setColorMode] = useColorMode();
@@ -41,6 +46,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
   const [lightMenuOpen, setLightMenuOpen] = useState(false);
   const [darkMenuOpen, setDarkMenuOpen] = useState(false);
+  const [searchInput, setSearchInput] = useState(searchParams.searchQuery || "");
 
   const handleExpandFile = useCallback(
     async (
@@ -162,11 +168,31 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   // Get files to render - use expanded full diff if available, otherwise use partial
   const getRenderFiles = useCallback(() => {
     const baseFiles = diff.pierreData || [];
-    if (expandedFiles.size === 0) {
-      return baseFiles;
+
+    // Apply search filter if there's a search query
+    let filtered = baseFiles;
+    if (searchParams.searchQuery) {
+      const query = searchParams.searchQuery.trim();
+      const pathMatch = query.match(/^path:(\S+)/);
+
+      if (pathMatch && pathMatch[1]) {
+        const pathFilter = pathMatch[1];
+        filtered = baseFiles.filter((file) => {
+          const filePath = file.prevName || file.name;
+          return filePath.includes(pathFilter);
+        });
+      }
     }
 
-    return baseFiles.map((file) => {
+    if (filtered.length === 0) {
+      return filtered;
+    }
+
+    if (expandedFiles.size === 0) {
+      return filtered;
+    }
+
+    return filtered.map((file) => {
       const key = `${file.name}-full`;
       const expanded = expandedFiles.get(key);
       if (expanded) {
@@ -174,18 +200,49 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
       }
       return file;
     });
-  }, [diff.pierreData, expandedFiles]);
+  }, [diff.pierreData, expandedFiles, searchParams.searchQuery]);
 
   const renderFiles = useMemo(() => getRenderFiles(), [getRenderFiles]);
 
-  if (!renderFiles || renderFiles.length === 0) {
-    return <div className="p-4 text-center text-gray-500">No diff data available</div>;
-  }
-
-  return (
-    <div className="h-full flex flex-col">
+  const Controls = (
+    <>
       {/* Controls */}
       <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3 flex items-center gap-4 overflow-x-auto">
+        {/* Search diffs input */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                navigate({
+                  search: (prev: SearchParams) => ({
+                    ...prev,
+                    searchQuery: searchInput || undefined,
+                  }),
+                });
+              }
+            }}
+            placeholder="Search diffs... (path:src/file.tsx)"
+            className="px-3 py-1.5 w-128 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <button
+            onClick={() => {
+              navigate({
+                search: (prev: SearchParams) => ({
+                  ...prev,
+                  searchQuery: searchInput || undefined,
+                }),
+              });
+            }}
+            className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Search
+          </button>
+        </div>
+        <div className="ml-auto" />
+
         {/* View mode toggle group */}
         <div className="flex items-center gap-1 flex-shrink-0 bg-white border border-gray-300 rounded-lg p-1">
           <button
@@ -369,10 +426,27 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
         </div>
 
         {/* Expand info */}
-        <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4 text-xs text-gray-500 ml-auto">
-          {expandedFiles.size > 0 && <span>{expandedFiles.size} file(s) fully expanded</span>}
-        </div>
+        {expandedFiles.size > 0 && (
+          <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4 text-xs text-gray-500 ml-auto">
+            <span>{expandedFiles.size} file(s) fully expanded</span>
+          </div>
+        )}
       </div>
+    </>
+  );
+
+  if (!renderFiles || renderFiles.length === 0) {
+    return (
+      <div className="flex flex-col">
+        {Controls}
+        <div className="p-4 text-center text-gray-500">No diff data available</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      {Controls}
 
       {/* Diff content */}
       <div className="flex-1 overflow-auto">

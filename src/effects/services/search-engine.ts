@@ -1,6 +1,14 @@
 import { Effect } from "effect";
 import { matchSorter } from "match-sorter";
-import { Line, DiffFilter } from "~/lib/types";
+import { Line, DiffFilter, Diff } from "~/lib/types";
+
+/**
+ * Parsed search query with optional path filter
+ */
+interface ParsedQuery {
+  pathFilter?: string;
+  contentQuery: string;
+}
 
 /**
  * Search engine service
@@ -8,11 +16,38 @@ import { Line, DiffFilter } from "~/lib/types";
  */
 export class SearchEngineService {
   /**
-   * Filter and rank lines based on search query
+   * Parse search query for "path:..." syntax
+   * Examples:
+   *   "path:src/component.tsx"
+   *   "path:src/component.tsx handleClick"
+   *   "path:utils foo"
    */
-  search(lines: Line[], filter: DiffFilter): Effect.Effect<Line[]> {
+  private parseQuery(query: string): ParsedQuery {
+    if (!query || !query.trim()) {
+      return { contentQuery: "" };
+    }
+
+    const pathMatch = query.match(/^path:(\S+)\s*(.*)/);
+    if (pathMatch && pathMatch[1]) {
+      return {
+        pathFilter: pathMatch[1],
+        contentQuery: (pathMatch[2] || "").trim(),
+      };
+    }
+
+    return { contentQuery: query.trim() };
+  }
+
+  /**
+   * Filter and rank lines based on search query and diff context
+   * Supports "path:..." prefix to filter by file path
+   */
+  search(lines: Line[], filter: DiffFilter, diff?: Diff): Effect.Effect<Line[]> {
     return Effect.sync(() => {
       let results = lines;
+
+      // Parse query for path filter
+      const parsed = this.parseQuery(filter.query || "");
 
       // Filter by line type
       if (filter.type && filter.type !== "all") {
@@ -27,7 +62,19 @@ export class SearchEngineService {
         });
       }
 
-      // Filter by folder path
+      // Filter by path (from "path:..." syntax)
+      if (parsed.pathFilter && diff) {
+        results = results.filter((line) => {
+          const file = diff.files?.[line.fileIndex];
+          if (!file) {
+            return false;
+          }
+          const filePath = file.newPath;
+          return filePath.includes(parsed.pathFilter!);
+        });
+      }
+
+      // Filter by folder path (existing filter)
       if (filter.folderPath) {
         results = results.filter((line) => {
           const path = line.fileIndex.toString();
@@ -36,11 +83,8 @@ export class SearchEngineService {
       }
 
       // Search by content using match-sorter
-      if (filter.query) {
-        results = matchSorter(results, filter.query, {
-          keys: [(item) => item.content],
-          threshold: matchSorter.rankings.ACRONYM,
-        });
+      if (parsed.contentQuery) {
+        results = matchSorter(results, parsed.contentQuery, {});
       }
 
       return results;
