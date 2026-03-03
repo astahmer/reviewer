@@ -7,9 +7,9 @@ export const Route = createFileRoute("/api/repositories")({
       GET: async ({ request }: { request: Request }) => {
         try {
           const url = new URL(request.url);
-          const basePath = url.searchParams.get("basePath") || undefined;
+          const basePaths = url.searchParams.getAll("basePath");
 
-          const repos = await getRepositoryList(basePath);
+          const repos = await getRepositoryList(basePaths.length > 0 ? basePaths : undefined);
           return Response.json(repos);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to fetch repositories";

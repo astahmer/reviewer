@@ -241,12 +241,11 @@ export const HomePage: FC = () => {
                   headCommit: "",
                 });
               }}
-              onAddCustomPath={(path: string) => {
+              onAddCustomPath={(path) => {
                 if (path && !customPaths.includes(path)) {
                   const newPaths = [...customPaths, path];
                   setCustomPaths(newPaths);
                   localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
-                  queryClient.invalidateQueries({ queryKey: ["repositories"] });
                 }
               }}
             />

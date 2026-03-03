@@ -135,10 +135,10 @@ export async function getCommitDistance(
  * Server function: Get list of available repositories
  */
 export async function getRepositoryList(
-  basePath?: string,
+  basePaths?: string[],
 ): Promise<Array<{ path: string; name: string }>> {
-  const paths = basePath ? [basePath] : [];
-  return runEffectWithDeps(vcsService.listRepositories(paths));
+  const paths = basePaths && basePaths.length > 0 ? basePaths : [];
+  return runEffectWithDeps(vcsService.listRepositories(paths.length > 0 ? paths : undefined));
 }
 
 /**
