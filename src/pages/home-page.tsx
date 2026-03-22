@@ -309,10 +309,10 @@ export const HomePage: FC = () => {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
-      <div className="border-b border-gray-200 bg-white flex cursor-pointer items-center justify-between gap-4 px-4 py-3 hover:bg-gray-50 select-none">
-        <div className="flex items-center gap-3 flex-1">
-          <h1 className="font-semibold text-gray-900">
+    <div className="flex h-screen flex-col bg-[var(--app-bg)]">
+      <div className="flex cursor-pointer items-center justify-between gap-3 border-b border-slate-200 bg-[var(--app-panel)] px-3 py-2 hover:bg-slate-50 select-none dark:border-slate-800 dark:hover:bg-slate-900">
+        <div className="flex flex-1 items-center gap-2.5">
+          <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             <Link to="/">Reviewer</Link>
           </h1>
           <RepositorySelector
@@ -343,8 +343,8 @@ export const HomePage: FC = () => {
               }
             }}
           />
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Base:</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">Base</span>
             <BranchSelector
               branches={branches}
               value={baseBranch}
@@ -370,9 +370,9 @@ export const HomePage: FC = () => {
               placeholder="commit"
             />
           </div>
-          <span className="text-gray-400">→</span>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Head:</span>
+          <span className="text-slate-400 dark:text-slate-600">→</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">Head</span>
             <BranchSelector
               branches={branches}
               value={headBranch}
@@ -394,11 +394,11 @@ export const HomePage: FC = () => {
               placeholder="commit"
             />
             {baseBranch === headBranch && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
-              <div className="flex items-center gap-1.5 pl-2">
-                <span className="rounded bg-sky-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+              <div className="flex items-center gap-1 pl-1.5">
+                <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">
                   Base {getCommitDisplayLabel(selectedBaseCommitInfo)}
                 </span>
-                <span className="rounded bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
                   Head {getCommitDisplayLabel(selectedHeadCommitInfo)}
                 </span>
               </div>
@@ -409,7 +409,7 @@ export const HomePage: FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["diff"] })}
-            className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+            className="rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
             title="Refresh diff"
           >
             ↻
@@ -435,9 +435,9 @@ export const HomePage: FC = () => {
 
       <main className="flex-1 min-h-0 p-2 overflow-hidden z-0">
         {baseCommitsLoading || headCommitsLoading || diffLoading ? (
-          <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-500"></div>
-            <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
+          <div className="flex h-full flex-col items-center justify-center rounded border border-slate-200 bg-[var(--app-panel)] dark:border-slate-800">
+            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-blue-500 dark:border-slate-700"></div>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Loading diff...</p>
           </div>
         ) : diff ? (
           <DiffViewer

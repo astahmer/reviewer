@@ -26,9 +26,15 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   searchHistory: [],
   theme: "pierre-dark",
   colorMode: "auto",
+  globalColorMode: "auto",
   wrapping: false,
   sidebarPosition: "left",
   sidebarCollapsed: false,
+  sidebarSize: 28,
+  sidebarFilesSize: 60,
+  sidebarHistorySize: 40,
+  sidebarFilesCollapsed: false,
+  sidebarHistoryCollapsed: false,
 };
 
 // Light themes for @pierre/diffs

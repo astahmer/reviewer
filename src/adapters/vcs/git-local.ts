@@ -14,6 +14,35 @@ const execAsync = promisify(exec);
 
 const MAX_DEPTH = 3;
 
+const parseCommitStats = (chunk: string): CommitInfo | null => {
+  const lines = chunk
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const [header, ...rest] = lines;
+  if (!header) {
+    return null;
+  }
+
+  const [hash, message, author, rawDate] = header.split("\u001f");
+  if (!hash || !message) {
+    return null;
+  }
+
+  const statsLine = rest.find((line) => /files? changed|insertions?|deletions?/.test(line)) || "";
+
+  return {
+    hash,
+    message,
+    author: author || "",
+    date: new Date(rawDate || Date.now()),
+    kind: "commit",
+    additions: Number(statsLine.match(/(\d+) insertions?/i)?.[1] || 0),
+    deletions: Number(statsLine.match(/(\d+) deletions?/i)?.[1] || 0),
+  };
+};
+
 function resolveGitRef(repoPath: string, ref: string): string {
   if (isStagedRef(ref)) {
     return execSync("git write-tree", {
@@ -121,28 +150,16 @@ export class GitLocalAdapter implements VCSAdapter {
 
   getCommits(limit: number = 20): Effect.Effect<CommitInfo[], VCSError> {
     const repoPath = this._repoPath;
-    const format = "%H%n%s%n%an%n%ai";
-    const command = `git log --pretty=format:"${format}" -n ${limit}`;
+    const format = "%x1e%H%x1f%s%x1f%an%x1f%aI";
+    const command = `git log --pretty=format:"${format}" --shortstat -n ${limit}`;
 
     return Effect.tryPromise({
       try: async () => {
         const { stdout } = await execAsync(command, { cwd: repoPath, maxBuffer: 10 * 1024 * 1024 });
-        const lines = stdout.trim().split("\n");
-        const commits: CommitInfo[] = [];
-
-        for (let i = 0; i < lines.length; i += 4) {
-          if (i + 3 < lines.length) {
-            commits.push({
-              hash: lines[i]!,
-              message: lines[i + 1]!,
-              author: lines[i + 2]!,
-              date: new Date(lines[i + 3]!),
-              kind: "commit",
-            });
-          }
-        }
-
-        return commits;
+        return stdout
+          .split("\u001e")
+          .map((chunk) => parseCommitStats(chunk))
+          .filter((commit): commit is CommitInfo => commit != null);
       },
       catch: (error: unknown) =>
         new VCSError({

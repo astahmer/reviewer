@@ -32,11 +32,11 @@ export const CommitCompare: FC<CommitCompareProps> = ({
   const headLabel = getCommitDisplayLabel(headCommit);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="rounded-md border border-slate-200 bg-[var(--app-panel)] shadow-sm dark:border-slate-800">
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center justify-between px-3 py-2 text-left hover:bg-gray-50"
+        className="flex w-full items-center justify-between px-3 py-1.5 text-left hover:bg-slate-50 dark:hover:bg-slate-900"
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">

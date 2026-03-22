@@ -1,13 +1,21 @@
 import * as Ark from "@ark-ui/react";
 import { FC, ReactNode, useEffect, useMemo, useState } from "react";
 import type { FileDiffMetadata } from "@pierre/diffs";
-import { ChevronDown, ChevronLeft, ChevronRight, GripHorizontal } from "lucide-react";
+import {
+  ArrowLeftRight,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  GripHorizontal,
+} from "lucide-react";
+import { useSidebarSectionCollapsedState, useSidebarSectionSizes } from "~/components/hooks";
 
 interface FileTreeSidebarProps {
   files: FileDiffMetadata[];
   selectedPath: string | null;
   onSelectPath: (path: string) => void;
   position: "left" | "right";
+  onTogglePosition: () => void;
   footer?: ReactNode;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -262,6 +270,7 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   selectedPath,
   onSelectPath,
   position,
+  onTogglePosition,
   footer,
   collapsed,
   onToggleCollapsed,
@@ -274,10 +283,16 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   );
   const CollapseIcon = position === "left" ? ChevronLeft : ChevronRight;
   const ExpandIcon = position === "left" ? ChevronRight : ChevronLeft;
+  const [sectionSizes, setSectionSizes] = useSidebarSectionSizes();
+  const [sectionCollapsedState, setSectionCollapsedState] = useSidebarSectionCollapsedState();
+  const totalMatchCount = Array.from(matchCounts?.values() || []).reduce(
+    (total, count) => total + count,
+    0,
+  );
   const sectionSplitter = Ark.useSplitter({
     id: "reviewer-sidebar-sections",
     orientation: "vertical",
-    defaultSize: [60, 40],
+    defaultSize: [sectionSizes.files, sectionSizes.history],
     panels: [
       {
         id: "files",
@@ -292,6 +307,17 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
         collapsedSize: SIDEBAR_SECTION_COLLAPSED_SIZE,
       },
     ],
+    onResizeEnd: (details) => {
+      const [filesSize, historySize] = details.size;
+      if (
+        typeof filesSize === "number" &&
+        typeof historySize === "number" &&
+        filesSize > SIDEBAR_SECTION_COLLAPSED_SIZE &&
+        historySize > SIDEBAR_SECTION_COLLAPSED_SIZE
+      ) {
+        setSectionSizes({ files: filesSize, history: historySize });
+      }
+    },
   });
 
   useEffect(() => {
@@ -312,22 +338,43 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   const filesPanelCollapsed = sectionSplitter.isPanelCollapsed("files");
   const historyPanelCollapsed = sectionSplitter.isPanelCollapsed("history");
 
-  const togglePanel = (panelId: "files" | "history") => {
-    if (sectionSplitter.isPanelCollapsed(panelId)) {
-      sectionSplitter.expandPanel(panelId, SIDEBAR_SECTION_MIN_SIZE);
-    } else {
-      sectionSplitter.collapsePanel(panelId);
+  useEffect(() => {
+    if (sectionCollapsedState.files && sectionCollapsedState.history) {
+      sectionSplitter.collapsePanel("files");
+      sectionSplitter.collapsePanel("history");
+      return;
     }
+
+    if (sectionSplitter.isPanelCollapsed("files")) {
+      sectionSplitter.expandPanel("files", sectionSizes.files);
+    }
+
+    if (sectionSplitter.isPanelCollapsed("history")) {
+      sectionSplitter.expandPanel("history", sectionSizes.history);
+    }
+
+    sectionSplitter.setSizes([sectionSizes.files, sectionSizes.history]);
+  }, [
+    sectionCollapsedState.files,
+    sectionCollapsedState.history,
+    sectionSizes.files,
+    sectionSizes.history,
+    sectionSplitter,
+  ]);
+
+  const toggleSections = () => {
+    const nextCollapsed = !(sectionCollapsedState.files && sectionCollapsedState.history);
+    setSectionCollapsedState({ files: nextCollapsed, history: nextCollapsed });
   };
 
   if (collapsed) {
     return (
       <aside
-        className={`flex h-full min-h-0 w-12 shrink-0 flex-col items-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
+        className={`flex h-full min-h-0 w-full flex-col items-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
           position === "left" ? "border-r border-slate-200" : "border-l border-slate-200"
         }`}
       >
-        <div className="flex w-full shrink-0 justify-center border-b border-slate-200 py-3">
+        <div className="flex w-full shrink-0 items-center justify-center gap-1 border-b border-slate-200 py-2">
           <button
             type="button"
             onClick={onToggleCollapsed}
@@ -337,14 +384,21 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
           >
             <ExpandIcon size={16} />
           </button>
+          <button
+            type="button"
+            onClick={onTogglePosition}
+            className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            aria-label={`Move sidebar to the ${position === "left" ? "right" : "left"}`}
+            title={`Move sidebar to the ${position === "left" ? "right" : "left"}`}
+          >
+            <ArrowLeftRight size={14} />
+          </button>
         </div>
-        <div className="flex flex-1 flex-col items-center gap-3 py-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-          <span className="[writing-mode:vertical-rl] rotate-180">Files</span>
+        <div className="flex flex-1 flex-col items-center gap-2 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <span className="[writing-mode:vertical-rl] rotate-180">Review</span>
           <span>{files.length}</span>
           {showMatchCounts ? (
-            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-700">
-              {Array.from(matchCounts?.values() || []).reduce((total, count) => total + count, 0)}
-            </span>
+            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-700">{totalMatchCount}</span>
           ) : null}
         </div>
       </aside>
@@ -352,51 +406,71 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50">
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Files</p>
-          <p className="mt-1 text-sm text-slate-600">
-            {files.length} changed file{files.length === 1 ? "" : "s"}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Review
+            </p>
+            <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              {files.length} file{files.length === 1 ? "" : "s"}
+            </span>
+            {showMatchCounts && totalMatchCount > 0 ? (
+              <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                {totalMatchCount} matches
+              </span>
+            ) : null}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onToggleCollapsed}
-          className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-          aria-label="Collapse sidebar"
-          title="Collapse sidebar"
-        >
-          <CollapseIcon size={16} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onTogglePosition}
+            className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label={`Move sidebar to the ${position === "left" ? "right" : "left"}`}
+            title={`Move sidebar to the ${position === "left" ? "right" : "left"}`}
+          >
+            <ArrowLeftRight size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <CollapseIcon size={16} />
+          </button>
+        </div>
       </div>
 
       <Ark.Splitter.RootProvider
         value={sectionSplitter}
-        className="min-h-0 flex flex-1 flex-col overflow-hidden"
+        className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden"
       >
         <Ark.Splitter.Panel id="files" className="min-h-0 overflow-hidden">
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-1.5 dark:border-slate-800">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  File Tree
-                </p>
-                <p className="mt-0.5 text-[11px] text-slate-400">
-                  {filesPanelCollapsed
-                    ? "Collapsed"
-                    : showMatchCounts
-                      ? "Search matches visible"
-                      : "Browse changed files"}
+                  Tree
                 </p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                  {filesPanelCollapsed ? "collapsed" : "open"}
+                </span>
                 <button
                   type="button"
-                  onClick={() => togglePanel("files")}
+                  onClick={toggleSections}
                   className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                  aria-label={filesPanelCollapsed ? "Expand file tree" : "Collapse file tree"}
-                  title={filesPanelCollapsed ? "Expand file tree" : "Collapse file tree"}
+                  aria-label={
+                    filesPanelCollapsed ? "Expand sidebar sections" : "Collapse sidebar sections"
+                  }
+                  title={
+                    filesPanelCollapsed ? "Expand sidebar sections" : "Collapse sidebar sections"
+                  }
                 >
                   {filesPanelCollapsed ? (
                     <ChevronDown size={14} />
@@ -447,33 +521,41 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
 
         {footer ? (
           <>
-            <Ark.Splitter.ResizeTrigger
-              id="files:history"
-              aria-label="Resize file tree and history"
-              className="group flex h-2 shrink-0 items-center justify-center bg-slate-100 transition-colors hover:bg-slate-200"
-            >
-              <GripHorizontal size={12} className="text-slate-400 group-hover:text-slate-600" />
-            </Ark.Splitter.ResizeTrigger>
+            {!filesPanelCollapsed && !historyPanelCollapsed ? (
+              <Ark.Splitter.ResizeTrigger
+                id="files:history"
+                aria-label="Resize file tree and history"
+                className="group flex h-1.5 shrink-0 items-center justify-center bg-slate-100 transition-colors hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800"
+              >
+                <GripHorizontal size={10} className="text-slate-400 group-hover:text-slate-600" />
+              </Ark.Splitter.ResizeTrigger>
+            ) : null}
 
             <Ark.Splitter.Panel id="history" className="min-h-0 overflow-hidden">
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-1.5 dark:border-slate-800">
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      History
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-slate-400">
-                      {historyPanelCollapsed
-                        ? "Collapsed"
-                        : "Resize or collapse this timeline panel"}
+                      Timeline
                     </p>
                   </div>
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                    {historyPanelCollapsed ? "collapsed" : "open"}
+                  </span>
                   <button
                     type="button"
-                    onClick={() => togglePanel("history")}
+                    onClick={toggleSections}
                     className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                    aria-label={historyPanelCollapsed ? "Expand history" : "Collapse history"}
-                    title={historyPanelCollapsed ? "Expand history" : "Collapse history"}
+                    aria-label={
+                      historyPanelCollapsed
+                        ? "Expand sidebar sections"
+                        : "Collapse sidebar sections"
+                    }
+                    title={
+                      historyPanelCollapsed
+                        ? "Expand sidebar sections"
+                        : "Collapse sidebar sections"
+                    }
                   >
                     {historyPanelCollapsed ? (
                       <ChevronDown size={14} />

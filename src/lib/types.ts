@@ -65,6 +65,8 @@ export interface CommitInfo {
   date: Date;
   kind?: "commit" | "local-staged" | "local-worktree";
   label?: string;
+  additions?: number;
+  deletions?: number;
 }
 
 export interface BranchInfo {
@@ -90,10 +92,22 @@ export interface UserPreferences {
   theme?: string;
   /** Color mode: light, dark, or auto */
   colorMode?: "light" | "dark" | "auto";
+  /** Global application color mode */
+  globalColorMode?: "light" | "dark" | "auto";
   /** Whether to enable line wrapping */
   wrapping?: boolean;
   /** Preferred side for the file tree sidebar */
   sidebarPosition?: "left" | "right";
   /** Whether the file tree sidebar is collapsed */
   sidebarCollapsed?: boolean;
+  /** Horizontal sidebar width percentage */
+  sidebarSize?: number;
+  /** Vertical file tree section height percentage */
+  sidebarFilesSize?: number;
+  /** Vertical history section height percentage */
+  sidebarHistorySize?: number;
+  /** Whether the file tree panel is collapsed */
+  sidebarFilesCollapsed?: boolean;
+  /** Whether the history panel is collapsed */
+  sidebarHistoryCollapsed?: boolean;
 }

@@ -21,6 +21,37 @@ const createRuntimeWithRepo = (repoPath: string) => {
   return ManagedRuntime.make(fullLayer);
 };
 
+const parseCommitStats = (chunk: string): CommitInfo | null => {
+  const lines = chunk
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const [header, ...rest] = lines;
+  if (!header) {
+    return null;
+  }
+
+  const [hash, message, author, rawDate] = header.split("\u001f");
+  if (!hash || !message) {
+    return null;
+  }
+
+  const statsLine = rest.find((line) => /files? changed|insertions?|deletions?/.test(line)) || "";
+  const additions = Number(statsLine.match(/(\d+) insertions?/i)?.[1] || 0);
+  const deletions = Number(statsLine.match(/(\d+) deletions?/i)?.[1] || 0);
+
+  return {
+    hash,
+    message,
+    author: author || "",
+    date: new Date(rawDate || Date.now()),
+    kind: "commit",
+    additions,
+    deletions,
+  };
+};
+
 /**
  * Server function: Fetch and process a diff between two commits
  */
@@ -55,9 +86,9 @@ export async function getCommitList(
   const localEntries = createLocalCommitEntries();
 
   try {
-    const format = "%H%n%s%n%an%n%aI";
+    const format = "%x1e%H%x1f%s%x1f%an%x1f%aI";
     const branchArg = branch ? [branch] : ["--all"];
-    const cmd = `git log ${branchArg.join(" ")} --max-count=${limit} --format=${format}`;
+    const cmd = `git log ${branchArg.join(" ")} --max-count=${limit} --format=${format} --shortstat`;
 
     const stdout = execSync(cmd, { cwd, encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 });
 
@@ -65,19 +96,11 @@ export async function getCommitList(
       return [];
     }
 
-    const lines = stdout.trim().split("\n");
-    const commits: CommitInfo[] = [];
-    for (let i = 0; i < lines.length; i += 4) {
-      if (lines[i] && lines[i + 1]) {
-        commits.push({
-          hash: lines[i]!,
-          message: lines[i + 1]!,
-          author: lines[i + 2] || "",
-          date: new Date(lines[i + 3] || Date.now()),
-          kind: "commit",
-        });
-      }
-    }
+    const commits = stdout
+      .split("\u001e")
+      .map((chunk) => parseCommitStats(chunk))
+      .filter((commit): commit is CommitInfo => commit != null);
+
     return [...localEntries, ...commits];
   } catch {
     const runtime = createRuntimeWithRepo(cwd);
@@ -90,6 +113,8 @@ export async function getCommitList(
           author: c.author,
           date: c.date,
           kind: c.kind,
+          additions: c.additions,
+          deletions: c.deletions,
         })),
       ]);
     } finally {

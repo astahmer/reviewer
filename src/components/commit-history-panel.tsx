@@ -34,6 +34,22 @@ const isSelectedCommit = (selectedCommit: string, hash: string) => {
   );
 };
 
+const CommitStats: FC<{ commit: CommitInfo }> = ({ commit }) => {
+  const additions = commit.additions || 0;
+  const deletions = commit.deletions || 0;
+
+  if (additions === 0 && deletions === 0) {
+    return null;
+  }
+
+  return (
+    <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide">
+      {additions > 0 ? <span className="text-emerald-600">+{additions}</span> : null}
+      {deletions > 0 ? <span className="text-rose-600">-{deletions}</span> : null}
+    </span>
+  );
+};
+
 const CommitLane: FC<CommitLaneProps> = ({
   title,
   branch,
@@ -47,7 +63,7 @@ const CommitLane: FC<CommitLaneProps> = ({
 
   return (
     <section className="min-h-0 flex flex-col border-b border-slate-200 last:border-b-0">
-      <div className="flex items-center justify-between px-4 py-2.5">
+      <div className="flex items-center justify-between px-3 py-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             {title}
@@ -59,7 +75,7 @@ const CommitLane: FC<CommitLaneProps> = ({
         </span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">
+      <div className="min-h-0 flex-1 overflow-auto px-3 pb-2">
         <div className="space-y-2 border-l border-slate-200 pl-3">
           {visibleCommits.map((commit) => {
             const selected = isSelectedCommit(selectedCommit, commit.hash);
@@ -102,8 +118,11 @@ const CommitLane: FC<CommitLaneProps> = ({
                   <span className="mt-0.5 block truncate text-xs font-medium text-slate-700">
                     {isLocalCommit(commit) ? getLocalRefDescription(commit.hash) : commit.message}
                   </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-400">
-                    {commit.author}
+                  <span className="mt-0.5 flex items-center justify-between gap-2">
+                    <span className="block truncate text-[11px] text-slate-400">
+                      {commit.author}
+                    </span>
+                    <CommitStats commit={commit} />
                   </span>
                 </span>
               </button>
@@ -246,7 +265,7 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
 
   return (
     <section className="min-h-0 flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-start justify-between gap-3 px-4 py-3">
+      <div className="flex items-start justify-between gap-3 px-3 py-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             Range Timeline
@@ -256,7 +275,7 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
             First click sets an anchor. Second click selects the range: the newer commit becomes
             Head and the older commit becomes Base.
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
             <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5">
               <span className="h-2 w-2 rounded-full bg-amber-500" />
               Anchor
@@ -282,7 +301,7 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
         ) : null}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">
+      <div className="min-h-0 flex-1 overflow-auto px-3 pb-2">
         <div
           className="space-y-2 border-l border-slate-200 pl-3"
           role="listbox"
@@ -358,8 +377,11 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
                   <span className="mt-0.5 block truncate text-xs font-medium text-slate-700">
                     {isLocalCommit(commit) ? getLocalRefDescription(commit.hash) : commit.message}
                   </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-slate-400">
-                    {commit.author}
+                  <span className="mt-0.5 flex items-center justify-between gap-2">
+                    <span className="block truncate text-[11px] text-slate-400">
+                      {commit.author}
+                    </span>
+                    <CommitStats commit={commit} />
                   </span>
                 </span>
               </button>
@@ -385,11 +407,6 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white/70 backdrop-blur-sm">
-      <div className="border-b border-slate-200 px-4 py-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">History</p>
-        <p className="mt-1 text-sm text-slate-600">Recent commits for the active comparison</p>
-      </div>
-
       {isSameBranchComparison ? (
         <RangeTimeline
           branch={headBranch}

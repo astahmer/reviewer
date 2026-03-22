@@ -4,16 +4,18 @@ import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import { parseDiffFromFile } from "@pierre/diffs";
 import type { FileDiffMetadata, FileContents } from "@pierre/diffs";
 import * as Ark from "@ark-ui/react";
-import { Sun, Moon, ChevronDown, WrapText, Eye } from "lucide-react";
+import { Sun, Moon, ChevronDown, WrapText, Eye, Monitor } from "lucide-react";
 import {
   useViewMode,
   useTheme,
   useColorMode,
+  useGlobalColorMode,
   useWrapping,
   useIgnoreWhitespace,
   useLocalStorage,
   useSidebarPosition,
   useSidebarCollapsed,
+  useSidebarSize,
 } from "~/components/hooks";
 import { LIGHT_THEMES, DARK_THEMES, STORAGE_KEYS, ThemeName } from "~/lib/constants";
 import { CommitInfo, Diff } from "~/lib/types";
@@ -116,7 +118,15 @@ const getFileMatchCount = (file: FileDiffMetadata, query: ParsedSearchQuery): nu
 
 const SIDEBAR_DEFAULT_SIZE = 28;
 const SIDEBAR_MIN_SIZE = 16;
-const SIDEBAR_COLLAPSED_SIZE = 5;
+const SIDEBAR_COLLAPSED_SIZE = 3.2;
+
+const getResolvedSystemMode = () => {
+  if (typeof window === "undefined") {
+    return "light" as const;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
 
 /**
  * Unified and Split diff viewer using @pierre/diffs
@@ -139,10 +149,12 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const [viewMode, setViewMode] = useViewMode();
   const [theme, setTheme] = useTheme();
   const [colorMode, setColorMode] = useColorMode();
+  const [globalColorMode, setGlobalColorMode] = useGlobalColorMode();
   const [wrapping, setWrapping] = useWrapping();
   const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
   const [sidebarPosition, setSidebarPosition] = useSidebarPosition();
   const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+  const [sidebarSize, setSidebarSize] = useSidebarSize();
 
   const [expandedFiles, setExpandedFiles] = useState<Map<string, ExpandedFileData>>(new Map());
   const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
@@ -155,12 +167,12 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     defaultSize:
       sidebarPosition === "left"
         ? [
-            sidebarCollapsed ? SIDEBAR_COLLAPSED_SIZE : SIDEBAR_DEFAULT_SIZE,
-            sidebarCollapsed ? 100 - SIDEBAR_COLLAPSED_SIZE : 100 - SIDEBAR_DEFAULT_SIZE,
+            sidebarCollapsed ? SIDEBAR_COLLAPSED_SIZE : sidebarSize,
+            sidebarCollapsed ? 100 - SIDEBAR_COLLAPSED_SIZE : 100 - sidebarSize,
           ]
         : [
-            sidebarCollapsed ? 100 - SIDEBAR_COLLAPSED_SIZE : 100 - SIDEBAR_DEFAULT_SIZE,
-            sidebarCollapsed ? SIDEBAR_COLLAPSED_SIZE : SIDEBAR_DEFAULT_SIZE,
+            sidebarCollapsed ? 100 - SIDEBAR_COLLAPSED_SIZE : 100 - sidebarSize,
+            sidebarCollapsed ? SIDEBAR_COLLAPSED_SIZE : sidebarSize,
           ],
     panels:
       sidebarPosition === "left"
@@ -198,6 +210,12 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         setSidebarCollapsed(false);
       }
     },
+    onResizeEnd: (details) => {
+      const nextSidebarSize = sidebarPosition === "left" ? details.size[0] : details.size[1];
+      if (typeof nextSidebarSize === "number" && nextSidebarSize > SIDEBAR_COLLAPSED_SIZE) {
+        setSidebarSize(nextSidebarSize);
+      }
+    },
   });
   const parsedSearchQuery = useMemo(
     () => parseSearchQuery(searchParams.searchQuery),
@@ -215,9 +233,14 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     }
 
     if (layoutSplitter.isPanelCollapsed("sidebar")) {
-      layoutSplitter.expandPanel("sidebar", SIDEBAR_DEFAULT_SIZE);
+      layoutSplitter.expandPanel("sidebar", sidebarSize || SIDEBAR_DEFAULT_SIZE);
     }
-  }, [layoutSplitter, sidebarCollapsed]);
+    const nextSizes =
+      sidebarPosition === "left"
+        ? [sidebarSize, 100 - sidebarSize]
+        : [100 - sidebarSize, sidebarSize];
+    layoutSplitter.setSizes(nextSizes);
+  }, [layoutSplitter, sidebarCollapsed, sidebarPosition, sidebarSize]);
 
   const handleExpandFile = useCallback(
     async (
@@ -336,6 +359,26 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     }
   };
 
+  const handleGlobalColorModeChange = (nextMode: "light" | "dark" | "auto") => {
+    setGlobalColorMode(nextMode);
+
+    if (nextMode === "light") {
+      setColorMode("light");
+      setTheme(lastLightTheme);
+      return;
+    }
+
+    if (nextMode === "dark") {
+      setColorMode("dark");
+      setTheme(lastDarkTheme);
+      return;
+    }
+
+    const resolvedMode = getResolvedSystemMode();
+    setColorMode("auto");
+    setTheme(resolvedMode === "dark" ? lastDarkTheme : lastLightTheme);
+  };
+
   // Get files to render - use expanded full diff if available, otherwise use partial
   const getRenderFiles = useCallback(() => {
     const baseFiles = diff.pierreData || [];
@@ -412,244 +455,267 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   }, [renderPaths, selectedPath]);
 
   const Controls = (
-    <>
-      {/* Controls */}
-      <div className="flex-shrink-0 border-b border-gray-200 px-4 py-3 flex items-center gap-4 overflow-x-auto">
-        {/* Search diffs input */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                navigate({
-                  search: (prev: SearchParams) => ({
-                    ...prev,
-                    searchQuery: searchInput || undefined,
-                  }),
-                });
-              }
-            }}
-            placeholder="Search diffs... (text or path:src/file.tsx token)"
-            className="px-3 py-1.5 w-128 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <button
-            onClick={() => {
+    <div className="flex shrink-0 items-center gap-3 overflow-x-auto border-b border-slate-200 bg-[var(--app-panel)] px-3 py-2 dark:border-slate-800">
+      {/* Search diffs input */}
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
               navigate({
                 search: (prev: SearchParams) => ({
                   ...prev,
                   searchQuery: searchInput || undefined,
                 }),
               });
-            }}
-            className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          >
-            Search
-          </button>
-        </div>
-        <div className="ml-auto" />
-
-        {/* View mode toggle group */}
-        <div className="flex items-center gap-1 flex-shrink-0 bg-white border border-gray-300 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode("unified")}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors rounded ${
-              viewMode === "unified"
-                ? "bg-gray-100 text-gray-900 shadow-sm border border-gray-300"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-            title="Unified diff view (stacked)"
-          >
-            Unified
-          </button>
-          <button
-            onClick={() => setViewMode("split")}
-            className={`px-3 py-1.5 text-sm font-medium transition-colors rounded ${
-              viewMode === "split"
-                ? "bg-gray-100 text-gray-900 shadow-sm border border-gray-300"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-            title="Split diff view (side-by-side)"
-          >
-            Split
-          </button>
-        </div>
-
-        {/* Color mode and theme toggle-split group */}
-        <div className="flex items-center gap-1 flex-shrink-0 bg-white border border-gray-300 rounded-lg p-1">
-          {/* Auto button */}
-          <Tooltip content="Auto theme">
-            <button
-              onClick={() => {
-                setColorMode("auto");
-                setTheme(lastLightTheme);
-              }}
-              className={`px-2 py-1.5 transition-colors rounded border ${
-                colorMode === "auto"
-                  ? "bg-gray-100 text-gray-900 shadow-sm border-gray-300"
-                  : "text-gray-600 hover:text-gray-900 border-transparent"
-              }`}
-            >
-              ⚙️
-            </button>
-          </Tooltip>
-
-          {/* Light theme split button */}
-          <Ark.Menu.Root
-            open={lightMenuOpen}
-            onOpenChange={(details) => setLightMenuOpen(details.open)}
-          >
-            <div className="flex items-center gap-0">
-              <Tooltip content="Light theme">
-                <button
-                  onClick={() => {
-                    setColorMode("light");
-                    setTheme(lastLightTheme);
-                  }}
-                  className={`px-2 py-1.5 transition-colors flex items-center gap-1 rounded-l border ${
-                    colorMode === "light"
-                      ? "bg-gray-100 text-gray-900 shadow-sm border-gray-300"
-                      : "text-gray-600 hover:text-gray-900 border-transparent"
-                  }`}
-                >
-                  <Sun size={16} />
-                </button>
-              </Tooltip>
-              <Ark.Menu.Trigger asChild>
-                <button
-                  className={`px-1.5 py-1.5 text-gray-600 hover:text-gray-900 transition-colors rounded-r border ${
-                    colorMode === "light"
-                      ? "bg-gray-100 shadow-sm border-gray-300"
-                      : "border-transparent"
-                  }`}
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </Ark.Menu.Trigger>
-            </div>
-            <Ark.Menu.Positioner>
-              <Ark.Menu.Content className="bg-white border border-gray-300 rounded shadow-lg z-50 py-1 min-w-40">
-                {LIGHT_THEMES.map((t) => (
-                  <Ark.Menu.Item
-                    key={t}
-                    value={t}
-                    onClick={() => handleLightThemeChange(t)}
-                    className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                      theme === t
-                        ? "bg-blue-50 text-blue-600 font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {t
-                      .split("-")
-                      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                      .join(" ")}
-                  </Ark.Menu.Item>
-                ))}
-              </Ark.Menu.Content>
-            </Ark.Menu.Positioner>
-          </Ark.Menu.Root>
-
-          {/* Dark theme split button */}
-          <Ark.Menu.Root
-            open={darkMenuOpen}
-            onOpenChange={(details) => setDarkMenuOpen(details.open)}
-          >
-            <div className="flex gap-0">
-              <Tooltip content="Dark theme">
-                <button
-                  onClick={() => {
-                    setColorMode("dark");
-                    setTheme(lastDarkTheme);
-                  }}
-                  className={`px-2 py-1.5 transition-colors flex items-center gap-1 rounded-l border ${
-                    colorMode === "dark"
-                      ? "bg-blue-900 text-white shadow-sm border-blue-700"
-                      : "text-gray-600 hover:text-gray-900 border-transparent"
-                  }`}
-                >
-                  <Moon size={16} />
-                </button>
-              </Tooltip>
-              <Ark.Menu.Trigger asChild>
-                <button
-                  className={`px-1.5 py-1.5 text-gray-600 transition-colors rounded-r border ${
-                    colorMode === "dark"
-                      ? "bg-blue-900 text-white shadow-sm border-blue-700 hover:text-white"
-                      : "border-transparent"
-                  }`}
-                >
-                  <ChevronDown size={14} />
-                </button>
-              </Ark.Menu.Trigger>
-            </div>
-            <Ark.Menu.Positioner>
-              <Ark.Menu.Content className="bg-white border border-gray-300 rounded shadow-lg z-50 py-1 min-w-40">
-                {DARK_THEMES.map((t) => (
-                  <Ark.Menu.Item
-                    key={t}
-                    value={t}
-                    onClick={() => handleDarkThemeChange(t)}
-                    className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                      theme === t
-                        ? "bg-blue-50 text-blue-600 font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {t
-                      .split("-")
-                      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                      .join(" ")}
-                  </Ark.Menu.Item>
-                ))}
-              </Ark.Menu.Content>
-            </Ark.Menu.Positioner>
-          </Ark.Menu.Root>
-        </div>
-
-        {/* Wrapping and Ignore whitespace toggles */}
-        <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4">
-          <Tooltip
-            content={`Move file tree to the ${sidebarPosition === "left" ? "right" : "left"}`}
-          >
-            <button
-              onClick={() => setSidebarPosition(sidebarPosition === "left" ? "right" : "left")}
-              className="rounded px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
-            >
-              Files {sidebarPosition === "left" ? "Left" : "Right"}
-            </button>
-          </Tooltip>
-          <Tooltip content="Toggle line wrapping">
-            <button
-              onClick={() => setWrapping(!wrapping)}
-              className={`p-1.5 rounded transition-colors ${
-                wrapping ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <WrapText size={18} />
-            </button>
-          </Tooltip>
-          <Tooltip content="Ignore whitespace">
-            <button
-              onClick={() => setIgnoreWhitespace(!ignoreWhitespace)}
-              className={`p-1.5 rounded transition-colors ${
-                ignoreWhitespace ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <Eye size={18} />
-            </button>
-          </Tooltip>
-        </div>
-
-        {/* Expand info */}
-        {expandedFiles.size > 0 && (
-          <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4 text-xs text-gray-500 ml-auto">
-            <span>{expandedFiles.size} file(s) fully expanded</span>
-          </div>
-        )}
+            }
+          }}
+          placeholder="Search diffs... (text or path:src/file.tsx token)"
+          className="h-9 min-w-[14rem] flex-1 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        />
+        <button
+          onClick={() => {
+            navigate({
+              search: (prev: SearchParams) => ({
+                ...prev,
+                searchQuery: searchInput || undefined,
+              }),
+            });
+          }}
+          className="h-9 rounded-md bg-blue-500 px-3 text-sm font-medium text-white transition-colors hover:bg-blue-600"
+        >
+          Search
+        </button>
       </div>
-    </>
+
+      {/* View mode toggle group */}
+      <div className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+        <button
+          onClick={() => setViewMode("unified")}
+          className={`px-3 py-1.5 text-sm font-medium transition-colors rounded ${
+            viewMode === "unified"
+              ? "bg-gray-100 text-gray-900 shadow-sm border border-gray-300"
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+          title="Unified diff view (stacked)"
+        >
+          Unified
+        </button>
+        <button
+          onClick={() => setViewMode("split")}
+          className={`px-3 py-1.5 text-sm font-medium transition-colors rounded ${
+            viewMode === "split"
+              ? "bg-gray-100 text-gray-900 shadow-sm border border-gray-300"
+              : "text-gray-600 hover:text-gray-900"
+          }`}
+          title="Split diff view (side-by-side)"
+        >
+          Split
+        </button>
+      </div>
+
+      {/* Color mode and theme toggle-split group */}
+      <div className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+        <Tooltip content="Global light mode">
+          <button
+            onClick={() => handleGlobalColorModeChange("light")}
+            className={`rounded border px-2 py-1.5 transition-colors ${
+              globalColorMode === "light"
+                ? "border-slate-300 bg-slate-100 text-slate-900"
+                : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            <Sun size={14} />
+          </button>
+        </Tooltip>
+        <Tooltip content="Global auto mode">
+          <button
+            onClick={() => handleGlobalColorModeChange("auto")}
+            className={`rounded border px-2 py-1.5 transition-colors ${
+              globalColorMode === "auto"
+                ? "border-slate-300 bg-slate-100 text-slate-900"
+                : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            <Monitor size={14} />
+          </button>
+        </Tooltip>
+        <Tooltip content="Global dark mode">
+          <button
+            onClick={() => handleGlobalColorModeChange("dark")}
+            className={`rounded border px-2 py-1.5 transition-colors ${
+              globalColorMode === "dark"
+                ? "border-slate-300 bg-slate-100 text-slate-900"
+                : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            }`}
+          >
+            <Moon size={14} />
+          </button>
+        </Tooltip>
+        <span className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
+        {/* Auto button */}
+        <Tooltip content="Auto theme">
+          <button
+            onClick={() => {
+              setColorMode("auto");
+              setTheme(lastLightTheme);
+            }}
+            className={`px-2 py-1.5 transition-colors rounded border ${
+              colorMode === "auto"
+                ? "bg-gray-100 text-gray-900 shadow-sm border-gray-300"
+                : "text-gray-600 hover:text-gray-900 border-transparent"
+            }`}
+          >
+            ⚙️
+          </button>
+        </Tooltip>
+
+        {/* Light theme split button */}
+        <Ark.Menu.Root
+          open={lightMenuOpen}
+          onOpenChange={(details) => setLightMenuOpen(details.open)}
+        >
+          <div className="flex items-center gap-0">
+            <Tooltip content="Light theme">
+              <button
+                onClick={() => {
+                  setColorMode("light");
+                  setTheme(lastLightTheme);
+                }}
+                className={`px-2 py-1.5 transition-colors flex items-center gap-1 rounded-l border ${
+                  colorMode === "light"
+                    ? "bg-gray-100 text-gray-900 shadow-sm border-gray-300"
+                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                }`}
+              >
+                <Sun size={16} />
+              </button>
+            </Tooltip>
+            <Ark.Menu.Trigger asChild>
+              <button
+                className={`px-1.5 py-1.5 text-gray-600 hover:text-gray-900 transition-colors rounded-r border ${
+                  colorMode === "light"
+                    ? "bg-gray-100 shadow-sm border-gray-300"
+                    : "border-transparent"
+                }`}
+              >
+                <ChevronDown size={14} />
+              </button>
+            </Ark.Menu.Trigger>
+          </div>
+          <Ark.Menu.Positioner>
+            <Ark.Menu.Content className="bg-white border border-gray-300 rounded shadow-lg z-50 py-1 min-w-40">
+              {LIGHT_THEMES.map((t) => (
+                <Ark.Menu.Item
+                  key={t}
+                  value={t}
+                  onClick={() => handleLightThemeChange(t)}
+                  className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                    theme === t
+                      ? "bg-blue-50 text-blue-600 font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {t
+                    .split("-")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")}
+                </Ark.Menu.Item>
+              ))}
+            </Ark.Menu.Content>
+          </Ark.Menu.Positioner>
+        </Ark.Menu.Root>
+
+        {/* Dark theme split button */}
+        <Ark.Menu.Root
+          open={darkMenuOpen}
+          onOpenChange={(details) => setDarkMenuOpen(details.open)}
+        >
+          <div className="flex gap-0">
+            <Tooltip content="Dark theme">
+              <button
+                onClick={() => {
+                  setColorMode("dark");
+                  setTheme(lastDarkTheme);
+                }}
+                className={`px-2 py-1.5 transition-colors flex items-center gap-1 rounded-l border ${
+                  colorMode === "dark"
+                    ? "bg-blue-900 text-white shadow-sm border-blue-700"
+                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                }`}
+              >
+                <Moon size={16} />
+              </button>
+            </Tooltip>
+            <Ark.Menu.Trigger asChild>
+              <button
+                className={`px-1.5 py-1.5 text-gray-600 transition-colors rounded-r border ${
+                  colorMode === "dark"
+                    ? "bg-blue-900 text-white shadow-sm border-blue-700 hover:text-white"
+                    : "border-transparent"
+                }`}
+              >
+                <ChevronDown size={14} />
+              </button>
+            </Ark.Menu.Trigger>
+          </div>
+          <Ark.Menu.Positioner>
+            <Ark.Menu.Content className="bg-white border border-gray-300 rounded shadow-lg z-50 py-1 min-w-40">
+              {DARK_THEMES.map((t) => (
+                <Ark.Menu.Item
+                  key={t}
+                  value={t}
+                  onClick={() => handleDarkThemeChange(t)}
+                  className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
+                    theme === t
+                      ? "bg-blue-50 text-blue-600 font-medium"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {t
+                    .split("-")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ")}
+                </Ark.Menu.Item>
+              ))}
+            </Ark.Menu.Content>
+          </Ark.Menu.Positioner>
+        </Ark.Menu.Root>
+      </div>
+
+      {/* Wrapping and Ignore whitespace toggles */}
+      <div className="flex shrink-0 items-center gap-1 border-l border-slate-200 pl-3 dark:border-slate-700">
+        <Tooltip content="Toggle line wrapping">
+          <button
+            onClick={() => setWrapping(!wrapping)}
+            className={`p-1.5 rounded transition-colors ${
+              wrapping ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <WrapText size={18} />
+          </button>
+        </Tooltip>
+        <Tooltip content="Ignore whitespace">
+          <button
+            onClick={() => setIgnoreWhitespace(!ignoreWhitespace)}
+            className={`p-1.5 rounded transition-colors ${
+              ignoreWhitespace ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            <Eye size={18} />
+          </button>
+        </Tooltip>
+      </div>
+
+      {/* Expand info */}
+      {expandedFiles.size > 0 && (
+        <div className="ml-auto flex shrink-0 items-center gap-2 border-l border-slate-200 pl-3 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+          <span>{expandedFiles.size} file(s) fully expanded</span>
+        </div>
+      )}
+    </div>
   );
 
   const MainContent =
@@ -705,6 +771,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       selectedPath={selectedPath}
       onSelectPath={handleSelectPath}
       position={sidebarPosition}
+      onTogglePosition={() => setSidebarPosition(sidebarPosition === "left" ? "right" : "left")}
       collapsed={layoutSplitter.isPanelCollapsed("sidebar")}
       onToggleCollapsed={() => setSidebarCollapsed(!layoutSplitter.isPanelCollapsed("sidebar"))}
       matchCounts={fileMatchCounts}
@@ -732,7 +799,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
       <Ark.Splitter.RootProvider
         value={layoutSplitter}
-        className="flex min-h-0 flex-1 overflow-hidden rounded-b border border-t-0 border-gray-200 bg-white"
+        className="flex min-h-0 flex-1 overflow-hidden rounded-b border border-t-0 border-slate-200 bg-[var(--app-panel)] dark:border-slate-800"
       >
         {sidebarPosition === "left" ? (
           <>
@@ -743,13 +810,15 @@ export const DiffViewer: FC<DiffViewerProps> = ({
               {renderSidebar()}
             </Ark.Splitter.Panel>
 
-            <Ark.Splitter.ResizeTrigger
-              id="sidebar:content"
-              aria-label="Resize sidebar"
-              className="group flex w-2 shrink-0 items-center justify-center bg-slate-100 transition-colors hover:bg-slate-200"
-            >
-              <span className="h-10 w-1 rounded-full bg-slate-300 transition-colors group-hover:bg-slate-500" />
-            </Ark.Splitter.ResizeTrigger>
+            {!layoutSplitter.isPanelCollapsed("sidebar") ? (
+              <Ark.Splitter.ResizeTrigger
+                id="sidebar:content"
+                aria-label="Resize sidebar"
+                className="group flex w-1.5 shrink-0 items-center justify-center bg-slate-100/90 transition-colors hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800"
+              >
+                <span className="h-8 w-0.5 rounded-full bg-slate-300 transition-colors group-hover:bg-slate-500 dark:bg-slate-700 dark:group-hover:bg-slate-500" />
+              </Ark.Splitter.ResizeTrigger>
+            ) : null}
 
             <Ark.Splitter.Panel id="content" className="min-h-0 overflow-hidden">
               {renderContent()}
@@ -761,13 +830,15 @@ export const DiffViewer: FC<DiffViewerProps> = ({
               {renderContent()}
             </Ark.Splitter.Panel>
 
-            <Ark.Splitter.ResizeTrigger
-              id="content:sidebar"
-              aria-label="Resize sidebar"
-              className="group flex w-2 shrink-0 items-center justify-center bg-slate-100 transition-colors hover:bg-slate-200"
-            >
-              <span className="h-10 w-1 rounded-full bg-slate-300 transition-colors group-hover:bg-slate-500" />
-            </Ark.Splitter.ResizeTrigger>
+            {!layoutSplitter.isPanelCollapsed("sidebar") ? (
+              <Ark.Splitter.ResizeTrigger
+                id="content:sidebar"
+                aria-label="Resize sidebar"
+                className="group flex w-1.5 shrink-0 items-center justify-center bg-slate-100/90 transition-colors hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800"
+              >
+                <span className="h-8 w-0.5 rounded-full bg-slate-300 transition-colors group-hover:bg-slate-500 dark:bg-slate-700 dark:group-hover:bg-slate-500" />
+              </Ark.Splitter.ResizeTrigger>
+            ) : null}
 
             <Ark.Splitter.Panel
               id="sidebar"

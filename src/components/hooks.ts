@@ -8,10 +8,15 @@ import {
 import { UserPreferences, Line } from "~/lib/types";
 import type { ColorMode } from "~/lib/constants";
 
+type StorageUpdater<T> = T | ((currentValue: T) => T);
+
 /**
  * Generic hook for localStorage persistence
  */
-export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T) => void] {
+export function useLocalStorage<T>(
+  key: string,
+  defaultValue: T,
+): [T, (value: StorageUpdater<T>) => void] {
   const [value, setValue] = useState<T>(() => {
     if (typeof window === "undefined") return defaultValue;
     try {
@@ -22,15 +27,32 @@ export function useLocalStorage<T>(key: string, defaultValue: T): [T, (value: T)
     }
   });
 
-  const updateValue = (newValue: T) => {
-    setValue(newValue);
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(key, JSON.stringify(newValue));
-      } catch {
-        // Silently fail if localStorage is unavailable
+  const updateValue = (nextValue: StorageUpdater<T>) => {
+    setValue((previousValue) => {
+      let currentValue = previousValue;
+
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem(key);
+          currentValue = stored ? (JSON.parse(stored) as T) : previousValue;
+        } catch {
+          currentValue = previousValue;
+        }
       }
-    }
+
+      const resolvedValue =
+        typeof nextValue === "function" ? (nextValue as (value: T) => T)(currentValue) : nextValue;
+
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(key, JSON.stringify(resolvedValue));
+        } catch {
+          // Silently fail if localStorage is unavailable
+        }
+      }
+
+      return resolvedValue;
+    });
   };
 
   return [value, updateValue];
@@ -46,7 +68,7 @@ export function useUserPreferences(): [UserPreferences, (prefs: Partial<UserPref
   );
 
   const updatePrefs = (update: Partial<UserPreferences>) => {
-    setStoredPrefs({ ...storedPrefs, ...update });
+    setStoredPrefs((currentPrefs) => ({ ...currentPrefs, ...update }));
   };
 
   return [storedPrefs, updatePrefs];
@@ -104,7 +126,7 @@ export function useViewMode(): ["unified" | "split", (mode: "unified" | "split")
   );
 
   const updateViewMode = (mode: "unified" | "split") => {
-    setPrefs({ ...prefs, viewMode: mode });
+    setPrefs((currentPrefs) => ({ ...currentPrefs, viewMode: mode }));
   };
 
   return [prefs.viewMode, updateViewMode];
@@ -119,7 +141,7 @@ export function useTheme(): [string, (theme: string) => void] {
   );
 
   const updateTheme = (newTheme: string) => {
-    setPrefs({ ...prefs, theme: newTheme });
+    setPrefs((currentPrefs) => ({ ...currentPrefs, theme: newTheme }));
   };
 
   return [prefs.theme || DEFAULT_THEME, updateTheme];
@@ -134,10 +156,26 @@ export function useColorMode(): [ColorMode, (mode: ColorMode) => void] {
   );
 
   const updateColorMode = (newMode: ColorMode) => {
-    setPrefs({ ...prefs, colorMode: newMode });
+    setPrefs((currentPrefs) => ({ ...currentPrefs, colorMode: newMode }));
   };
 
   return [prefs.colorMode || "auto", updateColorMode];
+}
+
+/**
+ * Hook to manage global application color mode preference
+ */
+export function useGlobalColorMode(): [ColorMode, (mode: ColorMode) => void] {
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
+
+  const updateGlobalColorMode = (newMode: ColorMode) => {
+    setPrefs((currentPrefs) => ({ ...currentPrefs, globalColorMode: newMode }));
+  };
+
+  return [prefs.globalColorMode || "auto", updateGlobalColorMode];
 }
 
 /**
@@ -150,7 +188,7 @@ export function useWrapping(): [boolean, (wrapping: boolean) => void] {
   );
 
   const updateWrapping = (newWrapping: boolean) => {
-    setPrefs({ ...prefs, wrapping: newWrapping });
+    setPrefs((currentPrefs) => ({ ...currentPrefs, wrapping: newWrapping }));
   };
 
   return [prefs.wrapping !== false, updateWrapping];
@@ -166,7 +204,7 @@ export function useSidebarPosition(): ["left" | "right", (position: "left" | "ri
   );
 
   const updateSidebarPosition = (position: "left" | "right") => {
-    setPrefs({ ...prefs, sidebarPosition: position });
+    setPrefs((currentPrefs) => ({ ...currentPrefs, sidebarPosition: position }));
   };
 
   return [prefs.sidebarPosition || "left", updateSidebarPosition];
@@ -182,10 +220,84 @@ export function useSidebarCollapsed(): [boolean, (collapsed: boolean) => void] {
   );
 
   const updateSidebarCollapsed = (collapsed: boolean) => {
-    setPrefs({ ...prefs, sidebarCollapsed: collapsed });
+    setPrefs((currentPrefs) => ({ ...currentPrefs, sidebarCollapsed: collapsed }));
   };
 
   return [prefs.sidebarCollapsed === true, updateSidebarCollapsed];
+}
+
+/**
+ * Hook to manage persisted horizontal sidebar size
+ */
+export function useSidebarSize(): [number, (size: number) => void] {
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
+
+  const updateSidebarSize = (size: number) => {
+    setPrefs((currentPrefs) => ({ ...currentPrefs, sidebarSize: size }));
+  };
+
+  return [prefs.sidebarSize || DEFAULT_PREFERENCES.sidebarSize || 28, updateSidebarSize];
+}
+
+/**
+ * Hook to manage persisted nested sidebar section sizes
+ */
+export function useSidebarSectionSizes(): [
+  { files: number; history: number },
+  (sizes: { files: number; history: number }) => void,
+] {
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
+
+  const updateSizes = (sizes: { files: number; history: number }) => {
+    setPrefs((currentPrefs) => ({
+      ...currentPrefs,
+      sidebarFilesSize: sizes.files,
+      sidebarHistorySize: sizes.history,
+    }));
+  };
+
+  return [
+    {
+      files: prefs.sidebarFilesSize || DEFAULT_PREFERENCES.sidebarFilesSize || 60,
+      history: prefs.sidebarHistorySize || DEFAULT_PREFERENCES.sidebarHistorySize || 40,
+    },
+    updateSizes,
+  ];
+}
+
+/**
+ * Hook to manage collapsed state for nested sidebar sections
+ */
+export function useSidebarSectionCollapsedState(): [
+  { files: boolean; history: boolean },
+  (state: { files: boolean; history: boolean }) => void,
+] {
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
+
+  const updateCollapsedState = (state: { files: boolean; history: boolean }) => {
+    setPrefs((currentPrefs) => ({
+      ...currentPrefs,
+      sidebarFilesCollapsed: state.files,
+      sidebarHistoryCollapsed: state.history,
+    }));
+  };
+
+  return [
+    {
+      files: prefs.sidebarFilesCollapsed === true,
+      history: prefs.sidebarHistoryCollapsed === true,
+    },
+    updateCollapsedState,
+  ];
 }
 
 /**
@@ -198,7 +310,7 @@ export function useIgnoreWhitespace(): [boolean, (ignore: boolean) => void] {
   );
 
   const updateIgnoreWhitespace = (newIgnore: boolean) => {
-    setPrefs({ ...prefs, ignoreWhitespace: newIgnore });
+    setPrefs((currentPrefs) => ({ ...currentPrefs, ignoreWhitespace: newIgnore }));
   };
 
   return [prefs.ignoreWhitespace === true, updateIgnoreWhitespace];
