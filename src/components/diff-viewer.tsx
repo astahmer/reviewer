@@ -560,14 +560,52 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     </>
   );
 
-  if (!renderFiles || renderFiles.length === 0) {
-    return (
-      <div className="flex flex-col">
-        {Controls}
-        <div className="p-4 text-center text-gray-500">No diff data available</div>
+  const MainContent =
+    !renderFiles || renderFiles.length === 0 ? (
+      <div className="flex h-full items-center justify-center px-6 text-center text-gray-500">
+        No diff data available
+      </div>
+    ) : (
+      <div className="diffs-container">
+        {renderFiles.map((file, idx) => {
+          const fileKey = `${file.prevName || file.name}-${idx}`;
+          const isLoading = loadingFiles.has(`${file.name}-full`);
+          const isExpanded = expandedFiles.has(`${file.name}-full`);
+          const isSelected = selectedPath === file.name;
+
+          return (
+            <div
+              key={fileKey}
+              ref={(element) => setFileRef(file.name, element)}
+              className={`relative scroll-mt-4 ${isSelected ? "bg-sky-50/30" : ""}`}
+            >
+              {!isExpanded && !isLoading && (
+                <button
+                  onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
+                  className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
+                >
+                  Load full file
+                </button>
+              )}
+              {isLoading && (
+                <div className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-gray-500 text-white rounded">
+                  Loading...
+                </div>
+              )}
+              <FileDiffComponent
+                fileDiff={file}
+                options={{
+                  theme: theme as any,
+                  diffStyle: viewMode,
+                  overflow: wrapping ? "wrap" : "scroll",
+                  disableLineNumbers: false,
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
     );
-  }
 
   return (
     <div className="h-full flex flex-col">
@@ -600,48 +638,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           />
         )}
 
-        <div className="min-w-0 flex-1 overflow-auto">
-          <div className="diffs-container">
-            {renderFiles.map((file, idx) => {
-              const fileKey = `${file.prevName || file.name}-${idx}`;
-              const isLoading = loadingFiles.has(`${file.name}-full`);
-              const isExpanded = expandedFiles.has(`${file.name}-full`);
-              const isSelected = selectedPath === file.name;
-
-              return (
-                <div
-                  key={fileKey}
-                  ref={(element) => setFileRef(file.name, element)}
-                  className={`relative scroll-mt-4 ${isSelected ? "bg-sky-50/30" : ""}`}
-                >
-                  {/* Expand button overlay */}
-                  {!isExpanded && !isLoading && (
-                    <button
-                      onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
-                      className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
-                    >
-                      Load full file
-                    </button>
-                  )}
-                  {isLoading && (
-                    <div className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-gray-500 text-white rounded">
-                      Loading...
-                    </div>
-                  )}
-                  <FileDiffComponent
-                    fileDiff={file}
-                    options={{
-                      theme: theme as any,
-                      diffStyle: viewMode,
-                      overflow: wrapping ? "wrap" : "scroll",
-                      disableLineNumbers: false,
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <div className="min-w-0 flex-1 overflow-auto">{MainContent}</div>
       </div>
     </div>
   );
