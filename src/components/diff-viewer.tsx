@@ -15,7 +15,7 @@ import {
   useSidebarPosition,
   useSidebarCollapsed,
 } from "~/components/hooks";
-import { LIGHT_THEMES, DARK_THEMES, STORAGE_KEYS } from "~/lib/constants";
+import { LIGHT_THEMES, DARK_THEMES, STORAGE_KEYS, ThemeName } from "~/lib/constants";
 import { CommitInfo, Diff } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
 import { CommitHistoryPanel } from "./commit-history-panel";
@@ -85,6 +85,35 @@ const fileMatchesContentQuery = (file: FileDiffMetadata, contentQuery: string) =
   return tokens.every((token) => haystack.includes(token));
 };
 
+const getFileMatchCount = (file: FileDiffMetadata, query: ParsedSearchQuery): number => {
+  const filePath = file.prevName || file.name;
+
+  if (query.pathFilter && !filePath.includes(query.pathFilter)) {
+    return 0;
+  }
+
+  if (!query.contentQuery) {
+    return query.pathFilter ? 1 : 0;
+  }
+
+  const tokens = query.contentQuery
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  const searchableEntries = [
+    filePath,
+    ...(file.additionLines || []),
+    ...(file.deletionLines || []),
+  ];
+  const lineMatches = searchableEntries.filter((entry) =>
+    tokens.every((token) => entry.toLowerCase().includes(token)),
+  ).length;
+
+  return lineMatches > 0 ? lineMatches : fileMatchesContentQuery(file, query.contentQuery) ? 1 : 0;
+};
+
 /**
  * Unified and Split diff viewer using @pierre/diffs
  */
@@ -117,6 +146,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const [darkMenuOpen, setDarkMenuOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.searchQuery || "");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const parsedSearchQuery = useMemo(
+    () => parseSearchQuery(searchParams.searchQuery),
+    [searchParams.searchQuery],
+  );
 
   useEffect(() => {
     setSearchInput(searchParams.searchQuery || "");
@@ -183,7 +216,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         });
       }
     },
-    [diff.from, diff.to, repoPath],
+    [diff.from, diff.to, expandedFiles, loadingFiles, repoPath],
   );
 
   const handleExpandHunk = useCallback(
@@ -223,7 +256,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   // Update last light theme when light dropdown changes
   const handleLightThemeChange = (newTheme: string) => {
-    if (LIGHT_THEMES.includes(newTheme as any)) {
+    if (LIGHT_THEMES.includes(newTheme as (typeof LIGHT_THEMES)[number])) {
       setTheme(newTheme);
       setLastLightTheme(newTheme);
       setColorMode("light");
@@ -232,7 +265,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   // Update last dark theme when dark dropdown changes
   const handleDarkThemeChange = (newTheme: string) => {
-    if (DARK_THEMES.includes(newTheme as any)) {
+    if (DARK_THEMES.includes(newTheme as (typeof DARK_THEMES)[number])) {
       setTheme(newTheme);
       setLastDarkTheme(newTheme);
       setColorMode("dark");
@@ -242,19 +275,20 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   // Get files to render - use expanded full diff if available, otherwise use partial
   const getRenderFiles = useCallback(() => {
     const baseFiles = diff.pierreData || [];
-    const parsedQuery = parseSearchQuery(searchParams.searchQuery);
 
     let filtered = baseFiles;
 
-    if (parsedQuery.pathFilter) {
+    if (parsedSearchQuery.pathFilter) {
       filtered = filtered.filter((file) => {
         const filePath = file.prevName || file.name;
-        return filePath.includes(parsedQuery.pathFilter || "");
+        return filePath.includes(parsedSearchQuery.pathFilter || "");
       });
     }
 
-    if (parsedQuery.contentQuery) {
-      filtered = filtered.filter((file) => fileMatchesContentQuery(file, parsedQuery.contentQuery));
+    if (parsedSearchQuery.contentQuery) {
+      filtered = filtered.filter((file) =>
+        fileMatchesContentQuery(file, parsedSearchQuery.contentQuery),
+      );
     }
 
     if (filtered.length === 0) {
@@ -273,9 +307,15 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       }
       return file;
     });
-  }, [diff.pierreData, expandedFiles, searchParams.searchQuery]);
+  }, [diff.pierreData, expandedFiles, parsedSearchQuery]);
 
   const renderFiles = useMemo(() => getRenderFiles(), [getRenderFiles]);
+  const fileMatchCounts = useMemo(
+    () =>
+      new Map(renderFiles.map((file) => [file.name, getFileMatchCount(file, parsedSearchQuery)])),
+    [parsedSearchQuery, renderFiles],
+  );
+  const hasActiveSearch = Boolean(parsedSearchQuery.pathFilter || parsedSearchQuery.contentQuery);
 
   const fileRefs = useRef(new Map<string, HTMLDivElement>());
 
@@ -506,18 +546,6 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
         {/* Wrapping and Ignore whitespace toggles */}
         <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4">
-          <Tooltip content={sidebarCollapsed ? "Show file tree" : "Hide file tree"}>
-            <button
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${
-                sidebarCollapsed
-                  ? "bg-white text-gray-600 hover:bg-gray-100"
-                  : "bg-gray-100 text-gray-900"
-              }`}
-            >
-              {sidebarCollapsed ? "Show files" : "Hide files"}
-            </button>
-          </Tooltip>
           <Tooltip
             content={`Move file tree to the ${sidebarPosition === "left" ? "right" : "left"}`}
           >
@@ -595,7 +623,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
               <FileDiffComponent
                 fileDiff={file}
                 options={{
-                  theme: theme as any,
+                  theme: theme as ThemeName,
                   diffStyle: viewMode,
                   overflow: wrapping ? "wrap" : "scroll",
                   disableLineNumbers: false,
@@ -617,26 +645,28 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           sidebarPosition === "right" ? "flex-row-reverse" : "flex-row"
         }`}
       >
-        {!sidebarCollapsed && (
-          <FileTreeSidebar
-            files={renderFiles}
-            selectedPath={selectedPath}
-            onSelectPath={handleSelectPath}
-            position={sidebarPosition}
-            footer={
-              <CommitHistoryPanel
-                baseBranch={baseBranch}
-                headBranch={headBranch}
-                baseCommits={baseCommits}
-                headCommits={headCommits}
-                selectedBaseCommit={baseCommit}
-                selectedHeadCommit={headCommit}
-                onBaseCommitChange={onBaseCommitChange}
-                onHeadCommitChange={onHeadCommitChange}
-              />
-            }
-          />
-        )}
+        <FileTreeSidebar
+          files={renderFiles}
+          selectedPath={selectedPath}
+          onSelectPath={handleSelectPath}
+          position={sidebarPosition}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
+          matchCounts={fileMatchCounts}
+          showMatchCounts={hasActiveSearch}
+          footer={
+            <CommitHistoryPanel
+              baseBranch={baseBranch}
+              headBranch={headBranch}
+              baseCommits={baseCommits}
+              headCommits={headCommits}
+              selectedBaseCommit={baseCommit}
+              selectedHeadCommit={headCommit}
+              onBaseCommitChange={onBaseCommitChange}
+              onHeadCommitChange={onHeadCommitChange}
+            />
+          }
+        />
 
         <div className="min-w-0 flex-1 overflow-auto">{MainContent}</div>
       </div>

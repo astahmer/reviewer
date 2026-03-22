@@ -10,6 +10,7 @@ import { ErrorBanner } from "~/components/error-banner.tsx";
 import { RepositorySelector } from "~/components/repository-selector";
 import {
   LOCAL_REF_WORKTREE,
+  getCommitDisplayLabel,
   getDefaultCommit,
   isLocalRef,
   isRealCommitRef,
@@ -158,6 +159,15 @@ export const HomePage: FC = () => {
     const defaults = ["main", "master", "develop", "dev", "release"];
     return branches.find((b) => defaults.includes(b.name.toLowerCase()))?.name || branches[0]?.name;
   }, [branches, currentBranch]);
+
+  const selectedBaseCommitInfo = useMemo(
+    () => baseCommits.find((c) => c.hash === baseCommit || c.hash.startsWith(baseCommit)),
+    [baseCommit, baseCommits],
+  );
+  const selectedHeadCommitInfo = useMemo(
+    () => headCommits.find((c) => c.hash === headCommit || c.hash.startsWith(headCommit)),
+    [headCommit, headCommits],
+  );
 
   useEffect(() => {
     setInitialized(false);
@@ -383,6 +393,16 @@ export const HomePage: FC = () => {
               isLoading={headCommitsLoading}
               placeholder="commit"
             />
+            {baseBranch === headBranch && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
+              <div className="flex items-center gap-1.5 pl-2">
+                <span className="rounded bg-sky-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                  Base {getCommitDisplayLabel(selectedBaseCommitInfo)}
+                </span>
+                <span className="rounded bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                  Head {getCommitDisplayLabel(selectedHeadCommitInfo)}
+                </span>
+              </div>
+            ) : null}
           </div>
         </div>
 

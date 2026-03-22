@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from "react";
+import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getCommitDisplayLabel, getLocalRefDescription, isLocalCommit } from "~/lib/local-refs";
 import { CommitInfo } from "~/lib/types";
 import { formatDate } from "./format-date";
@@ -46,7 +46,7 @@ const CommitLane: FC<CommitLaneProps> = ({
   const visibleCommits = commits.slice(0, 8);
 
   return (
-    <section className="border-b border-slate-200 last:border-b-0">
+    <section className="min-h-0 flex flex-col border-b border-slate-200 last:border-b-0">
       <div className="flex items-center justify-between px-4 py-2.5">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -59,7 +59,7 @@ const CommitLane: FC<CommitLaneProps> = ({
         </span>
       </div>
 
-      <div className="max-h-44 overflow-auto px-3 pb-3">
+      <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">
         <div className="space-y-2 border-l border-slate-200 pl-3">
           {visibleCommits.map((commit) => {
             const selected = isSelectedCommit(selectedCommit, commit.hash);
@@ -133,8 +133,26 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
   onHeadCommitChange,
 }) => {
   const [anchorCommit, setAnchorCommit] = useState<string | null>(null);
+  const [focusedCommit, setFocusedCommit] = useState<string>(
+    selectedHeadCommit || selectedBaseCommit || commits[0]?.hash || "",
+  );
+  const itemRefs = useRef(new Map<string, HTMLButtonElement>());
 
   const visibleCommits = commits.slice(0, 12);
+
+  useEffect(() => {
+    const nextFocusedCommit =
+      visibleCommits.find((commit) => commit.hash === focusedCommit)?.hash ||
+      visibleCommits.find((commit) => isSelectedCommit(selectedHeadCommit, commit.hash))?.hash ||
+      visibleCommits.find((commit) => isSelectedCommit(selectedBaseCommit, commit.hash))?.hash ||
+      visibleCommits[0]?.hash ||
+      "";
+
+    if (nextFocusedCommit !== focusedCommit) {
+      setFocusedCommit(nextFocusedCommit);
+    }
+  }, [focusedCommit, selectedBaseCommit, selectedHeadCommit, visibleCommits]);
+
   const selectedIndices = useMemo(() => {
     const baseIndex = commits.findIndex((commit) =>
       isSelectedCommit(selectedBaseCommit, commit.hash),
@@ -184,8 +202,50 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
     setAnchorCommit(null);
   };
 
+  const focusCommit = (hash: string | undefined) => {
+    if (!hash) {
+      return;
+    }
+
+    setFocusedCommit(hash);
+    requestAnimationFrame(() => {
+      itemRefs.current.get(hash)?.focus();
+    });
+  };
+
+  const handleCommitKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      focusCommit(visibleCommits[Math.min(index + 1, visibleCommits.length - 1)]?.hash);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      focusCommit(visibleCommits[Math.max(index - 1, 0)]?.hash);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      focusCommit(visibleCommits[0]?.hash);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      focusCommit(visibleCommits[visibleCommits.length - 1]?.hash);
+      return;
+    }
+
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      handleCommitClick(visibleCommits[index]?.hash || "");
+    }
+  };
+
   return (
-    <section>
+    <section className="min-h-0 flex flex-1 flex-col overflow-hidden">
       <div className="flex items-start justify-between gap-3 px-4 py-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -207,8 +267,12 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
         ) : null}
       </div>
 
-      <div className="max-h-80 overflow-auto px-3 pb-3">
-        <div className="space-y-2 border-l border-slate-200 pl-3">
+      <div className="min-h-0 flex-1 overflow-auto px-3 pb-3">
+        <div
+          className="space-y-2 border-l border-slate-200 pl-3"
+          role="listbox"
+          aria-label="Commit range timeline"
+        >
           {visibleCommits.map((commit, index) => {
             const selectedAsHead = isSelectedCommit(selectedHeadCommit, commit.hash);
             const selectedAsBase = isSelectedCommit(selectedBaseCommit, commit.hash);
@@ -222,7 +286,19 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
               <button
                 key={commit.hash}
                 type="button"
+                ref={(element) => {
+                  if (element) {
+                    itemRefs.current.set(commit.hash, element);
+                  } else {
+                    itemRefs.current.delete(commit.hash);
+                  }
+                }}
                 onClick={() => handleCommitClick(commit.hash)}
+                onFocus={() => setFocusedCommit(commit.hash)}
+                onKeyDown={(event) => handleCommitKeyDown(event, index)}
+                role="option"
+                aria-selected={selectedAsHead || selectedAsBase || inRange}
+                tabIndex={focusedCommit === commit.hash ? 0 : -1}
                 className={`relative -ml-[18px] flex w-full gap-3 rounded-md px-2 py-1.5 text-left transition-colors ${
                   inRange ? "bg-sky-50/70" : "hover:bg-slate-100"
                 } ${isAnchor ? "ring-1 ring-inset ring-amber-300" : inRange ? "ring-1 ring-inset ring-sky-200" : ""}`}
@@ -293,7 +369,7 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
   const isSameBranchComparison = !!baseBranch && baseBranch === headBranch;
 
   return (
-    <div className="bg-white/70 backdrop-blur-sm">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-white/70 backdrop-blur-sm">
       <div className="border-b border-slate-200 px-4 py-3">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">History</p>
         <p className="mt-1 text-sm text-slate-600">Recent commits for the active comparison</p>

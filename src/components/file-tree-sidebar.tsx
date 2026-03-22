@@ -1,6 +1,6 @@
 import { FC, ReactNode, useEffect, useMemo, useState } from "react";
 import type { FileDiffMetadata } from "@pierre/diffs";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface FileTreeSidebarProps {
   files: FileDiffMetadata[];
@@ -8,6 +8,10 @@ interface FileTreeSidebarProps {
   onSelectPath: (path: string) => void;
   position: "left" | "right";
   footer?: ReactNode;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
+  matchCounts?: Map<string, number>;
+  showMatchCounts?: boolean;
 }
 
 interface TreeNode {
@@ -151,6 +155,8 @@ interface TreeItemProps {
   onToggle: (path: string) => void;
   selectedPath: string | null;
   onSelectPath: (path: string) => void;
+  matchCounts?: Map<string, number>;
+  showMatchCounts?: boolean;
 }
 
 const TreeItem: FC<TreeItemProps> = ({
@@ -160,10 +166,13 @@ const TreeItem: FC<TreeItemProps> = ({
   onToggle,
   selectedPath,
   onSelectPath,
+  matchCounts,
+  showMatchCounts,
 }) => {
   if (node.kind === "file") {
     const status = getStatusLabel(node.file);
     const isSelected = selectedPath === node.path;
+    const matchCount = matchCounts?.get(node.path) || 0;
 
     return (
       <button
@@ -178,6 +187,11 @@ const TreeItem: FC<TreeItemProps> = ({
       >
         <span className="w-3 text-center text-slate-300">•</span>
         <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
+        {showMatchCounts && matchCount > 0 ? (
+          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+            {matchCount}
+          </span>
+        ) : null}
         <span
           className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase ${status.className}`}
         >
@@ -215,6 +229,8 @@ const TreeItem: FC<TreeItemProps> = ({
               onToggle={onToggle}
               selectedPath={selectedPath}
               onSelectPath={onSelectPath}
+              matchCounts={matchCounts}
+              showMatchCounts={showMatchCounts}
             />
           ))}
         </div>
@@ -229,11 +245,17 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   onSelectPath,
   position,
   footer,
+  collapsed,
+  onToggleCollapsed,
+  matchCounts,
+  showMatchCounts,
 }) => {
   const tree = useMemo(() => buildTree(files), [files]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() =>
     getDefaultExpandedPaths(files),
   );
+  const CollapseIcon = position === "left" ? ChevronLeft : ChevronRight;
+  const ExpandIcon = position === "left" ? ChevronRight : ChevronLeft;
 
   useEffect(() => {
     setExpandedPaths((previous) => {
@@ -250,17 +272,59 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
     });
   }, [files, selectedPath]);
 
+  if (collapsed) {
+    return (
+      <aside
+        className={`flex h-full min-h-0 w-12 shrink-0 flex-col items-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
+          position === "left" ? "border-r border-slate-200" : "border-l border-slate-200"
+        }`}
+      >
+        <div className="flex w-full shrink-0 justify-center border-b border-slate-200 py-3">
+          <button
+            type="button"
+            onClick={onToggleCollapsed}
+            className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Expand sidebar"
+            title="Expand sidebar"
+          >
+            <ExpandIcon size={16} />
+          </button>
+        </div>
+        <div className="flex flex-1 flex-col items-center gap-3 py-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+          <span className="[writing-mode:vertical-rl] rotate-180">Files</span>
+          <span>{files.length}</span>
+          {showMatchCounts ? (
+            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-700">
+              {Array.from(matchCounts?.values() || []).reduce((total, count) => total + count, 0)}
+            </span>
+          ) : null}
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside
-      className={`flex h-full w-80 shrink-0 flex-col bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
+      className={`flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
         position === "left" ? "border-r border-slate-200" : "border-l border-slate-200"
       }`}
     >
-      <div className="border-b border-slate-200 px-4 py-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Files</p>
-        <p className="mt-1 text-sm text-slate-600">
-          {files.length} changed file{files.length === 1 ? "" : "s"}
-        </p>
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Files</p>
+          <p className="mt-1 text-sm text-slate-600">
+            {files.length} changed file{files.length === 1 ? "" : "s"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Collapse sidebar"
+          title="Collapse sidebar"
+        >
+          <CollapseIcon size={16} />
+        </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-2">
@@ -289,6 +353,8 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
                 }}
                 selectedPath={selectedPath}
                 onSelectPath={onSelectPath}
+                matchCounts={matchCounts}
+                showMatchCounts={showMatchCounts}
               />
             ))}
           </div>
@@ -296,7 +362,9 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
       </div>
 
       {footer ? (
-        <div className="max-h-[22rem] shrink-0 border-t border-slate-200">{footer}</div>
+        <div className="min-h-0 max-h-[45%] basis-[18rem] shrink-0 overflow-hidden border-t border-slate-200">
+          {footer}
+        </div>
       ) : null}
     </aside>
   );
