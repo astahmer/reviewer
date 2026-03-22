@@ -1,13 +1,22 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import React, { FC, useEffect, useMemo, useRef } from "react";
+import { Monitor, Moon, Sun } from "lucide-react";
 import { BranchSelector } from "~/components/branch-selector";
 import { CommitCompare } from "~/components/commit-compare";
 import { CommitSelector } from "~/components/commit-selector";
 import { DiffViewer } from "~/components/diff-viewer";
 import { EmptyState } from "~/components/empty-state";
 import { ErrorBanner } from "~/components/error-banner.tsx";
+import {
+  getSystemColorMode,
+  useColorMode,
+  useGlobalColorMode,
+  useLocalStorage,
+  useTheme,
+} from "~/components/hooks";
 import { RepositorySelector } from "~/components/repository-selector";
+import { DARK_THEMES, LIGHT_THEMES, STORAGE_KEYS } from "~/lib/constants";
 import {
   LOCAL_REF_WORKTREE,
   getCommitDisplayLabel,
@@ -30,6 +39,11 @@ export const HomePage: FC = () => {
   const navigate = useNavigate({ from: "/" });
   const searchParams = useSearch({ from: "/" });
   const queryClient = useQueryClient();
+  const [, setTheme] = useTheme();
+  const [, setColorMode] = useColorMode();
+  const [globalColorMode, setGlobalColorMode] = useGlobalColorMode();
+  const [lastLightTheme] = useLocalStorage<string>(STORAGE_KEYS.lastLightTheme, LIGHT_THEMES[0]);
+  const [lastDarkTheme] = useLocalStorage<string>(STORAGE_KEYS.lastDarkTheme, DARK_THEMES[0]);
 
   const [customPaths, setCustomPaths] = React.useState<string[]>([]);
   const [initialized, setInitialized] = React.useState(false);
@@ -57,6 +71,26 @@ export const HomePage: FC = () => {
         ...updates,
       }),
     });
+
+  const handleGlobalColorModeChange = (nextMode: "light" | "dark" | "auto") => {
+    setGlobalColorMode(nextMode);
+
+    if (nextMode === "light") {
+      setColorMode("light");
+      setTheme(lastLightTheme);
+      return;
+    }
+
+    if (nextMode === "dark") {
+      setColorMode("dark");
+      setTheme(lastDarkTheme);
+      return;
+    }
+
+    const systemMode = getSystemColorMode();
+    setColorMode("auto");
+    setTheme(systemMode === "dark" ? lastDarkTheme : lastLightTheme);
+  };
 
   useEffect(() => {
     const savedPaths = localStorage.getItem(CUSTOM_PATHS_KEY);
@@ -270,15 +304,55 @@ export const HomePage: FC = () => {
 
   if (!selectedRepo) {
     return (
-      <div className="flex h-screen flex-col bg-gray-50">
-        <main className="flex-1 min-h-0 p-2 overflow-hidden z-0">
+      <div className="flex h-screen flex-col bg-[var(--app-bg)]">
+        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-[var(--app-panel)] px-3 py-2 dark:border-slate-800">
+          <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Reviewer</h1>
+          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-[var(--app-panel-muted)] p-1 dark:border-slate-700">
+            <button
+              onClick={() => handleGlobalColorModeChange("light")}
+              className={`rounded px-2 py-1 transition-colors ${
+                globalColorMode === "light"
+                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              }`}
+              title="Light mode"
+              aria-label="Light mode"
+            >
+              <Sun size={14} />
+            </button>
+            <button
+              onClick={() => handleGlobalColorModeChange("auto")}
+              className={`rounded px-2 py-1 transition-colors ${
+                globalColorMode === "auto"
+                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              }`}
+              title="Auto mode (follows system)"
+              aria-label="Auto mode"
+            >
+              <Monitor size={14} />
+            </button>
+            <button
+              onClick={() => handleGlobalColorModeChange("dark")}
+              className={`rounded px-2 py-1 transition-colors ${
+                globalColorMode === "dark"
+                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              }`}
+              title="Dark mode"
+              aria-label="Dark mode"
+            >
+              <Moon size={14} />
+            </button>
+          </div>
+        </header>
+        <main className="flex flex-1 min-h-0 items-center justify-center p-2">
           <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
           <EmptyState>
             <RepositorySelector
               repositories={repositories}
               selectedRepo={selectedRepo}
               onRepoChange={(repo) => {
-                console.log("onRepoChange", repo);
                 localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
 
                 prevBaseBranchRef.current = "";
@@ -407,6 +481,44 @@ export const HomePage: FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-[var(--app-panel-muted)] p-1 dark:border-slate-700">
+            <button
+              onClick={() => handleGlobalColorModeChange("light")}
+              className={`rounded px-2 py-1 transition-colors ${
+                globalColorMode === "light"
+                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              }`}
+              title="Global light mode"
+              aria-label="Global light mode"
+            >
+              <Sun size={14} />
+            </button>
+            <button
+              onClick={() => handleGlobalColorModeChange("auto")}
+              className={`rounded px-2 py-1 transition-colors ${
+                globalColorMode === "auto"
+                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              }`}
+              title="Global auto mode"
+              aria-label="Global auto mode"
+            >
+              <Monitor size={14} />
+            </button>
+            <button
+              onClick={() => handleGlobalColorModeChange("dark")}
+              className={`rounded px-2 py-1 transition-colors ${
+                globalColorMode === "dark"
+                  ? "bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              }`}
+              title="Global dark mode"
+              aria-label="Global dark mode"
+            >
+              <Moon size={14} />
+            </button>
+          </div>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["diff"] })}
             className="rounded px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"

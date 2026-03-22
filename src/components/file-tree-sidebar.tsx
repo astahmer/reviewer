@@ -1,5 +1,5 @@
 import * as Ark from "@ark-ui/react";
-import { FC, ReactNode, useEffect, useMemo, useState } from "react";
+import { FC, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import {
   ArrowLeftRight,
@@ -149,14 +149,30 @@ const buildTree = (files: FileDiffMetadata[]) => {
 const getStatusLabel = (file?: FileDiffMetadata) => {
   switch (file?.type) {
     case "new":
-      return { label: "new", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+      return {
+        label: "new",
+        className:
+          "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300",
+      };
     case "deleted":
-      return { label: "del", className: "bg-rose-50 text-rose-700 border-rose-200" };
+      return {
+        label: "del",
+        className:
+          "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300",
+      };
     case "rename-pure":
     case "rename-changed":
-      return { label: "ren", className: "bg-amber-50 text-amber-700 border-amber-200" };
+      return {
+        label: "ren",
+        className:
+          "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300",
+      };
     default:
-      return { label: "mod", className: "bg-slate-100 text-slate-600 border-slate-200" };
+      return {
+        label: "mod",
+        className:
+          "border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200",
+      };
   }
 };
 
@@ -200,12 +216,12 @@ const TreeItem: FC<TreeItemProps> = ({
         onClick={() => onSelectPath(node.path)}
         className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
           isSelected
-            ? "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200"
-            : "text-slate-700 hover:bg-slate-100"
+            ? "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:ring-sky-800"
+            : "text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
         }`}
         style={{ paddingLeft: `${depth * 14 + 10}px` }}
       >
-        <span className="w-3 text-center text-slate-300">•</span>
+        <span className="w-3 text-center text-slate-400 dark:text-slate-600">•</span>
         <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
         {showMatchCounts && matchCount > 0 ? (
           <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
@@ -229,7 +245,7 @@ const TreeItem: FC<TreeItemProps> = ({
       <button
         type="button"
         onClick={() => onToggle(node.path)}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-slate-800 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
         style={{ paddingLeft: `${depth * 14 + 10}px` }}
       >
         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -239,7 +255,7 @@ const TreeItem: FC<TreeItemProps> = ({
             {directoryMatchCount}
           </span>
         ) : null}
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           {node.children.length}
         </span>
       </button>
@@ -319,6 +335,11 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
       }
     },
   });
+  const sectionSplitterRef = useRef(sectionSplitter);
+
+  useEffect(() => {
+    sectionSplitterRef.current = sectionSplitter;
+  }, [sectionSplitter]);
 
   useEffect(() => {
     setExpandedPaths((previous) => {
@@ -339,32 +360,40 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   const historyPanelCollapsed = sectionSplitter.isPanelCollapsed("history");
 
   useEffect(() => {
-    if (sectionCollapsedState.files && sectionCollapsedState.history) {
-      sectionSplitter.collapsePanel("files");
-      sectionSplitter.collapsePanel("history");
-      return;
+    if (sectionCollapsedState.files) {
+      sectionSplitterRef.current.collapsePanel("files");
+    } else if (sectionSplitterRef.current.isPanelCollapsed("files")) {
+      sectionSplitterRef.current.expandPanel("files", sectionSizes.files);
     }
 
-    if (sectionSplitter.isPanelCollapsed("files")) {
-      sectionSplitter.expandPanel("files", sectionSizes.files);
+    if (sectionCollapsedState.history) {
+      sectionSplitterRef.current.collapsePanel("history");
+    } else if (sectionSplitterRef.current.isPanelCollapsed("history")) {
+      sectionSplitterRef.current.expandPanel("history", sectionSizes.history);
     }
 
-    if (sectionSplitter.isPanelCollapsed("history")) {
-      sectionSplitter.expandPanel("history", sectionSizes.history);
+    if (!sectionCollapsedState.files && !sectionCollapsedState.history) {
+      sectionSplitterRef.current.setSizes([sectionSizes.files, sectionSizes.history]);
     }
-
-    sectionSplitter.setSizes([sectionSizes.files, sectionSizes.history]);
   }, [
     sectionCollapsedState.files,
     sectionCollapsedState.history,
     sectionSizes.files,
     sectionSizes.history,
-    sectionSplitter,
   ]);
 
-  const toggleSections = () => {
-    const nextCollapsed = !(sectionCollapsedState.files && sectionCollapsedState.history);
-    setSectionCollapsedState({ files: nextCollapsed, history: nextCollapsed });
+  const toggleFilesPanel = () => {
+    setSectionCollapsedState({
+      ...sectionCollapsedState,
+      files: !sectionCollapsedState.files,
+    });
+  };
+
+  const toggleHistoryPanel = () => {
+    setSectionCollapsedState({
+      ...sectionCollapsedState,
+      history: !sectionCollapsedState.history,
+    });
   };
 
   if (collapsed) {
@@ -406,11 +435,11 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-3 py-2 dark:border-slate-800">
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-gradient-to-b from-white via-slate-50 to-slate-100 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white/90 px-3 py-2 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/80">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
               Review
             </p>
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -447,36 +476,28 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
 
       <Ark.Splitter.RootProvider
         value={sectionSplitter}
-        className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden"
+        className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-[var(--app-panel-muted)]"
       >
         <Ark.Splitter.Panel id="files" className="min-h-0 overflow-hidden">
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
-            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-1.5 dark:border-slate-800">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/70 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950/40">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
                   Tree
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   {filesPanelCollapsed ? "collapsed" : "open"}
                 </span>
                 <button
                   type="button"
-                  onClick={toggleSections}
-                  className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                  aria-label={
-                    filesPanelCollapsed ? "Expand sidebar sections" : "Collapse sidebar sections"
-                  }
-                  title={
-                    filesPanelCollapsed ? "Expand sidebar sections" : "Collapse sidebar sections"
-                  }
+                  onClick={toggleFilesPanel}
+                  className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                  aria-label={filesPanelCollapsed ? "Expand file tree" : "Collapse file tree"}
+                  title={filesPanelCollapsed ? "Expand file tree" : "Collapse file tree"}
                 >
-                  {filesPanelCollapsed ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} className="rotate-90" />
-                  )}
+                  {filesPanelCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                 </button>
               </div>
             </div>
@@ -484,7 +505,7 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
             {!filesPanelCollapsed ? (
               <div className="min-h-0 flex-1 overflow-auto p-2">
                 {files.length === 0 ? (
-                  <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
+                  <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-600 dark:text-slate-400">
                     No files match the current diff filters.
                   </div>
                 ) : (
@@ -533,36 +554,30 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
 
             <Ark.Splitter.Panel id="history" className="min-h-0 overflow-hidden">
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-1.5 dark:border-slate-800">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/70 px-3 py-1.5 dark:border-slate-800 dark:bg-slate-950/40">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
                       Timeline
                     </p>
                   </div>
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
-                    {historyPanelCollapsed ? "collapsed" : "open"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={toggleSections}
-                    className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                    aria-label={
-                      historyPanelCollapsed
-                        ? "Expand sidebar sections"
-                        : "Collapse sidebar sections"
-                    }
-                    title={
-                      historyPanelCollapsed
-                        ? "Expand sidebar sections"
-                        : "Collapse sidebar sections"
-                    }
-                  >
-                    {historyPanelCollapsed ? (
-                      <ChevronDown size={14} />
-                    ) : (
-                      <ChevronRight size={14} className="rotate-90" />
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      {historyPanelCollapsed ? "collapsed" : "open"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleHistoryPanel}
+                      className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                      aria-label={historyPanelCollapsed ? "Expand history" : "Collapse history"}
+                      title={historyPanelCollapsed ? "Expand history" : "Collapse history"}
+                    >
+                      {historyPanelCollapsed ? (
+                        <ChevronRight size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {!historyPanelCollapsed ? (

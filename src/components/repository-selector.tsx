@@ -72,16 +72,16 @@ export const RepositorySelector: FC<RepositorySelectorProps> = ({
       positioning={{ sameWidth: true }}
     >
       <Popover.Trigger asChild>
-        <button className="flex w-56 items-center justify-between gap-2 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50">
-          <span className="truncate text-gray-900">
+        <button className="flex w-56 items-center justify-between gap-2 rounded border border-slate-300 bg-[var(--app-panel)] px-2 py-1.5 text-xs shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50 dark:border-slate-700 dark:hover:bg-slate-800 dark:data-[state=open]:bg-blue-950/40">
+          <span className="truncate text-slate-900 dark:text-slate-100">
             {selectedRepo?.name || "Select repository..."}
           </span>
-          <ChevronDown className="h-3 w-3 flex-shrink-0 text-gray-400" />
+          <ChevronDown className="h-3 w-3 flex-shrink-0 text-slate-400 dark:text-slate-500" />
         </button>
       </Popover.Trigger>
       <Portal>
         <Popover.Positioner>
-          <Popover.Content className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+          <Popover.Content className="overflow-hidden rounded-md border border-slate-200 bg-[var(--app-panel)] text-slate-800 shadow-lg dark:border-slate-700 dark:text-slate-100">
             {!showCustomPathInput ? (
               <>
                 <Combobox.Root
@@ -93,15 +93,15 @@ export const RepositorySelector: FC<RepositorySelectorProps> = ({
                   onValueChange={handleRepoValueChange}
                   onInputValueChange={(details) => setRepoInputValue(details.inputValue)}
                 >
-                  <Combobox.Control className="relative border-b border-gray-200">
+                  <Combobox.Control className="relative border-b border-slate-200 dark:border-slate-700">
                     <Combobox.Input
                       autoFocus
-                      className="w-full bg-white px-2 py-1.5 text-xs outline-none placeholder:text-gray-400 focus:ring-0"
+                      className="w-full bg-[var(--app-panel)] px-2 py-1.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-100"
                       placeholder="Search repositories..."
                     />
                   </Combobox.Control>
                   <Combobox.List className="max-h-64 w-full overflow-y-auto p-1">
-                    <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
+                    <Combobox.Empty className="px-2 py-3 text-center text-xs text-slate-500 dark:text-slate-500">
                       No repositories found
                     </Combobox.Empty>
                     <Combobox.Context>
@@ -110,7 +110,7 @@ export const RepositorySelector: FC<RepositorySelectorProps> = ({
                           <Combobox.Item
                             key={repo.path}
                             item={repo}
-                            className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
+                            className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50 data-[highlighted]:bg-slate-50 data-[selected]:bg-blue-50 dark:text-slate-200 dark:hover:bg-slate-800 dark:data-[highlighted]:bg-slate-800 dark:data-[selected]:bg-blue-950/40"
                             onClick={() => api.selectValue(repo.path)}
                           >
                             <span className="truncate">{repo.name}</span>
@@ -137,15 +137,15 @@ export const RepositorySelector: FC<RepositorySelectorProps> = ({
                 </Combobox.Root>
                 <button
                   onClick={() => setShowCustomPathInput(true)}
-                  className="w-full border-t border-gray-200 px-2 py-2 text-left text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  className="flex w-full items-center gap-2 border-t border-slate-200 px-2 py-2 text-left text-xs text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                 >
                   <Plus className="h-3 w-3" />
                   <span>Add custom path...</span>
                 </button>
               </>
             ) : (
-              <div className="p-2 space-y-2">
-                <p className="text-xs text-gray-600 mb-1">
+              <div className="space-y-2 p-2">
+                <p className="mb-1 text-xs text-slate-700 dark:text-slate-300">
                   Enter a path to search for repositories:
                 </p>
                 <input
@@ -161,7 +161,7 @@ export const RepositorySelector: FC<RepositorySelectorProps> = ({
                     }
                   }}
                   placeholder="/path/to/repos"
-                  className="w-full rounded border border-gray-300 px-2 py-1 text-xs"
+                  className="w-full rounded border border-slate-300 bg-[var(--app-panel)] px-2 py-1 text-xs text-slate-900 dark:border-slate-700 dark:text-slate-100"
                 />
                 <div className="flex gap-1">
                   <button
@@ -172,7 +172,7 @@ export const RepositorySelector: FC<RepositorySelectorProps> = ({
                   </button>
                   <button
                     onClick={() => setShowCustomPathInput(false)}
-                    className="flex-1 rounded bg-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-300"
+                    className="flex-1 rounded bg-slate-200 px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                   >
                     Cancel
                   </button>

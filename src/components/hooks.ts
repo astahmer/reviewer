@@ -9,6 +9,15 @@ import { UserPreferences, Line } from "~/lib/types";
 import type { ColorMode } from "~/lib/constants";
 
 type StorageUpdater<T> = T | ((currentValue: T) => T);
+const LOCAL_STORAGE_SYNC_EVENT = "reviewer:local-storage-sync";
+
+export function getSystemColorMode(): Exclude<ColorMode, "auto"> {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
 
 /**
  * Generic hook for localStorage persistence
@@ -46,6 +55,11 @@ export function useLocalStorage<T>(
       if (typeof window !== "undefined") {
         try {
           localStorage.setItem(key, JSON.stringify(resolvedValue));
+          window.dispatchEvent(
+            new CustomEvent(LOCAL_STORAGE_SYNC_EVENT, {
+              detail: { key, value: resolvedValue },
+            }),
+          );
         } catch {
           // Silently fail if localStorage is unavailable
         }
@@ -54,6 +68,42 @@ export function useLocalStorage<T>(
       return resolvedValue;
     });
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncFromStorage = () => {
+      try {
+        const stored = localStorage.getItem(key);
+        setValue(stored ? (JSON.parse(stored) as T) : defaultValue);
+      } catch {
+        setValue(defaultValue);
+      }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === key) {
+        syncFromStorage();
+      }
+    };
+
+    const handleCustomSync = (event: Event) => {
+      const customEvent = event as CustomEvent<{ key: string; value: T }>;
+      if (customEvent.detail?.key === key) {
+        setValue(customEvent.detail.value);
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener(LOCAL_STORAGE_SYNC_EVENT, handleCustomSync as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(LOCAL_STORAGE_SYNC_EVENT, handleCustomSync as EventListener);
+    };
+  }, [defaultValue, key]);
 
   return [value, updateValue];
 }
@@ -176,6 +226,35 @@ export function useGlobalColorMode(): [ColorMode, (mode: ColorMode) => void] {
   };
 
   return [prefs.globalColorMode || "auto", updateGlobalColorMode];
+}
+
+/**
+ * Hook to resolve global color mode, including live system preference changes for auto mode.
+ */
+export function useResolvedGlobalColorMode(): Exclude<ColorMode, "auto"> {
+  const [globalColorMode] = useGlobalColorMode();
+  const [resolvedMode, setResolvedMode] = useState<Exclude<ColorMode, "auto">>(() =>
+    globalColorMode === "auto" ? getSystemColorMode() : globalColorMode,
+  );
+
+  useEffect(() => {
+    if (globalColorMode !== "auto") {
+      setResolvedMode(globalColorMode);
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const updateMode = () => setResolvedMode(mediaQuery.matches ? "dark" : "light");
+
+    updateMode();
+    mediaQuery.addEventListener("change", updateMode);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateMode);
+    };
+  }, [globalColorMode]);
+
+  return resolvedMode;
 }
 
 /**

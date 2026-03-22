@@ -4,12 +4,11 @@ import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import { parseDiffFromFile } from "@pierre/diffs";
 import type { FileDiffMetadata, FileContents } from "@pierre/diffs";
 import * as Ark from "@ark-ui/react";
-import { Sun, Moon, ChevronDown, WrapText, Eye, Monitor } from "lucide-react";
+import { Sun, Moon, ChevronDown, WrapText, Eye } from "lucide-react";
 import {
   useViewMode,
   useTheme,
   useColorMode,
-  useGlobalColorMode,
   useWrapping,
   useIgnoreWhitespace,
   useLocalStorage,
@@ -120,14 +119,6 @@ const SIDEBAR_DEFAULT_SIZE = 28;
 const SIDEBAR_MIN_SIZE = 16;
 const SIDEBAR_COLLAPSED_SIZE = 3.2;
 
-const getResolvedSystemMode = () => {
-  if (typeof window === "undefined") {
-    return "light" as const;
-  }
-
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-};
-
 /**
  * Unified and Split diff viewer using @pierre/diffs
  */
@@ -149,7 +140,6 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const [viewMode, setViewMode] = useViewMode();
   const [theme, setTheme] = useTheme();
   const [colorMode, setColorMode] = useColorMode();
-  const [globalColorMode, setGlobalColorMode] = useGlobalColorMode();
   const [wrapping, setWrapping] = useWrapping();
   const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
   const [sidebarPosition, setSidebarPosition] = useSidebarPosition();
@@ -221,6 +211,11 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     () => parseSearchQuery(searchParams.searchQuery),
     [searchParams.searchQuery],
   );
+  const layoutSplitterRef = useRef(layoutSplitter);
+
+  useEffect(() => {
+    layoutSplitterRef.current = layoutSplitter;
+  }, [layoutSplitter]);
 
   useEffect(() => {
     setSearchInput(searchParams.searchQuery || "");
@@ -228,19 +223,19 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   useEffect(() => {
     if (sidebarCollapsed) {
-      layoutSplitter.collapsePanel("sidebar");
+      layoutSplitterRef.current.collapsePanel("sidebar");
       return;
     }
 
-    if (layoutSplitter.isPanelCollapsed("sidebar")) {
-      layoutSplitter.expandPanel("sidebar", sidebarSize || SIDEBAR_DEFAULT_SIZE);
+    if (layoutSplitterRef.current.isPanelCollapsed("sidebar")) {
+      layoutSplitterRef.current.expandPanel("sidebar", sidebarSize || SIDEBAR_DEFAULT_SIZE);
     }
     const nextSizes =
       sidebarPosition === "left"
         ? [sidebarSize, 100 - sidebarSize]
         : [100 - sidebarSize, sidebarSize];
-    layoutSplitter.setSizes(nextSizes);
-  }, [layoutSplitter, sidebarCollapsed, sidebarPosition, sidebarSize]);
+    layoutSplitterRef.current.setSizes(nextSizes);
+  }, [sidebarCollapsed, sidebarPosition, sidebarSize]);
 
   const handleExpandFile = useCallback(
     async (
@@ -359,26 +354,6 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     }
   };
 
-  const handleGlobalColorModeChange = (nextMode: "light" | "dark" | "auto") => {
-    setGlobalColorMode(nextMode);
-
-    if (nextMode === "light") {
-      setColorMode("light");
-      setTheme(lastLightTheme);
-      return;
-    }
-
-    if (nextMode === "dark") {
-      setColorMode("dark");
-      setTheme(lastDarkTheme);
-      return;
-    }
-
-    const resolvedMode = getResolvedSystemMode();
-    setColorMode("auto");
-    setTheme(resolvedMode === "dark" ? lastDarkTheme : lastLightTheme);
-  };
-
   // Get files to render - use expanded full diff if available, otherwise use partial
   const getRenderFiles = useCallback(() => {
     const baseFiles = diff.pierreData || [];
@@ -491,13 +466,13 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       </div>
 
       {/* View mode toggle group */}
-      <div className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900">
         <button
           onClick={() => setViewMode("unified")}
           className={`px-3 py-1.5 text-sm font-medium transition-colors rounded ${
             viewMode === "unified"
-              ? "bg-gray-100 text-gray-900 shadow-sm border border-gray-300"
-              : "text-gray-600 hover:text-gray-900"
+              ? "border border-slate-300 bg-slate-100 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
           }`}
           title="Unified diff view (stacked)"
         >
@@ -507,8 +482,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           onClick={() => setViewMode("split")}
           className={`px-3 py-1.5 text-sm font-medium transition-colors rounded ${
             viewMode === "split"
-              ? "bg-gray-100 text-gray-900 shadow-sm border border-gray-300"
-              : "text-gray-600 hover:text-gray-900"
+              ? "border border-slate-300 bg-slate-100 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
           }`}
           title="Split diff view (side-by-side)"
         >
@@ -518,54 +493,17 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
       {/* Color mode and theme toggle-split group */}
       <div className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
-        <Tooltip content="Global light mode">
-          <button
-            onClick={() => handleGlobalColorModeChange("light")}
-            className={`rounded border px-2 py-1.5 transition-colors ${
-              globalColorMode === "light"
-                ? "border-slate-300 bg-slate-100 text-slate-900"
-                : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-            }`}
-          >
-            <Sun size={14} />
-          </button>
-        </Tooltip>
-        <Tooltip content="Global auto mode">
-          <button
-            onClick={() => handleGlobalColorModeChange("auto")}
-            className={`rounded border px-2 py-1.5 transition-colors ${
-              globalColorMode === "auto"
-                ? "border-slate-300 bg-slate-100 text-slate-900"
-                : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-            }`}
-          >
-            <Monitor size={14} />
-          </button>
-        </Tooltip>
-        <Tooltip content="Global dark mode">
-          <button
-            onClick={() => handleGlobalColorModeChange("dark")}
-            className={`rounded border px-2 py-1.5 transition-colors ${
-              globalColorMode === "dark"
-                ? "border-slate-300 bg-slate-100 text-slate-900"
-                : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-            }`}
-          >
-            <Moon size={14} />
-          </button>
-        </Tooltip>
-        <span className="mx-1 h-5 w-px bg-slate-200 dark:bg-slate-700" />
         {/* Auto button */}
         <Tooltip content="Auto theme">
           <button
             onClick={() => {
               setColorMode("auto");
-              setTheme(lastLightTheme);
+              setTheme(theme);
             }}
             className={`px-2 py-1.5 transition-colors rounded border ${
               colorMode === "auto"
-                ? "bg-gray-100 text-gray-900 shadow-sm border-gray-300"
-                : "text-gray-600 hover:text-gray-900 border-transparent"
+                ? "border-slate-300 bg-slate-100 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
             }`}
           >
             ⚙️
@@ -586,8 +524,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({
                 }}
                 className={`px-2 py-1.5 transition-colors flex items-center gap-1 rounded-l border ${
                   colorMode === "light"
-                    ? "bg-gray-100 text-gray-900 shadow-sm border-gray-300"
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                    ? "border-slate-300 bg-slate-100 text-slate-900 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                    : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                 }`}
               >
                 <Sun size={16} />
@@ -595,9 +533,9 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             </Tooltip>
             <Ark.Menu.Trigger asChild>
               <button
-                className={`px-1.5 py-1.5 text-gray-600 hover:text-gray-900 transition-colors rounded-r border ${
+                className={`rounded-r border px-1.5 py-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 ${
                   colorMode === "light"
-                    ? "bg-gray-100 shadow-sm border-gray-300"
+                    ? "border-slate-300 bg-slate-100 shadow-sm dark:border-slate-600 dark:bg-slate-800"
                     : "border-transparent"
                 }`}
               >
@@ -606,7 +544,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             </Ark.Menu.Trigger>
           </div>
           <Ark.Menu.Positioner>
-            <Ark.Menu.Content className="bg-white border border-gray-300 rounded shadow-lg z-50 py-1 min-w-40">
+            <Ark.Menu.Content className="z-50 min-w-40 rounded border border-slate-200 bg-[var(--app-panel)] py-1 shadow-lg dark:border-slate-700">
               {LIGHT_THEMES.map((t) => (
                 <Ark.Menu.Item
                   key={t}
@@ -614,8 +552,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({
                   onClick={() => handleLightThemeChange(t)}
                   className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
                     theme === t
-                      ? "bg-blue-50 text-blue-600 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
+                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
                   }`}
                 >
                   {t
@@ -642,8 +580,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({
                 }}
                 className={`px-2 py-1.5 transition-colors flex items-center gap-1 rounded-l border ${
                   colorMode === "dark"
-                    ? "bg-blue-900 text-white shadow-sm border-blue-700"
-                    : "text-gray-600 hover:text-gray-900 border-transparent"
+                    ? "border-slate-600 bg-slate-800 text-slate-100 shadow-sm"
+                    : "border-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                 }`}
               >
                 <Moon size={16} />
@@ -651,9 +589,9 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             </Tooltip>
             <Ark.Menu.Trigger asChild>
               <button
-                className={`px-1.5 py-1.5 text-gray-600 transition-colors rounded-r border ${
+                className={`rounded-r border px-1.5 py-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 ${
                   colorMode === "dark"
-                    ? "bg-blue-900 text-white shadow-sm border-blue-700 hover:text-white"
+                    ? "border-slate-600 bg-slate-800 text-slate-100 shadow-sm"
                     : "border-transparent"
                 }`}
               >
@@ -662,7 +600,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             </Ark.Menu.Trigger>
           </div>
           <Ark.Menu.Positioner>
-            <Ark.Menu.Content className="bg-white border border-gray-300 rounded shadow-lg z-50 py-1 min-w-40">
+            <Ark.Menu.Content className="z-50 min-w-40 rounded border border-slate-200 bg-[var(--app-panel)] py-1 shadow-lg dark:border-slate-700">
               {DARK_THEMES.map((t) => (
                 <Ark.Menu.Item
                   key={t}
@@ -670,8 +608,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({
                   onClick={() => handleDarkThemeChange(t)}
                   className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
                     theme === t
-                      ? "bg-blue-50 text-blue-600 font-medium"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
+                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
                   }`}
                 >
                   {t
@@ -691,7 +629,9 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           <button
             onClick={() => setWrapping(!wrapping)}
             className={`p-1.5 rounded transition-colors ${
-              wrapping ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"
+              wrapping
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300"
+                : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             }`}
           >
             <WrapText size={18} />
@@ -701,7 +641,9 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           <button
             onClick={() => setIgnoreWhitespace(!ignoreWhitespace)}
             className={`p-1.5 rounded transition-colors ${
-              ignoreWhitespace ? "bg-blue-100 text-blue-600" : "text-gray-600 hover:bg-gray-100"
+              ignoreWhitespace
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-300"
+                : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
             }`}
           >
             <Eye size={18} />
@@ -720,7 +662,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   const MainContent =
     !renderFiles || renderFiles.length === 0 ? (
-      <div className="flex h-full items-center justify-center px-6 text-center text-gray-500">
+      <div className="flex h-full items-center justify-center px-6 text-center text-slate-600 dark:text-slate-400">
         No diff data available
       </div>
     ) : (
@@ -805,7 +747,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           <>
             <Ark.Splitter.Panel
               id="sidebar"
-              className="min-h-0 overflow-hidden border-r border-slate-200"
+              className="min-h-0 overflow-hidden border-r border-slate-200 dark:border-slate-800"
             >
               {renderSidebar()}
             </Ark.Splitter.Panel>
@@ -842,7 +784,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
             <Ark.Splitter.Panel
               id="sidebar"
-              className="min-h-0 overflow-hidden border-l border-slate-200"
+              className="min-h-0 overflow-hidden border-l border-slate-200 dark:border-slate-800"
             >
               {renderSidebar()}
             </Ark.Splitter.Panel>

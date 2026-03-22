@@ -9,9 +9,9 @@ export const EmptyState: FC<EmptyStateProps> = ({
   message = "Select a repository to get started.",
 }) => {
   return (
-    <div className="h-full rounded border border-gray-200 bg-white flex flex-col items-center justify-center text-gray-600 text-sm gap-4 p-6">
+    <div className="flex h-full flex-col items-center justify-center gap-4 rounded border border-slate-200 bg-[var(--app-panel)] p-6 text-sm text-slate-700 shadow-sm dark:border-slate-800 dark:text-slate-300">
       <div className="text-center">
-        <p className="font-medium mb-2">{message}</p>
+        <p className="mb-2 font-medium text-slate-800 dark:text-slate-100">{message}</p>
         {children}
       </div>
     </div>

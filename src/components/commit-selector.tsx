@@ -86,20 +86,20 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
       // positioning={{ sameWidth: true }}
     >
       <Popover.Trigger asChild>
-        <button className="flex w-full items-center justify-between gap-2 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs font-mono hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50">
-          <span className="truncate text-gray-900">
+        <button className="flex w-full items-center justify-between gap-2 rounded border border-slate-300 bg-[var(--app-panel)] px-2 py-1.5 text-xs font-mono shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50 dark:border-slate-700 dark:hover:bg-slate-800 dark:data-[state=open]:bg-blue-950/40">
+          <span className="truncate text-slate-900 dark:text-slate-100">
             {selectedCommit
               ? getCommitDisplayLabel(selectedCommit)
               : isLoading
                 ? "Loading..."
                 : placeholder}
           </span>
-          <ChevronDown className="h-3 w-3 flex-shrink-0 text-gray-400" />
+          <ChevronDown className="h-3 w-3 flex-shrink-0 text-slate-400 dark:text-slate-500" />
         </button>
       </Popover.Trigger>
       <Portal>
         <Popover.Positioner>
-          <Popover.Content className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+          <Popover.Content className="overflow-hidden rounded-md border border-slate-200 bg-[var(--app-panel)] text-slate-800 shadow-lg dark:border-slate-700 dark:text-slate-100">
             <Combobox.Root
               openOnClick
               loopFocus
@@ -113,21 +113,21 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
               }}
               onInputValueChange={(details) => setInputValue(details.inputValue)}
             >
-              <Combobox.Control className="relative border-b border-gray-200">
+              <Combobox.Control className="relative border-b border-slate-200 dark:border-slate-700">
                 <Combobox.Input
                   ref={inputRef}
                   autoFocus
-                  className="w-full bg-white px-2 py-1.5 text-xs font-mono outline-none placeholder:text-gray-400 focus:ring-0"
+                  className="w-full bg-[var(--app-panel)] px-2 py-1.5 text-xs font-mono text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-100"
                   placeholder={placeholder}
                 />
               </Combobox.Control>
               <Combobox.List className="max-h-60 w-full overflow-y-auto p-1">
-                <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
+                <Combobox.Empty className="px-2 py-3 text-center text-xs text-slate-500 dark:text-slate-500">
                   No commits found
                 </Combobox.Empty>
                 {Object.entries(groupedItems).map(([month, commitList]) => (
                   <div key={month}>
-                    <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 sticky top-0 bg-gray-50">
+                    <div className="sticky top-0 bg-slate-100 px-2 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-400">
                       {month}
                     </div>
                     <Combobox.Context>
@@ -136,35 +136,41 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
                           <Combobox.Item
                             key={commit.hash}
                             item={commit}
-                            className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
+                            className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-slate-50 data-[highlighted]:bg-slate-50 data-[selected]:bg-blue-50 dark:hover:bg-slate-800 dark:data-[highlighted]:bg-slate-800 dark:data-[selected]:bg-blue-950/40"
                             onClick={() => api.selectValue(commit.hash)}
                           >
                             <div className="min-w-0 flex-1 text-xs">
                               {isLocalCommit(commit) ? (
                                 <>
                                   <div className="flex items-center gap-1.5">
-                                    <span className="font-medium text-amber-700">
+                                    <span className="font-medium text-amber-700 dark:text-amber-300">
                                       {getCommitDisplayLabel(commit)}
                                     </span>
-                                    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                                    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                                       local
                                     </span>
                                   </div>
-                                  <div className="truncate text-gray-600">
+                                  <div className="truncate text-slate-600 dark:text-slate-300">
                                     {getLocalRefDescription(commit.hash)}
                                   </div>
                                 </>
                               ) : (
                                 <>
                                   <div className="flex items-center gap-1.5">
-                                    <span className="font-mono text-blue-600">
+                                    <span className="font-mono text-blue-600 dark:text-blue-300">
                                       {commit.hash.slice(0, 7)}
                                     </span>
-                                    <span className="text-gray-400">{formatDate(commit.date)}</span>
-                                    <span className="text-gray-400">·</span>
-                                    <span className="text-gray-400">{commit.author}</span>
+                                    <span className="text-slate-500 dark:text-slate-500">
+                                      {formatDate(commit.date)}
+                                    </span>
+                                    <span className="text-slate-500 dark:text-slate-500">·</span>
+                                    <span className="text-slate-500 dark:text-slate-500">
+                                      {commit.author}
+                                    </span>
                                   </div>
-                                  <div className="truncate text-gray-600">{commit.message}</div>
+                                  <div className="truncate text-slate-700 dark:text-slate-300">
+                                    {commit.message}
+                                  </div>
                                 </>
                               )}
                             </div>

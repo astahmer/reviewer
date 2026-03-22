@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Tailwind v4: configure class-based dark mode (must come before @theme) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-diff-add: #d4edda;
   --color-diff-add-border: #c3e6cb;

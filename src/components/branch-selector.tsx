@@ -79,16 +79,16 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
       // positioning={{ sameWidth: true }}
     >
       <Popover.Trigger asChild>
-        <button className="flex w-full items-center justify-between gap-2 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50">
-          <span className="truncate text-gray-900">
+        <button className="flex w-full items-center justify-between gap-2 rounded border border-slate-300 bg-[var(--app-panel)] px-2 py-1.5 text-xs shadow-sm hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50 dark:border-slate-700 dark:hover:bg-slate-800 dark:data-[state=open]:bg-blue-950/40">
+          <span className="truncate text-slate-900 dark:text-slate-100">
             {selectedBranch ? selectedBranch.name : isLoading ? "Loading..." : placeholder}
           </span>
-          <ChevronDown className="h-3 w-3 flex-shrink-0 text-gray-400" />
+          <ChevronDown className="h-3 w-3 flex-shrink-0 text-slate-400 dark:text-slate-500" />
         </button>
       </Popover.Trigger>
       <Portal>
         <Popover.Positioner>
-          <Popover.Content className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+          <Popover.Content className="overflow-hidden rounded-md border border-slate-200 bg-[var(--app-panel)] text-slate-800 shadow-lg dark:border-slate-700 dark:text-slate-100">
             <Combobox.Root
               openOnClick
               loopFocus
@@ -102,16 +102,16 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
               }}
               onInputValueChange={(details) => setInputValue(details.inputValue)}
             >
-              <Combobox.Control className="relative border-b border-gray-200">
+              <Combobox.Control className="relative border-b border-slate-200 dark:border-slate-700">
                 <Combobox.Input
                   ref={inputRef}
                   autoFocus
-                  className="w-full bg-white px-2 py-1.5 text-xs outline-none placeholder:text-gray-400 focus:ring-0"
+                  className="w-full bg-[var(--app-panel)] px-2 py-1.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-100"
                   placeholder={placeholder}
                 />
               </Combobox.Control>
               <Combobox.List className="max-h-60 w-full overflow-y-auto p-1">
-                <Combobox.Empty className="px-2 py-3 text-center text-xs text-gray-400">
+                <Combobox.Empty className="px-2 py-3 text-center text-xs text-slate-500 dark:text-slate-500">
                   No branches found
                 </Combobox.Empty>
                 <Combobox.Context>
@@ -120,7 +120,7 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
                       {detectedDefault && value !== detectedDefault && (
                         <Combobox.Item
                           item={detectedDefault}
-                          className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 data-[highlighted]:bg-blue-50"
+                          className="flex cursor-pointer items-center justify-between rounded px-2 py-1.5 text-xs text-blue-600 hover:bg-blue-50 data-[highlighted]:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-950/40 dark:data-[highlighted]:bg-blue-950/40"
                           onClick={() => api.selectValue(detectedDefault)}
                         >
                           <Combobox.ItemText>Default: {detectedDefault}</Combobox.ItemText>
@@ -143,34 +143,36 @@ export const BranchSelector: FC<BranchSelectorProps> = ({
                       )}
                       {Object.entries(groupedItems).map(([month, branches]) => (
                         <div key={month}>
-                          <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 sticky top-0 bg-gray-50">
+                          <div className="sticky top-0 bg-slate-100 px-2 py-1.5 text-xs font-semibold text-slate-600 dark:bg-slate-900 dark:text-slate-400">
                             {month}
                           </div>
                           {branches.map((branch: BranchInfo) => (
                             <Combobox.Item
                               key={branch.name}
                               item={branch}
-                              className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-gray-50 data-[highlighted]:bg-gray-50 data-[selected]:bg-blue-50"
+                              className="flex cursor-pointer items-center justify-between gap-2 rounded px-2 py-1 text-left hover:bg-slate-50 data-[highlighted]:bg-slate-50 data-[selected]:bg-blue-50 dark:hover:bg-slate-800 dark:data-[highlighted]:bg-slate-800 dark:data-[selected]:bg-blue-950/40"
                               onClick={() => api.selectValue(branch.name)}
                             >
                               <div className="min-w-0 flex-1 text-xs">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="font-mono font-medium text-gray-700">
+                                  <span className="font-mono font-medium text-slate-700 dark:text-slate-200">
                                     {branch.name}
                                   </span>
                                   {detectedDefault === branch.name && (
-                                    <span className="text-gray-400">(default)</span>
+                                    <span className="text-slate-500 dark:text-slate-500">
+                                      (default)
+                                    </span>
                                   )}
-                                  <span className="text-gray-400">·</span>
-                                  <span className="text-gray-400">
+                                  <span className="text-slate-500 dark:text-slate-500">·</span>
+                                  <span className="text-slate-500 dark:text-slate-500">
                                     {formatDate(branch.latestCommit.date)}
                                   </span>
-                                  <span className="text-gray-400">·</span>
-                                  <span className="text-gray-400">
+                                  <span className="text-slate-500 dark:text-slate-500">·</span>
+                                  <span className="text-slate-500 dark:text-slate-500">
                                     {branch.latestCommit.author}
                                   </span>
                                 </div>
-                                <div className="truncate text-gray-600">
+                                <div className="truncate text-slate-700 dark:text-slate-300">
                                   {branch.latestCommit.message}
                                 </div>
                               </div>
