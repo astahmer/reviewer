@@ -157,6 +157,38 @@ export function useWrapping(): [boolean, (wrapping: boolean) => void] {
 }
 
 /**
+ * Hook to manage file tree sidebar position preference
+ */
+export function useSidebarPosition(): ["left" | "right", (position: "left" | "right") => void] {
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
+
+  const updateSidebarPosition = (position: "left" | "right") => {
+    setPrefs({ ...prefs, sidebarPosition: position });
+  };
+
+  return [prefs.sidebarPosition || "left", updateSidebarPosition];
+}
+
+/**
+ * Hook to manage file tree sidebar collapsed state
+ */
+export function useSidebarCollapsed(): [boolean, (collapsed: boolean) => void] {
+  const [prefs, setPrefs] = useLocalStorage<UserPreferences>(
+    STORAGE_KEYS.preferences,
+    DEFAULT_PREFERENCES,
+  );
+
+  const updateSidebarCollapsed = (collapsed: boolean) => {
+    setPrefs({ ...prefs, sidebarCollapsed: collapsed });
+  };
+
+  return [prefs.sidebarCollapsed === true, updateSidebarCollapsed];
+}
+
+/**
  * Hook to manage ignore whitespace preference
  */
 export function useIgnoreWhitespace(): [boolean, (ignore: boolean) => void] {

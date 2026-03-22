@@ -92,4 +92,8 @@ export interface UserPreferences {
   colorMode?: "light" | "dark" | "auto";
   /** Whether to enable line wrapping */
   wrapping?: boolean;
+  /** Preferred side for the file tree sidebar */
+  sidebarPosition?: "left" | "right";
+  /** Whether the file tree sidebar is collapsed */
+  sidebarCollapsed?: boolean;
 }

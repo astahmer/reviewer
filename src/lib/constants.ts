@@ -27,6 +27,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   theme: "pierre-dark",
   colorMode: "auto",
   wrapping: false,
+  sidebarPosition: "left",
+  sidebarCollapsed: false,
 };
 
 // Light themes for @pierre/diffs

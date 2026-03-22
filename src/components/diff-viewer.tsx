@@ -1,4 +1,4 @@
-import { FC, useMemo, useState, useCallback } from "react";
+import { FC, useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useSearch, useNavigate } from "@tanstack/react-router";
 import { FileDiff as FileDiffComponent } from "@pierre/diffs/react";
 import { parseDiffFromFile } from "@pierre/diffs";
@@ -12,10 +12,13 @@ import {
   useWrapping,
   useIgnoreWhitespace,
   useLocalStorage,
+  useSidebarPosition,
+  useSidebarCollapsed,
 } from "~/components/hooks";
 import { LIGHT_THEMES, DARK_THEMES, STORAGE_KEYS } from "~/lib/constants";
 import { Diff } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
+import { FileTreeSidebar } from "./file-tree-sidebar";
 import { Tooltip } from "./tooltip";
 
 interface DiffViewerProps {
@@ -41,12 +44,15 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   const [colorMode, setColorMode] = useColorMode();
   const [wrapping, setWrapping] = useWrapping();
   const [ignoreWhitespace, setIgnoreWhitespace] = useIgnoreWhitespace();
+  const [sidebarPosition, setSidebarPosition] = useSidebarPosition();
+  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
 
   const [expandedFiles, setExpandedFiles] = useState<Map<string, ExpandedFileData>>(new Map());
   const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
   const [lightMenuOpen, setLightMenuOpen] = useState(false);
   const [darkMenuOpen, setDarkMenuOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.searchQuery || "");
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
 
   const handleExpandFile = useCallback(
     async (
@@ -203,6 +209,36 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   }, [diff.pierreData, expandedFiles, searchParams.searchQuery]);
 
   const renderFiles = useMemo(() => getRenderFiles(), [getRenderFiles]);
+
+  const fileRefs = useRef(new Map<string, HTMLDivElement>());
+
+  const setFileRef = useCallback((path: string, element: HTMLDivElement | null) => {
+    if (element) {
+      fileRefs.current.set(path, element);
+    } else {
+      fileRefs.current.delete(path);
+    }
+  }, []);
+
+  const handleSelectPath = useCallback((path: string) => {
+    setSelectedPath(path);
+    fileRefs.current.get(path)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const renderPaths = useMemo(() => renderFiles.map((file) => file.name), [renderFiles]);
+
+  useEffect(() => {
+    if (renderPaths.length === 0) {
+      if (selectedPath !== null) {
+        setSelectedPath(null);
+      }
+      return;
+    }
+
+    if (!selectedPath || !renderPaths.includes(selectedPath)) {
+      setSelectedPath(renderPaths[0] ?? null);
+    }
+  }, [renderPaths, selectedPath]);
 
   const Controls = (
     <>
@@ -403,6 +439,28 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
 
         {/* Wrapping and Ignore whitespace toggles */}
         <div className="flex items-center gap-2 flex-shrink-0 border-l border-gray-300 pl-4">
+          <Tooltip content={sidebarCollapsed ? "Show file tree" : "Hide file tree"}>
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className={`rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                sidebarCollapsed
+                  ? "bg-white text-gray-600 hover:bg-gray-100"
+                  : "bg-gray-100 text-gray-900"
+              }`}
+            >
+              {sidebarCollapsed ? "Show files" : "Hide files"}
+            </button>
+          </Tooltip>
+          <Tooltip
+            content={`Move file tree to the ${sidebarPosition === "left" ? "right" : "left"}`}
+          >
+            <button
+              onClick={() => setSidebarPosition(sidebarPosition === "left" ? "right" : "left")}
+              className="rounded px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100"
+            >
+              Files {sidebarPosition === "left" ? "Left" : "Right"}
+            </button>
+          </Tooltip>
           <Tooltip content="Toggle line wrapping">
             <button
               onClick={() => setWrapping(!wrapping)}
@@ -449,41 +507,61 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
       {Controls}
 
       {/* Diff content */}
-      <div className="flex-1 overflow-auto">
-        <div className="diffs-container">
-          {renderFiles.map((file, idx) => {
-            const fileKey = `${file.prevName || file.name}-${idx}`;
-            const isLoading = loadingFiles.has(`${file.name}-full`);
-            const isExpanded = expandedFiles.has(`${file.name}-full`);
+      <div
+        className={`flex min-h-0 flex-1 overflow-hidden rounded-b border border-t-0 border-gray-200 bg-white ${
+          sidebarPosition === "right" ? "flex-row-reverse" : "flex-row"
+        }`}
+      >
+        {!sidebarCollapsed && (
+          <FileTreeSidebar
+            files={renderFiles}
+            selectedPath={selectedPath}
+            onSelectPath={handleSelectPath}
+            position={sidebarPosition}
+          />
+        )}
 
-            return (
-              <div key={fileKey} className="relative">
-                {/* Expand button overlay */}
-                {!isExpanded && !isLoading && (
-                  <button
-                    onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
-                    className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
-                  >
-                    Load full file
-                  </button>
-                )}
-                {isLoading && (
-                  <div className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-gray-500 text-white rounded">
-                    Loading...
-                  </div>
-                )}
-                <FileDiffComponent
-                  fileDiff={file}
-                  options={{
-                    theme: theme as any,
-                    diffStyle: viewMode,
-                    overflow: wrapping ? "wrap" : "scroll",
-                    disableLineNumbers: false,
-                  }}
-                />
-              </div>
-            );
-          })}
+        <div className="min-w-0 flex-1 overflow-auto">
+          <div className="diffs-container">
+            {renderFiles.map((file, idx) => {
+              const fileKey = `${file.prevName || file.name}-${idx}`;
+              const isLoading = loadingFiles.has(`${file.name}-full`);
+              const isExpanded = expandedFiles.has(`${file.name}-full`);
+              const isSelected = selectedPath === file.name;
+
+              return (
+                <div
+                  key={fileKey}
+                  ref={(element) => setFileRef(file.name, element)}
+                  className={`relative scroll-mt-4 ${isSelected ? "bg-sky-50/30" : ""}`}
+                >
+                  {/* Expand button overlay */}
+                  {!isExpanded && !isLoading && (
+                    <button
+                      onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
+                      className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
+                    >
+                      Load full file
+                    </button>
+                  )}
+                  {isLoading && (
+                    <div className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-gray-500 text-white rounded">
+                      Loading...
+                    </div>
+                  )}
+                  <FileDiffComponent
+                    fileDiff={file}
+                    options={{
+                      theme: theme as any,
+                      diffStyle: viewMode,
+                      overflow: wrapping ? "wrap" : "scroll",
+                      disableLineNumbers: false,
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
