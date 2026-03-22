@@ -420,7 +420,18 @@ export const HomePage: FC = () => {
             <p className="mt-2 text-sm text-gray-600">Loading diff...</p>
           </div>
         ) : diff ? (
-          <DiffViewer diff={diff} repoPath={selectedRepo?.path} />
+          <DiffViewer
+            diff={diff}
+            repoPath={selectedRepo?.path}
+            baseBranch={baseBranch}
+            headBranch={headBranch}
+            baseCommits={baseCommits}
+            headCommits={filteredHeadCommits}
+            baseCommit={baseCommit}
+            headCommit={headCommit}
+            onBaseCommitChange={(hash) => updateUrl({ baseCommit: hash, headCommit: "" })}
+            onHeadCommitChange={(hash) => updateUrl({ headCommit: hash })}
+          />
         ) : (
           <EmptyState message="No diff available for the selected refs." />
         )}

@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useState } from "react";
+import { FC, ReactNode, useEffect, useMemo, useState } from "react";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
@@ -7,6 +7,7 @@ interface FileTreeSidebarProps {
   selectedPath: string | null;
   onSelectPath: (path: string) => void;
   position: "left" | "right";
+  footer?: ReactNode;
 }
 
 interface TreeNode {
@@ -227,6 +228,7 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   selectedPath,
   onSelectPath,
   position,
+  footer,
 }) => {
   const tree = useMemo(() => buildTree(files), [files]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() =>
@@ -248,14 +250,6 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
     });
   }, [files, selectedPath]);
 
-  if (files.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
-        No files match the current diff filters.
-      </div>
-    );
-  }
-
   return (
     <aside
       className={`flex h-full w-80 shrink-0 flex-col bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
@@ -269,31 +263,41 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
         </p>
       </div>
 
-      <div className="flex-1 overflow-auto p-2">
-        <div className="space-y-0.5">
-          {tree.map((node) => (
-            <TreeItem
-              key={node.path}
-              node={node}
-              depth={0}
-              expandedPaths={expandedPaths}
-              onToggle={(path) => {
-                setExpandedPaths((previous) => {
-                  const next = new Set(previous);
-                  if (next.has(path)) {
-                    next.delete(path);
-                  } else {
-                    next.add(path);
-                  }
-                  return next;
-                });
-              }}
-              selectedPath={selectedPath}
-              onSelectPath={onSelectPath}
-            />
-          ))}
-        </div>
+      <div className="min-h-0 flex-1 overflow-auto p-2">
+        {files.length === 0 ? (
+          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
+            No files match the current diff filters.
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {tree.map((node) => (
+              <TreeItem
+                key={node.path}
+                node={node}
+                depth={0}
+                expandedPaths={expandedPaths}
+                onToggle={(path) => {
+                  setExpandedPaths((previous) => {
+                    const next = new Set(previous);
+                    if (next.has(path)) {
+                      next.delete(path);
+                    } else {
+                      next.add(path);
+                    }
+                    return next;
+                  });
+                }}
+                selectedPath={selectedPath}
+                onSelectPath={onSelectPath}
+              />
+            ))}
+          </div>
+        )}
       </div>
+
+      {footer ? (
+        <div className="max-h-[22rem] shrink-0 border-t border-slate-200">{footer}</div>
+      ) : null}
     </aside>
   );
 };

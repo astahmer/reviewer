@@ -16,14 +16,23 @@ import {
   useSidebarCollapsed,
 } from "~/components/hooks";
 import { LIGHT_THEMES, DARK_THEMES, STORAGE_KEYS } from "~/lib/constants";
-import { Diff } from "~/lib/types";
+import { CommitInfo, Diff } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
+import { CommitHistoryPanel } from "./commit-history-panel";
 import { FileTreeSidebar } from "./file-tree-sidebar";
 import { Tooltip } from "./tooltip";
 
 interface DiffViewerProps {
   diff: Diff & { pierreData?: FileDiffMetadata[] };
   repoPath?: string;
+  baseBranch: string;
+  headBranch: string;
+  baseCommits: CommitInfo[];
+  headCommits: CommitInfo[];
+  baseCommit: string;
+  headCommit: string;
+  onBaseCommitChange?: (hash: string) => void;
+  onHeadCommitChange?: (hash: string) => void;
 }
 
 interface ExpandedFileData {
@@ -32,10 +41,65 @@ interface ExpandedFileData {
   newContent: string;
 }
 
+interface ParsedSearchQuery {
+  pathFilter?: string;
+  contentQuery: string;
+}
+
+const parseSearchQuery = (query: string | undefined): ParsedSearchQuery => {
+  if (!query || !query.trim()) {
+    return { contentQuery: "" };
+  }
+
+  const pathMatch = query.trim().match(/^path:(\S+)\s*(.*)$/);
+  if (pathMatch && pathMatch[1]) {
+    return {
+      pathFilter: pathMatch[1],
+      contentQuery: (pathMatch[2] || "").trim(),
+    };
+  }
+
+  return { contentQuery: query.trim() };
+};
+
+const fileMatchesContentQuery = (file: FileDiffMetadata, contentQuery: string) => {
+  const tokens = contentQuery
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  if (tokens.length === 0) {
+    return true;
+  }
+
+  const haystack = [
+    file.name,
+    file.prevName || "",
+    ...(file.additionLines || []),
+    ...(file.deletionLines || []),
+  ]
+    .join("\n")
+    .toLowerCase();
+
+  return tokens.every((token) => haystack.includes(token));
+};
+
 /**
  * Unified and Split diff viewer using @pierre/diffs
  */
-export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
+export const DiffViewer: FC<DiffViewerProps> = ({
+  diff,
+  repoPath,
+  baseBranch,
+  headBranch,
+  baseCommits,
+  headCommits,
+  baseCommit,
+  headCommit,
+  onBaseCommitChange,
+  onHeadCommitChange,
+}) => {
   const navigate = useNavigate({ from: "/" });
   const searchParams = useSearch({ from: "/" });
 
@@ -53,6 +117,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   const [darkMenuOpen, setDarkMenuOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.searchQuery || "");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSearchInput(searchParams.searchQuery || "");
+  }, [searchParams.searchQuery]);
 
   const handleExpandFile = useCallback(
     async (
@@ -174,20 +242,19 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
   // Get files to render - use expanded full diff if available, otherwise use partial
   const getRenderFiles = useCallback(() => {
     const baseFiles = diff.pierreData || [];
+    const parsedQuery = parseSearchQuery(searchParams.searchQuery);
 
-    // Apply search filter if there's a search query
     let filtered = baseFiles;
-    if (searchParams.searchQuery) {
-      const query = searchParams.searchQuery.trim();
-      const pathMatch = query.match(/^path:(\S+)/);
 
-      if (pathMatch && pathMatch[1]) {
-        const pathFilter = pathMatch[1];
-        filtered = baseFiles.filter((file) => {
-          const filePath = file.prevName || file.name;
-          return filePath.includes(pathFilter);
-        });
-      }
+    if (parsedQuery.pathFilter) {
+      filtered = filtered.filter((file) => {
+        const filePath = file.prevName || file.name;
+        return filePath.includes(parsedQuery.pathFilter || "");
+      });
+    }
+
+    if (parsedQuery.contentQuery) {
+      filtered = filtered.filter((file) => fileMatchesContentQuery(file, parsedQuery.contentQuery));
     }
 
     if (filtered.length === 0) {
@@ -260,7 +327,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
                 });
               }
             }}
-            placeholder="Search diffs... (path:src/file.tsx)"
+            placeholder="Search diffs... (text or path:src/file.tsx token)"
             className="px-3 py-1.5 w-128 text-sm border border-gray-300 rounded bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           <button
@@ -518,6 +585,18 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
             selectedPath={selectedPath}
             onSelectPath={handleSelectPath}
             position={sidebarPosition}
+            footer={
+              <CommitHistoryPanel
+                baseBranch={baseBranch}
+                headBranch={headBranch}
+                baseCommits={baseCommits}
+                headCommits={headCommits}
+                selectedBaseCommit={baseCommit}
+                selectedHeadCommit={headCommit}
+                onBaseCommitChange={onBaseCommitChange}
+                onHeadCommitChange={onHeadCommitChange}
+              />
+            }
           />
         )}
 
