@@ -264,40 +264,27 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
 
   return (
     <section className="min-h-0 flex flex-1 flex-col overflow-hidden">
-      <div className="flex items-start justify-between gap-3 px-3 py-2">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600 dark:text-slate-400">
-            Range Timeline
-          </p>
-          <p className="mt-1 truncate font-mono text-xs text-slate-800 dark:text-slate-200">
-            {branch || "No branch"}
-          </p>
-          <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
-            First click sets an anchor. Second click selects the range: the newer commit becomes
-            Head and the older commit becomes Base.
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400">
-            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              Anchor
-            </span>
-            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Head
-            </span>
-            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">
-              <span className="h-2 w-2 rounded-full bg-sky-500" />
-              Base
-            </span>
-          </div>
+      <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-1.5 dark:border-slate-800">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-500">
+            Range
+          </span>
+          <span className="truncate font-mono text-[11px] text-slate-700 dark:text-slate-300">
+            {branch || "—"}
+          </span>
+          <span className="flex shrink-0 items-center gap-0.5" title="Anchor · Head · Base">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+          </span>
         </div>
         {anchorCommit ? (
           <button
             type="button"
             onClick={() => setAnchorCommit(null)}
-            className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/60"
+            className="shrink-0 rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-950/60"
           >
-            Clear anchor
+            Clear
           </button>
         ) : null}
       </div>
@@ -406,7 +393,7 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
   const isSameBranchComparison = !!baseBranch && baseBranch === headBranch;
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--app-panel-muted)]/90 backdrop-blur-sm">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--app-panel)]">
       {isSameBranchComparison ? (
         <RangeTimeline
           branch={headBranch}

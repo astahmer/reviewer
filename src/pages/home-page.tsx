@@ -254,6 +254,17 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo && !!baseCommit && !!headCommit,
   });
 
+  const diffStats = useMemo(() => {
+    if (!diff) return null;
+    let additions = 0;
+    let deletions = 0;
+    for (const line of diff.flatLines) {
+      if (line.type === "add") additions++;
+      else if (line.type === "remove") deletions++;
+    }
+    return { files: diff.files.length, additions, deletions };
+  }, [diff]);
+
   // Initialize base/head branches to default branch when repo is first loaded
   useEffect(() => {
     if (selectedRepo && branches.length > 0 && !initialized && !currentBranchLoading) {
@@ -387,7 +398,7 @@ export const HomePage: FC = () => {
 
   return (
     <div className="flex h-screen flex-col bg-[var(--app-bg)]">
-      <div className="flex cursor-pointer items-center justify-between gap-3 border-b border-slate-200 bg-[var(--app-panel)] px-3 py-2 hover:bg-slate-50 select-none dark:border-slate-800 dark:hover:bg-slate-900">
+      <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-[var(--app-panel)] px-3 py-2 dark:border-slate-800">
         <div className="flex flex-1 items-center gap-2.5">
           <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             <Link to="/">Reviewer</Link>
@@ -471,14 +482,22 @@ export const HomePage: FC = () => {
               placeholder="commit"
             />
             {baseBranch === headBranch && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
-              <div className="flex items-center gap-1 pl-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-400">
-                  <span className="font-mono">{getCommitDisplayLabel(selectedBaseCommitInfo)}</span>
-                  <span className="opacity-60">base</span>
+              <div className="flex items-center gap-1 pl-1">
+                <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 dark:border-sky-900 dark:bg-sky-950/40">
+                  <span className="font-mono text-[11px] font-medium text-sky-700 dark:text-sky-300">
+                    {getCommitDisplayLabel(selectedBaseCommitInfo)}
+                  </span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-sky-400 dark:text-sky-700">
+                    base
+                  </span>
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">
-                  <span className="font-mono">{getCommitDisplayLabel(selectedHeadCommitInfo)}</span>
-                  <span className="opacity-60">head</span>
+                <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 dark:border-emerald-900 dark:bg-emerald-950/40">
+                  <span className="font-mono text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                    {getCommitDisplayLabel(selectedHeadCommitInfo)}
+                  </span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400 dark:text-emerald-700">
+                    head
+                  </span>
                 </span>
               </div>
             ) : null}
@@ -486,6 +505,21 @@ export const HomePage: FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {diffStats ? (
+            <div className="flex items-center gap-1.5 border-r border-slate-200 pr-2.5 text-[11px] dark:border-slate-700">
+              <span className="text-slate-400 dark:text-slate-500">{diffStats.files} files</span>
+              {diffStats.additions > 0 && (
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  +{diffStats.additions}
+                </span>
+              )}
+              {diffStats.deletions > 0 && (
+                <span className="font-semibold text-rose-500 dark:text-rose-400">
+                  -{diffStats.deletions}
+                </span>
+              )}
+            </div>
+          ) : null}
           <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-[var(--app-panel-muted)] p-1 dark:border-slate-700">
             <button
               onClick={() => handleGlobalColorModeChange("light")}

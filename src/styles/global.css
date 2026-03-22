@@ -28,12 +28,12 @@
 html[data-app-color-mode="dark"],
 body[data-app-color-mode="dark"] {
   color-scheme: dark;
-  --app-bg: #020617;
-  --app-panel: #0f172a;
-  --app-panel-muted: #111827;
-  --app-border: #1f2937;
-  --app-text: #e2e8f0;
-  --app-text-muted: #94a3b8;
+  --app-bg: #0d1117;
+  --app-panel: #161b22;
+  --app-panel-muted: #0d1117;
+  --app-border: #30363d;
+  --app-text: #e6edf3;
+  --app-text-muted: #8b949e;
 }
 
 html,
@@ -60,6 +60,18 @@ body {
 
   body {
     @apply antialiased;
+  }
+
+  /* ── Dark mode color calibration ────────────────────────────────────────
+     Tailwind's slate-800 (#1e293b) has poor contrast against the new dark
+     --app-panel (#161b22). Lifting it to GitHub's border value (#30363d)
+     makes structural dividers clearly visible without touching component code.
+     This also improves hover-state backgrounds (dark:bg-slate-800) since
+     #30363d reads more cleanly against #161b22.
+     ───────────────────────────────────────────────────────────────────── */
+  html.dark,
+  html[data-app-color-mode="dark"] {
+    --color-slate-800: #30363d;
   }
 }
 
