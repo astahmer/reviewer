@@ -1,16 +1,40 @@
 import { Effect } from "effect";
-import { exec } from "node:child_process";
+import { exec, execSync } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
 import { GIT_DIFF_TIMEOUT_MS } from "~/lib/constants";
 import { VCSError } from "~/lib/errors";
+import { isStagedRef, isWorktreeRef } from "~/lib/local-refs";
+import { CommitInfo } from "~/lib/types";
 import { VCSAdapter } from "./vcs.interface";
 
 const execAsync = promisify(exec);
 
 const MAX_DEPTH = 3;
+
+function resolveGitRef(repoPath: string, ref: string): string {
+  if (isStagedRef(ref)) {
+    return execSync("git write-tree", {
+      cwd: repoPath,
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024,
+    }).trim();
+  }
+
+  if (isWorktreeRef(ref)) {
+    const snapshot = execSync("git stash create", {
+      cwd: repoPath,
+      encoding: "utf-8",
+      maxBuffer: 1024 * 1024,
+    }).trim();
+
+    return snapshot || "HEAD";
+  }
+
+  return ref;
+}
 
 async function scanForGitRepos(
   basePath: string,
@@ -55,7 +79,9 @@ export class GitLocalAdapter implements VCSAdapter {
   ): Effect.Effect<string, VCSError> {
     const repoPath = this._repoPath;
     const whitespaceFlag = options?.ignoreWhitespace ? "--ignore-all-space" : "";
-    const command = `git diff ${whitespaceFlag} ${from}..${to}`;
+    const fromRef = resolveGitRef(repoPath, from);
+    const toRef = resolveGitRef(repoPath, to);
+    const command = `git diff ${whitespaceFlag} ${fromRef} ${toRef}`.trim();
 
     return Effect.tryPromise({
       try: () =>
@@ -77,7 +103,8 @@ export class GitLocalAdapter implements VCSAdapter {
 
   getFileContent(path: string, commit: string): Effect.Effect<string, VCSError> {
     const repoPath = this._repoPath;
-    const command = `git show ${commit}:${path}`;
+    const resolvedRef = resolveGitRef(repoPath, commit);
+    const command = `git show ${resolvedRef}:${path}`;
 
     return Effect.tryPromise({
       try: () =>
@@ -92,9 +119,7 @@ export class GitLocalAdapter implements VCSAdapter {
     });
   }
 
-  getCommits(
-    limit: number = 20,
-  ): Effect.Effect<Array<{ hash: string; message: string; author: string; date: Date }>, VCSError> {
+  getCommits(limit: number = 20): Effect.Effect<CommitInfo[], VCSError> {
     const repoPath = this._repoPath;
     const format = "%H%n%s%n%an%n%ai";
     const command = `git log --pretty=format:"${format}" -n ${limit}`;
@@ -103,7 +128,7 @@ export class GitLocalAdapter implements VCSAdapter {
       try: async () => {
         const { stdout } = await execAsync(command, { cwd: repoPath, maxBuffer: 10 * 1024 * 1024 });
         const lines = stdout.trim().split("\n");
-        const commits: Array<{ hash: string; message: string; author: string; date: Date }> = [];
+        const commits: CommitInfo[] = [];
 
         for (let i = 0; i < lines.length; i += 4) {
           if (i + 3 < lines.length) {
@@ -112,6 +137,7 @@ export class GitLocalAdapter implements VCSAdapter {
               message: lines[i + 1]!,
               author: lines[i + 2]!,
               date: new Date(lines[i + 3]!),
+              kind: "commit",
             });
           }
         }

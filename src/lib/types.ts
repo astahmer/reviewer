@@ -63,6 +63,8 @@ export interface CommitInfo {
   message: string;
   author: string;
   date: Date;
+  kind?: "commit" | "local-staged" | "local-worktree";
+  label?: string;
 }
 
 export interface BranchInfo {

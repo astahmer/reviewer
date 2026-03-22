@@ -8,6 +8,12 @@ import { DiffViewer } from "~/components/diff-viewer";
 import { EmptyState } from "~/components/empty-state";
 import { ErrorBanner } from "~/components/error-banner.tsx";
 import { RepositorySelector } from "~/components/repository-selector";
+import {
+  LOCAL_REF_WORKTREE,
+  getDefaultCommit,
+  isLocalRef,
+  isRealCommitRef,
+} from "~/lib/local-refs";
 import { BranchInfo, CommitInfo, Diff } from "~/lib/types";
 import type { SearchParams } from "~/routes/index";
 
@@ -92,6 +98,18 @@ export const HomePage: FC = () => {
     enabled: !!selectedRepo,
   });
 
+  const { data: currentBranch, isLoading: currentBranchLoading } = useQuery({
+    queryKey: ["currentBranch", selectedRepo?.path],
+    queryFn: async () => {
+      const url = new URL("/api/current-branch", window.location.origin);
+      if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch current branch");
+      return response.text();
+    },
+    enabled: !!selectedRepo,
+  });
+
   const {
     data: headCommits = [],
     isLoading: headCommitsLoading,
@@ -110,9 +128,11 @@ export const HomePage: FC = () => {
   });
 
   const filteredHeadCommits = useMemo(() => {
-    if (baseBranch === headBranch && baseCommit) {
+    if (baseBranch === headBranch && baseCommit && isRealCommitRef(baseCommit)) {
       return headCommits.filter(
-        (c) => c.hash !== baseCommit && !c.hash.startsWith(baseCommit.slice(0, 7)),
+        (c) =>
+          isLocalRef(c.hash) ||
+          (c.hash !== baseCommit && !c.hash.startsWith(baseCommit.slice(0, 7))),
       );
     }
     return headCommits;
@@ -131,9 +151,17 @@ export const HomePage: FC = () => {
   });
 
   const defaultBranch = useMemo(() => {
+    if (currentBranch && branches.some((branch) => branch.name === currentBranch)) {
+      return currentBranch;
+    }
+
     const defaults = ["main", "master", "develop", "dev", "release"];
     return branches.find((b) => defaults.includes(b.name.toLowerCase()))?.name || branches[0]?.name;
-  }, [branches]);
+  }, [branches, currentBranch]);
+
+  useEffect(() => {
+    setInitialized(false);
+  }, [selectedRepo?.path]);
 
   const { data: commitDistance } = useQuery({
     queryKey: [
@@ -155,7 +183,13 @@ export const HomePage: FC = () => {
       const data = await response.json();
       return data.distance;
     },
-    enabled: !!selectedRepo && !!baseCommit && !!headCommit && baseBranch === headBranch,
+    enabled:
+      !!selectedRepo &&
+      !!baseCommit &&
+      !!headCommit &&
+      baseBranch === headBranch &&
+      isRealCommitRef(baseCommit) &&
+      isRealCommitRef(headCommit),
   });
 
   const {
@@ -178,7 +212,7 @@ export const HomePage: FC = () => {
 
   // Initialize base/head branches to default branch when repo is first loaded
   useEffect(() => {
-    if (selectedRepo && branches.length > 0 && !initialized) {
+    if (selectedRepo && branches.length > 0 && !initialized && !currentBranchLoading) {
       setInitialized(true);
       if (!baseBranch && defaultBranch) {
         updateUrl({ baseBranch: defaultBranch });
@@ -187,16 +221,25 @@ export const HomePage: FC = () => {
         updateUrl({ headBranch: defaultBranch });
       }
     }
-  }, [selectedRepo, branches, defaultBranch, initialized]);
+  }, [
+    selectedRepo,
+    branches,
+    defaultBranch,
+    initialized,
+    baseBranch,
+    headBranch,
+    currentBranchLoading,
+  ]);
 
   // Auto-select most recent baseCommit when baseCommits load after branch change
   useEffect(() => {
     if (baseCommits.length > 0 && baseBranch && !baseCommit && initialized) {
       const shouldAutoSelect =
         !baseCommitsLoadedRef.current || prevBaseBranchRef.current === baseBranch;
+      const defaultBaseCommit = getDefaultCommit(baseCommits);
       if (shouldAutoSelect) {
         baseCommitsLoadedRef.current = true;
-        updateUrl({ baseCommit: baseCommits[0]?.hash || "" });
+        updateUrl({ baseCommit: defaultBaseCommit?.hash || "" });
       }
     }
   }, [baseCommits, baseBranch, baseCommit, initialized]);
@@ -208,7 +251,7 @@ export const HomePage: FC = () => {
         !headCommitsLoadedRef.current || prevHeadBranchRef.current === headBranch;
       if (shouldAutoSelect) {
         headCommitsLoadedRef.current = true;
-        updateUrl({ headCommit: headCommits[0]?.hash || "" });
+        updateUrl({ headCommit: LOCAL_REF_WORKTREE });
       }
     }
   }, [headCommits, headBranch, headCommit, initialized]);

@@ -6,7 +6,9 @@
 
 import { Effect, Layer, ManagedRuntime } from "effect";
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { Diff, CommitInfo } from "~/lib/types";
+import { createLocalCommitEntries, isLocalRef } from "~/lib/local-refs";
 import { runEffectWithDeps, appLayer } from "~/effects/runtime";
 import * as diffProcessor from "~/effects/services/diff-processor";
 import * as vcsService from "~/effects/services/vcs-service";
@@ -28,7 +30,11 @@ export async function getDiff(from: string, to: string, repoPath?: string): Prom
     return await runtime.runPromise(
       Effect.gen(function* () {
         const rawDiff = yield* vcsService.getDiff(from, to);
-        const diff = yield* diffProcessor.processAndCache(rawDiff, `${from}-${to}`, from, to);
+        const diffId =
+          isLocalRef(from) || isLocalRef(to)
+            ? `${from}-${to}-${createHash("sha1").update(rawDiff).digest("hex")}`
+            : `${from}-${to}`;
+        const diff = yield* diffProcessor.processAndCache(rawDiff, diffId, from, to);
         return diff;
       }),
     );
@@ -46,6 +52,7 @@ export async function getCommitList(
   branch?: string,
 ): Promise<CommitInfo[]> {
   const cwd = repoPath || process.cwd();
+  const localEntries = createLocalCommitEntries();
 
   try {
     const format = "%H%n%s%n%an%n%aI";
@@ -67,21 +74,24 @@ export async function getCommitList(
           message: lines[i + 1]!,
           author: lines[i + 2] || "",
           date: new Date(lines[i + 3] || Date.now()),
+          kind: "commit",
         });
       }
     }
-    return commits;
+    return [...localEntries, ...commits];
   } catch {
     const runtime = createRuntimeWithRepo(cwd);
     try {
-      return await runtime.runPromise(vcsService.getCommits(limit)).then((commits) =>
-        commits.map((c) => ({
+      return await runtime.runPromise(vcsService.getCommits(limit)).then((commits) => [
+        ...localEntries,
+        ...commits.map((c) => ({
           hash: c.hash,
           message: c.message,
           author: c.author,
           date: c.date,
+          kind: c.kind,
         })),
-      );
+      ]);
     } finally {
       runtime.dispose();
     }

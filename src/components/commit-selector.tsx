@@ -1,6 +1,12 @@
 import { Combobox, createListCollection, Popover, Portal, useFilter } from "@ark-ui/react";
 import { ChevronDown } from "lucide-react";
 import { FC, useRef, useState } from "react";
+import {
+  getCommitDisplayLabel,
+  getDefaultCommit,
+  getLocalRefDescription,
+  isLocalCommit,
+} from "~/lib/local-refs";
 import { CommitInfo } from "~/lib/types";
 import { formatDate } from "./format-date";
 
@@ -19,7 +25,7 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
   isLoading,
   placeholder = "Select commit...",
 }) => {
-  const defaultCommit = commits[0];
+  const defaultCommit = getDefaultCommit(commits);
 
   const selectedCommit =
     commits.find((c) => c.hash === value || c.hash.startsWith(value)) ||
@@ -28,7 +34,7 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
   const filters = useFilter({ sensitivity: "base" });
   const collection = createListCollection({
     items: commits,
-    itemToString: (item) => item.hash.slice(0, 7),
+    itemToString: (item) => `${getCommitDisplayLabel(item)} ${item.message} ${item.author}`,
     itemToValue: (item) => item.hash,
   });
 
@@ -39,13 +45,22 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
   const filteredItems = collection.items.filter(
     (commit) =>
       filters.contains(commit.hash, inputValue) ||
+      filters.contains(commit.label || "", inputValue) ||
       filters.contains(commit.message, inputValue) ||
       filters.contains(commit.author, inputValue),
   );
 
-  // Group items by month
+  // Group local snapshots separately so they stay visible above commit history.
   const groupedItems = filteredItems.reduce(
     (acc, commit) => {
+      if (isLocalCommit(commit)) {
+        if (!acc["Local changes"]) {
+          acc["Local changes"] = [];
+        }
+        acc["Local changes"].push(commit);
+        return acc;
+      }
+
       const date = new Date(commit.date);
       const monthKey = date.toLocaleDateString("en-US", { year: "numeric", month: "long" });
       if (!acc[monthKey]) {
@@ -74,7 +89,7 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
         <button className="flex w-full items-center justify-between gap-2 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs font-mono hover:border-gray-400 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50">
           <span className="truncate text-gray-900">
             {selectedCommit
-              ? selectedCommit.hash.slice(0, 7)
+              ? getCommitDisplayLabel(selectedCommit)
               : isLoading
                 ? "Loading..."
                 : placeholder}
@@ -125,15 +140,33 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
                             onClick={() => api.selectValue(commit.hash)}
                           >
                             <div className="min-w-0 flex-1 text-xs">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-blue-600">
-                                  {commit.hash.slice(0, 7)}
-                                </span>
-                                <span className="text-gray-400">{formatDate(commit.date)}</span>
-                                <span className="text-gray-400">·</span>
-                                <span className="text-gray-400">{commit.author}</span>
-                              </div>
-                              <div className="truncate text-gray-600">{commit.message}</div>
+                              {isLocalCommit(commit) ? (
+                                <>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-medium text-amber-700">
+                                      {getCommitDisplayLabel(commit)}
+                                    </span>
+                                    <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700">
+                                      local
+                                    </span>
+                                  </div>
+                                  <div className="truncate text-gray-600">
+                                    {getLocalRefDescription(commit.hash)}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-blue-600">
+                                      {commit.hash.slice(0, 7)}
+                                    </span>
+                                    <span className="text-gray-400">{formatDate(commit.date)}</span>
+                                    <span className="text-gray-400">·</span>
+                                    <span className="text-gray-400">{commit.author}</span>
+                                  </div>
+                                  <div className="truncate text-gray-600">{commit.message}</div>
+                                </>
+                              )}
                             </div>
                             <Combobox.ItemIndicator>
                               <svg

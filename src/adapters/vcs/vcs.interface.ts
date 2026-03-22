@@ -1,5 +1,6 @@
 import { Context, Effect } from "effect";
 import { VCSError } from "~/lib/errors";
+import { CommitInfo } from "~/lib/types";
 
 /**
  * VCS (Version Control System) adapter interface
@@ -19,17 +20,12 @@ export interface VCSAdapter {
   /**
    * Get file content at a specific commit
    */
-  getFileContent(
-    path: string,
-    commit: string,
-  ): Effect.Effect<string, VCSError>;
+  getFileContent(path: string, commit: string): Effect.Effect<string, VCSError>;
 
   /**
    * Get list of recent commits
    */
-  getCommits(
-    limit?: number,
-  ): Effect.Effect<Array<{ hash: string; message: string; author: string; date: Date }>, VCSError>;
+  getCommits(limit?: number): Effect.Effect<CommitInfo[], VCSError>;
 
   /**
    * Get current branch name

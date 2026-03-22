@@ -1,4 +1,5 @@
 import { FC, useState } from "react";
+import { getCommitDisplayLabel, isLocalCommit } from "~/lib/local-refs";
 import { CommitInfo } from "~/lib/types";
 
 interface CommitCompareProps {
@@ -27,6 +28,8 @@ export const CommitCompare: FC<CommitCompareProps> = ({
 
   const [headFirstLine, headRemaining] = headCommit.message.split("\n", 2).map((v) => v.trim());
   const [baseFirstLine, baseRemaining] = baseCommit.message.split("\n", 2).map((v) => v.trim());
+  const baseLabel = getCommitDisplayLabel(baseCommit);
+  const headLabel = getCommitDisplayLabel(headCommit);
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
@@ -37,7 +40,7 @@ export const CommitCompare: FC<CommitCompareProps> = ({
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-blue-600">{baseCommit.hash.slice(0, 7)}</span>
+            <span className="font-mono text-xs text-blue-600">{baseLabel}</span>
             <span className="max-w-xs truncate text-xs text-gray-600" title={baseCommit.message}>
               {baseFirstLine?.slice(0, 50)}
               {(baseFirstLine || "").length > 50 ? "..." : ""}
@@ -57,7 +60,7 @@ export const CommitCompare: FC<CommitCompareProps> = ({
             />
           </svg>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-green-600">{headCommit.hash.slice(0, 7)}</span>
+            <span className="font-mono text-xs text-green-600">{headLabel}</span>
             <span className="max-w-xs truncate text-xs text-gray-600" title={headCommit.message}>
               {headFirstLine?.slice(0, 50)}
               {(headFirstLine || "").length > 50 ? "..." : ""}
@@ -65,18 +68,22 @@ export const CommitCompare: FC<CommitCompareProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {baseBranch && headBranch && baseBranch === headBranch && (
-            <>
-              <span className="rounded bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
-                {baseBranch}
-              </span>
-              {distance !== null && distance > 0 && (
-                <span className="rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
-                  {distance} commit{distance !== 1 ? "s" : ""}
+          {baseBranch &&
+            headBranch &&
+            baseBranch === headBranch &&
+            !isLocalCommit(baseCommit) &&
+            !isLocalCommit(headCommit) && (
+              <>
+                <span className="rounded bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
+                  {baseBranch}
                 </span>
-              )}
-            </>
-          )}
+                {distance !== null && distance > 0 && (
+                  <span className="rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                    {distance} commit{distance !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </>
+            )}
           {baseBranch !== headBranch && (
             <div className="flex gap-1">
               {baseBranch && (
@@ -109,9 +116,7 @@ export const CommitCompare: FC<CommitCompareProps> = ({
             <div className="rounded bg-white p-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500">BASE</span>
-                <span className="font-mono text-xs text-blue-600">
-                  {baseCommit.hash.slice(0, 7)}
-                </span>
+                <span className="font-mono text-xs text-blue-600">{baseLabel}</span>
               </div>
               <div className="text-xs text-gray-700">
                 {baseRemaining ? (
@@ -135,9 +140,7 @@ export const CommitCompare: FC<CommitCompareProps> = ({
             <div className="rounded bg-white p-2">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-semibold text-gray-500">HEAD</span>
-                <span className="font-mono text-xs text-green-600">
-                  {headCommit.hash.slice(0, 7)}
-                </span>
+                <span className="font-mono text-xs text-green-600">{headLabel}</span>
               </div>
               <div className="text-xs text-gray-700">
                 {headRemaining ? (

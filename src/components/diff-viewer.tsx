@@ -77,7 +77,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({ diff, repoPath }) => {
           newContentRes.json(),
         ]);
 
-        if (oldContentRes.ok && newContentRes.ok && oldContent && newContent) {
+        if (oldContentRes.ok && newContentRes.ok) {
           const oldFile: FileContents = {
             name: oldPath,
             contents: oldContent,
