@@ -90,7 +90,7 @@ const CommitLane: FC<CommitLaneProps> = ({
                 key={commit.hash}
                 type="button"
                 onClick={() => onSelectCommit?.(commit.hash)}
-                className={`relative -ml-[18px] flex w-full gap-3 rounded-md px-2 py-1.5 text-left transition-colors ${
+                className={`relative -ml-[18px] flex w-full gap-3 rounded-md px-2 py-1 text-left transition-colors ${
                   selected || secondarySelected
                     ? "bg-sky-50 ring-1 ring-inset ring-sky-200 dark:bg-sky-950/30 dark:ring-sky-800"
                     : "hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -98,7 +98,7 @@ const CommitLane: FC<CommitLaneProps> = ({
                 disabled={!onSelectCommit}
               >
                 <span
-                  className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white ${
+                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full border-2 border-white ${
                     selected
                       ? accentClassName
                       : secondarySelected
@@ -107,24 +107,21 @@ const CommitLane: FC<CommitLaneProps> = ({
                   }`}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 leading-none">
                     <span
                       className={`font-mono text-[11px] ${selected ? "text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-400"}`}
                     >
                       {getCommitDisplayLabel(commit)}
                     </span>
-                    <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
                       {isLocalCommit(commit) ? "local" : formatDate(commit.date)}
+                    </span>
+                    <span className="ml-auto shrink-0">
+                      <CommitStats commit={commit} />
                     </span>
                   </span>
                   <span className="mt-0.5 block truncate text-xs font-medium text-slate-800 dark:text-slate-200">
                     {isLocalCommit(commit) ? getLocalRefDescription(commit.hash) : commit.message}
-                  </span>
-                  <span className="mt-0.5 flex items-center justify-between gap-2">
-                    <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
-                      {commit.author}
-                    </span>
-                    <CommitStats commit={commit} />
                   </span>
                 </span>
               </button>
@@ -337,14 +334,14 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
                 role="option"
                 aria-selected={selectedAsHead || selectedAsBase || inRange}
                 tabIndex={focusedCommit === commit.hash ? 0 : -1}
-                className={`relative -ml-[18px] flex w-full gap-3 rounded-md px-2 py-1.5 text-left transition-colors ${
+                className={`relative -ml-[18px] flex w-full gap-3 rounded-md px-2 py-1 text-left transition-colors ${
                   inRange
                     ? "bg-sky-50/70 dark:bg-sky-950/25"
                     : "hover:bg-slate-100 dark:hover:bg-slate-800"
                 } ${isAnchor ? "ring-1 ring-inset ring-amber-300 dark:ring-amber-700" : inRange ? "ring-1 ring-inset ring-sky-200 dark:ring-sky-800" : ""}`}
               >
                 <span
-                  className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white ${
+                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full border-2 border-white ${
                     isAnchor
                       ? "bg-amber-500"
                       : selectedAsHead
@@ -357,37 +354,34 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
                   }`}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 leading-none">
                     <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400">
                       {getCommitDisplayLabel(commit)}
                     </span>
-                    <span className="text-[10px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
                       {isLocalCommit(commit) ? "local" : formatDate(commit.date)}
                     </span>
                     {selectedAsHead ? (
-                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      <span className="rounded bg-emerald-50 px-1 py-px text-[9px] font-semibold uppercase text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                         head
                       </span>
                     ) : null}
                     {selectedAsBase ? (
-                      <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+                      <span className="rounded bg-sky-50 px-1 py-px text-[9px] font-semibold uppercase text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
                         base
                       </span>
                     ) : null}
                     {isAnchor ? (
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                      <span className="rounded bg-amber-50 px-1 py-px text-[9px] font-semibold uppercase text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
                         anchor
                       </span>
                     ) : null}
+                    <span className="ml-auto shrink-0">
+                      <CommitStats commit={commit} />
+                    </span>
                   </span>
                   <span className="mt-0.5 block truncate text-xs font-medium text-slate-800 dark:text-slate-200">
                     {isLocalCommit(commit) ? getLocalRefDescription(commit.hash) : commit.message}
-                  </span>
-                  <span className="mt-0.5 flex items-center justify-between gap-2">
-                    <span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">
-                      {commit.author}
-                    </span>
-                    <CommitStats commit={commit} />
                   </span>
                 </span>
               </button>

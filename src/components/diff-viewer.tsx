@@ -150,6 +150,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
   const [lightMenuOpen, setLightMenuOpen] = useState(false);
   const [darkMenuOpen, setDarkMenuOpen] = useState(false);
+  const [lightSearch, setLightSearch] = useState("");
+  const [darkSearch, setDarkSearch] = useState("");
+  const prevThemeOnMenuOpenRef = useRef<string | null>(null);
+  const menuSelectionMadeRef = useRef(false);
   const [searchInput, setSearchInput] = useState(searchParams.searchQuery || "");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const layoutSplitter = Ark.useSplitter({
@@ -339,18 +343,22 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   // Update last light theme when light dropdown changes
   const handleLightThemeChange = (newTheme: string) => {
     if (LIGHT_THEMES.includes(newTheme as (typeof LIGHT_THEMES)[number])) {
+      menuSelectionMadeRef.current = true;
       setTheme(newTheme);
       setLastLightTheme(newTheme);
       setColorMode("light");
+      setLightMenuOpen(false);
     }
   };
 
   // Update last dark theme when dark dropdown changes
   const handleDarkThemeChange = (newTheme: string) => {
     if (DARK_THEMES.includes(newTheme as (typeof DARK_THEMES)[number])) {
+      menuSelectionMadeRef.current = true;
       setTheme(newTheme);
       setLastDarkTheme(newTheme);
       setColorMode("dark");
+      setDarkMenuOpen(false);
     }
   };
 
@@ -513,7 +521,19 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         {/* Light theme split button */}
         <Ark.Menu.Root
           open={lightMenuOpen}
-          onOpenChange={(details) => setLightMenuOpen(details.open)}
+          onOpenChange={(details) => {
+            if (details.open) {
+              prevThemeOnMenuOpenRef.current = theme;
+              menuSelectionMadeRef.current = false;
+              setLightSearch("");
+            } else {
+              if (!menuSelectionMadeRef.current && prevThemeOnMenuOpenRef.current) {
+                setTheme(prevThemeOnMenuOpenRef.current);
+              }
+              prevThemeOnMenuOpenRef.current = null;
+            }
+            setLightMenuOpen(details.open);
+          }}
         >
           <div className="flex items-center gap-0">
             <Tooltip content="Light theme">
@@ -544,24 +564,40 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             </Ark.Menu.Trigger>
           </div>
           <Ark.Menu.Positioner>
-            <Ark.Menu.Content className="z-50 min-w-40 rounded border border-slate-200 bg-[var(--app-panel)] py-1 shadow-lg dark:border-slate-700">
-              {LIGHT_THEMES.map((t) => (
-                <Ark.Menu.Item
-                  key={t}
-                  value={t}
-                  onClick={() => handleLightThemeChange(t)}
-                  className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                    theme === t
-                      ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
-                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {t
-                    .split("-")
-                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(" ")}
-                </Ark.Menu.Item>
-              ))}
+            <Ark.Menu.Content className="z-50 min-w-48 overflow-hidden rounded border border-slate-200 bg-[var(--app-panel)] shadow-lg dark:border-slate-700">
+              <div className="border-b border-slate-100 p-1.5 dark:border-slate-800">
+                <input
+                  type="text"
+                  value={lightSearch}
+                  onChange={(e) => setLightSearch(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Search themes..."
+                  autoFocus
+                  className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <div className="max-h-52 overflow-y-auto py-1">
+                {LIGHT_THEMES.filter((t) =>
+                  t.toLowerCase().includes(lightSearch.toLowerCase()),
+                ).map((t) => (
+                  <Ark.Menu.Item
+                    key={t}
+                    value={t}
+                    onClick={() => handleLightThemeChange(t)}
+                    onPointerEnter={() => setTheme(t)}
+                    className={`cursor-pointer px-3 py-1.5 text-sm transition-colors ${
+                      theme === t
+                        ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
+                        : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    {t
+                      .split("-")
+                      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(" ")}
+                  </Ark.Menu.Item>
+                ))}
+              </div>
             </Ark.Menu.Content>
           </Ark.Menu.Positioner>
         </Ark.Menu.Root>
@@ -569,7 +605,19 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         {/* Dark theme split button */}
         <Ark.Menu.Root
           open={darkMenuOpen}
-          onOpenChange={(details) => setDarkMenuOpen(details.open)}
+          onOpenChange={(details) => {
+            if (details.open) {
+              prevThemeOnMenuOpenRef.current = theme;
+              menuSelectionMadeRef.current = false;
+              setDarkSearch("");
+            } else {
+              if (!menuSelectionMadeRef.current && prevThemeOnMenuOpenRef.current) {
+                setTheme(prevThemeOnMenuOpenRef.current);
+              }
+              prevThemeOnMenuOpenRef.current = null;
+            }
+            setDarkMenuOpen(details.open);
+          }}
         >
           <div className="flex gap-0">
             <Tooltip content="Dark theme">
@@ -600,24 +648,40 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             </Ark.Menu.Trigger>
           </div>
           <Ark.Menu.Positioner>
-            <Ark.Menu.Content className="z-50 min-w-40 rounded border border-slate-200 bg-[var(--app-panel)] py-1 shadow-lg dark:border-slate-700">
-              {DARK_THEMES.map((t) => (
-                <Ark.Menu.Item
-                  key={t}
-                  value={t}
-                  onClick={() => handleDarkThemeChange(t)}
-                  className={`px-3 py-1.5 text-sm cursor-pointer transition-colors ${
-                    theme === t
-                      ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
-                      : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {t
-                    .split("-")
-                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(" ")}
-                </Ark.Menu.Item>
-              ))}
+            <Ark.Menu.Content className="z-50 min-w-48 overflow-hidden rounded border border-slate-200 bg-[var(--app-panel)] shadow-lg dark:border-slate-700">
+              <div className="border-b border-slate-100 p-1.5 dark:border-slate-800">
+                <input
+                  type="text"
+                  value={darkSearch}
+                  onChange={(e) => setDarkSearch(e.target.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  placeholder="Search themes..."
+                  autoFocus
+                  className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                />
+              </div>
+              <div className="max-h-52 overflow-y-auto py-1">
+                {DARK_THEMES.filter((t) => t.toLowerCase().includes(darkSearch.toLowerCase())).map(
+                  (t) => (
+                    <Ark.Menu.Item
+                      key={t}
+                      value={t}
+                      onClick={() => handleDarkThemeChange(t)}
+                      onPointerEnter={() => setTheme(t)}
+                      className={`cursor-pointer px-3 py-1.5 text-sm transition-colors ${
+                        theme === t
+                          ? "bg-blue-50 font-medium text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
+                          : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {t
+                        .split("-")
+                        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                        .join(" ")}
+                    </Ark.Menu.Item>
+                  ),
+                )}
+              </div>
             </Ark.Menu.Content>
           </Ark.Menu.Positioner>
         </Ark.Menu.Root>

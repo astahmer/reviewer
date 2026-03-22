@@ -399,15 +399,17 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   if (collapsed) {
     return (
       <aside
-        className={`flex h-full min-h-0 w-full flex-col items-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
-          position === "left" ? "border-r border-slate-200" : "border-l border-slate-200"
+        className={`flex h-full min-h-0 w-full flex-col items-center overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 ${
+          position === "left"
+            ? "border-r border-slate-200 dark:border-slate-800"
+            : "border-l border-slate-200 dark:border-slate-800"
         }`}
       >
-        <div className="flex w-full shrink-0 items-center justify-center gap-1 border-b border-slate-200 py-2">
+        <div className="flex w-full shrink-0 items-center justify-center gap-1 border-b border-slate-200 py-2 dark:border-slate-800">
           <button
             type="button"
             onClick={onToggleCollapsed}
-            className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
             aria-label="Expand sidebar"
             title="Expand sidebar"
           >
@@ -416,18 +418,20 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
           <button
             type="button"
             onClick={onTogglePosition}
-            className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-md p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-300"
             aria-label={`Move sidebar to the ${position === "left" ? "right" : "left"}`}
             title={`Move sidebar to the ${position === "left" ? "right" : "left"}`}
           >
             <ArrowLeftRight size={14} />
           </button>
         </div>
-        <div className="flex flex-1 flex-col items-center gap-2 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <div className="flex flex-1 flex-col items-center gap-2 py-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
           <span className="[writing-mode:vertical-rl] rotate-180">Review</span>
           <span>{files.length}</span>
           {showMatchCounts ? (
-            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-700">{totalMatchCount}</span>
+            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-sky-700 dark:bg-sky-950/50 dark:text-sky-400">
+              {totalMatchCount}
+            </span>
           ) : null}
         </div>
       </aside>

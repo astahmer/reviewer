@@ -346,9 +346,12 @@ export const HomePage: FC = () => {
             </button>
           </div>
         </header>
-        <main className="flex flex-1 min-h-0 items-center justify-center p-2">
+        <main className="flex flex-1 min-h-0 flex-col items-center justify-center gap-4 p-8">
           <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
-          <EmptyState>
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Select a repository to get started
+            </p>
             <RepositorySelector
               repositories={repositories}
               selectedRepo={selectedRepo}
@@ -376,7 +379,7 @@ export const HomePage: FC = () => {
                 }
               }}
             />
-          </EmptyState>
+          </div>
         </main>
       </div>
     );
@@ -469,11 +472,13 @@ export const HomePage: FC = () => {
             />
             {baseBranch === headBranch && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
               <div className="flex items-center gap-1 pl-1.5">
-                <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-sky-700">
-                  Base {getCommitDisplayLabel(selectedBaseCommitInfo)}
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] font-semibold text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-400">
+                  <span className="font-mono">{getCommitDisplayLabel(selectedBaseCommitInfo)}</span>
+                  <span className="opacity-60">base</span>
                 </span>
-                <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-emerald-700">
-                  Head {getCommitDisplayLabel(selectedHeadCommitInfo)}
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400">
+                  <span className="font-mono">{getCommitDisplayLabel(selectedHeadCommitInfo)}</span>
+                  <span className="opacity-60">head</span>
                 </span>
               </div>
             ) : null}
