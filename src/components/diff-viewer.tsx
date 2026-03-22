@@ -114,6 +114,10 @@ const getFileMatchCount = (file: FileDiffMetadata, query: ParsedSearchQuery): nu
   return lineMatches > 0 ? lineMatches : fileMatchesContentQuery(file, query.contentQuery) ? 1 : 0;
 };
 
+const SIDEBAR_DEFAULT_SIZE = 28;
+const SIDEBAR_MIN_SIZE = 16;
+const SIDEBAR_COLLAPSED_SIZE = 5;
+
 /**
  * Unified and Split diff viewer using @pierre/diffs
  */
@@ -146,6 +150,55 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const [darkMenuOpen, setDarkMenuOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.searchQuery || "");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const layoutSplitter = Ark.useSplitter({
+    id: `reviewer-diff-layout-${sidebarPosition}`,
+    defaultSize:
+      sidebarPosition === "left"
+        ? [
+            sidebarCollapsed ? SIDEBAR_COLLAPSED_SIZE : SIDEBAR_DEFAULT_SIZE,
+            sidebarCollapsed ? 100 - SIDEBAR_COLLAPSED_SIZE : 100 - SIDEBAR_DEFAULT_SIZE,
+          ]
+        : [
+            sidebarCollapsed ? 100 - SIDEBAR_COLLAPSED_SIZE : 100 - SIDEBAR_DEFAULT_SIZE,
+            sidebarCollapsed ? SIDEBAR_COLLAPSED_SIZE : SIDEBAR_DEFAULT_SIZE,
+          ],
+    panels:
+      sidebarPosition === "left"
+        ? [
+            {
+              id: "sidebar",
+              minSize: SIDEBAR_MIN_SIZE,
+              collapsible: true,
+              collapsedSize: SIDEBAR_COLLAPSED_SIZE,
+            },
+            {
+              id: "content",
+              minSize: 40,
+            },
+          ]
+        : [
+            {
+              id: "content",
+              minSize: 40,
+            },
+            {
+              id: "sidebar",
+              minSize: SIDEBAR_MIN_SIZE,
+              collapsible: true,
+              collapsedSize: SIDEBAR_COLLAPSED_SIZE,
+            },
+          ],
+    onCollapse: (details) => {
+      if (details.panelId === "sidebar") {
+        setSidebarCollapsed(true);
+      }
+    },
+    onExpand: (details) => {
+      if (details.panelId === "sidebar") {
+        setSidebarCollapsed(false);
+      }
+    },
+  });
   const parsedSearchQuery = useMemo(
     () => parseSearchQuery(searchParams.searchQuery),
     [searchParams.searchQuery],
@@ -154,6 +207,17 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   useEffect(() => {
     setSearchInput(searchParams.searchQuery || "");
   }, [searchParams.searchQuery]);
+
+  useEffect(() => {
+    if (sidebarCollapsed) {
+      layoutSplitter.collapsePanel("sidebar");
+      return;
+    }
+
+    if (layoutSplitter.isPanelCollapsed("sidebar")) {
+      layoutSplitter.expandPanel("sidebar", SIDEBAR_DEFAULT_SIZE);
+    }
+  }, [layoutSplitter, sidebarCollapsed]);
 
   const handleExpandFile = useCallback(
     async (
@@ -635,41 +699,85 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       </div>
     );
 
+  const renderSidebar = () => (
+    <FileTreeSidebar
+      files={renderFiles}
+      selectedPath={selectedPath}
+      onSelectPath={handleSelectPath}
+      position={sidebarPosition}
+      collapsed={layoutSplitter.isPanelCollapsed("sidebar")}
+      onToggleCollapsed={() => setSidebarCollapsed(!layoutSplitter.isPanelCollapsed("sidebar"))}
+      matchCounts={fileMatchCounts}
+      showMatchCounts={hasActiveSearch}
+      footer={
+        <CommitHistoryPanel
+          baseBranch={baseBranch}
+          headBranch={headBranch}
+          baseCommits={baseCommits}
+          headCommits={headCommits}
+          selectedBaseCommit={baseCommit}
+          selectedHeadCommit={headCommit}
+          onBaseCommitChange={onBaseCommitChange}
+          onHeadCommitChange={onHeadCommitChange}
+        />
+      }
+    />
+  );
+
+  const renderContent = () => <div className="min-w-0 h-full overflow-auto">{MainContent}</div>;
+
   return (
     <div className="h-full flex flex-col">
       {Controls}
 
-      {/* Diff content */}
-      <div
-        className={`flex min-h-0 flex-1 overflow-hidden rounded-b border border-t-0 border-gray-200 bg-white ${
-          sidebarPosition === "right" ? "flex-row-reverse" : "flex-row"
-        }`}
+      <Ark.Splitter.RootProvider
+        value={layoutSplitter}
+        className="flex min-h-0 flex-1 overflow-hidden rounded-b border border-t-0 border-gray-200 bg-white"
       >
-        <FileTreeSidebar
-          files={renderFiles}
-          selectedPath={selectedPath}
-          onSelectPath={handleSelectPath}
-          position={sidebarPosition}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={() => setSidebarCollapsed(!sidebarCollapsed)}
-          matchCounts={fileMatchCounts}
-          showMatchCounts={hasActiveSearch}
-          footer={
-            <CommitHistoryPanel
-              baseBranch={baseBranch}
-              headBranch={headBranch}
-              baseCommits={baseCommits}
-              headCommits={headCommits}
-              selectedBaseCommit={baseCommit}
-              selectedHeadCommit={headCommit}
-              onBaseCommitChange={onBaseCommitChange}
-              onHeadCommitChange={onHeadCommitChange}
-            />
-          }
-        />
+        {sidebarPosition === "left" ? (
+          <>
+            <Ark.Splitter.Panel
+              id="sidebar"
+              className="min-h-0 overflow-hidden border-r border-slate-200"
+            >
+              {renderSidebar()}
+            </Ark.Splitter.Panel>
 
-        <div className="min-w-0 flex-1 overflow-auto">{MainContent}</div>
-      </div>
+            <Ark.Splitter.ResizeTrigger
+              id="sidebar:content"
+              aria-label="Resize sidebar"
+              className="group flex w-2 shrink-0 items-center justify-center bg-slate-100 transition-colors hover:bg-slate-200"
+            >
+              <span className="h-10 w-1 rounded-full bg-slate-300 transition-colors group-hover:bg-slate-500" />
+            </Ark.Splitter.ResizeTrigger>
+
+            <Ark.Splitter.Panel id="content" className="min-h-0 overflow-hidden">
+              {renderContent()}
+            </Ark.Splitter.Panel>
+          </>
+        ) : (
+          <>
+            <Ark.Splitter.Panel id="content" className="min-h-0 overflow-hidden">
+              {renderContent()}
+            </Ark.Splitter.Panel>
+
+            <Ark.Splitter.ResizeTrigger
+              id="content:sidebar"
+              aria-label="Resize sidebar"
+              className="group flex w-2 shrink-0 items-center justify-center bg-slate-100 transition-colors hover:bg-slate-200"
+            >
+              <span className="h-10 w-1 rounded-full bg-slate-300 transition-colors group-hover:bg-slate-500" />
+            </Ark.Splitter.ResizeTrigger>
+
+            <Ark.Splitter.Panel
+              id="sidebar"
+              className="min-h-0 overflow-hidden border-l border-slate-200"
+            >
+              {renderSidebar()}
+            </Ark.Splitter.Panel>
+          </>
+        )}
+      </Ark.Splitter.RootProvider>
     </div>
   );
 };

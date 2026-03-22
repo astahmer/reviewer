@@ -1,6 +1,7 @@
+import * as Ark from "@ark-ui/react";
 import { FC, ReactNode, useEffect, useMemo, useState } from "react";
 import type { FileDiffMetadata } from "@pierre/diffs";
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, GripHorizontal } from "lucide-react";
 
 interface FileTreeSidebarProps {
   files: FileDiffMetadata[];
@@ -21,6 +22,9 @@ interface TreeNode {
   file?: FileDiffMetadata;
   children: TreeNode[];
 }
+
+const SIDEBAR_SECTION_MIN_SIZE = 18;
+const SIDEBAR_SECTION_COLLAPSED_SIZE = 9;
 
 const getFilePath = (file: FileDiffMetadata) => file.name;
 
@@ -148,6 +152,14 @@ const getStatusLabel = (file?: FileDiffMetadata) => {
   }
 };
 
+const getNodeMatchCount = (node: TreeNode, matchCounts?: Map<string, number>): number => {
+  if (node.kind === "file") {
+    return matchCounts?.get(node.path) || 0;
+  }
+
+  return node.children.reduce((total, child) => total + getNodeMatchCount(child, matchCounts), 0);
+};
+
 interface TreeItemProps {
   node: TreeNode;
   depth: number;
@@ -202,6 +214,7 @@ const TreeItem: FC<TreeItemProps> = ({
   }
 
   const isExpanded = expandedPaths.has(node.path);
+  const directoryMatchCount = getNodeMatchCount(node, matchCounts);
 
   return (
     <div>
@@ -213,6 +226,11 @@ const TreeItem: FC<TreeItemProps> = ({
       >
         {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
+        {showMatchCounts && directoryMatchCount > 0 ? (
+          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+            {directoryMatchCount}
+          </span>
+        ) : null}
         <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           {node.children.length}
         </span>
@@ -256,6 +274,25 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   );
   const CollapseIcon = position === "left" ? ChevronLeft : ChevronRight;
   const ExpandIcon = position === "left" ? ChevronRight : ChevronLeft;
+  const sectionSplitter = Ark.useSplitter({
+    id: "reviewer-sidebar-sections",
+    orientation: "vertical",
+    defaultSize: [60, 40],
+    panels: [
+      {
+        id: "files",
+        minSize: SIDEBAR_SECTION_MIN_SIZE,
+        collapsible: true,
+        collapsedSize: SIDEBAR_SECTION_COLLAPSED_SIZE,
+      },
+      {
+        id: "history",
+        minSize: SIDEBAR_SECTION_MIN_SIZE,
+        collapsible: true,
+        collapsedSize: SIDEBAR_SECTION_COLLAPSED_SIZE,
+      },
+    ],
+  });
 
   useEffect(() => {
     setExpandedPaths((previous) => {
@@ -271,6 +308,17 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
       return next;
     });
   }, [files, selectedPath]);
+
+  const filesPanelCollapsed = sectionSplitter.isPanelCollapsed("files");
+  const historyPanelCollapsed = sectionSplitter.isPanelCollapsed("history");
+
+  const togglePanel = (panelId: "files" | "history") => {
+    if (sectionSplitter.isPanelCollapsed(panelId)) {
+      sectionSplitter.expandPanel(panelId, SIDEBAR_SECTION_MIN_SIZE);
+    } else {
+      sectionSplitter.collapsePanel(panelId);
+    }
+  };
 
   if (collapsed) {
     return (
@@ -304,11 +352,7 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   }
 
   return (
-    <aside
-      className={`flex h-full min-h-0 w-80 shrink-0 flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50 ${
-        position === "left" ? "border-r border-slate-200" : "border-l border-slate-200"
-      }`}
-    >
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-gradient-to-b from-slate-50 via-white to-slate-50">
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Files</p>
@@ -327,45 +371,126 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-2">
-        {files.length === 0 ? (
-          <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
-            No files match the current diff filters.
-          </div>
-        ) : (
-          <div className="space-y-0.5">
-            {tree.map((node) => (
-              <TreeItem
-                key={node.path}
-                node={node}
-                depth={0}
-                expandedPaths={expandedPaths}
-                onToggle={(path) => {
-                  setExpandedPaths((previous) => {
-                    const next = new Set(previous);
-                    if (next.has(path)) {
-                      next.delete(path);
-                    } else {
-                      next.add(path);
-                    }
-                    return next;
-                  });
-                }}
-                selectedPath={selectedPath}
-                onSelectPath={onSelectPath}
-                matchCounts={matchCounts}
-                showMatchCounts={showMatchCounts}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <Ark.Splitter.RootProvider
+        value={sectionSplitter}
+        className="min-h-0 flex flex-1 flex-col overflow-hidden"
+      >
+        <Ark.Splitter.Panel id="files" className="min-h-0 overflow-hidden">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  File Tree
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  {filesPanelCollapsed
+                    ? "Collapsed"
+                    : showMatchCounts
+                      ? "Search matches visible"
+                      : "Browse changed files"}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => togglePanel("files")}
+                  className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                  aria-label={filesPanelCollapsed ? "Expand file tree" : "Collapse file tree"}
+                  title={filesPanelCollapsed ? "Expand file tree" : "Collapse file tree"}
+                >
+                  {filesPanelCollapsed ? (
+                    <ChevronDown size={14} />
+                  ) : (
+                    <ChevronRight size={14} className="rotate-90" />
+                  )}
+                </button>
+              </div>
+            </div>
 
-      {footer ? (
-        <div className="min-h-0 max-h-[45%] basis-[18rem] shrink-0 overflow-hidden border-t border-slate-200">
-          {footer}
-        </div>
-      ) : null}
+            {!filesPanelCollapsed ? (
+              <div className="min-h-0 flex-1 overflow-auto p-2">
+                {files.length === 0 ? (
+                  <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-500">
+                    No files match the current diff filters.
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {tree.map((node) => (
+                      <TreeItem
+                        key={node.path}
+                        node={node}
+                        depth={0}
+                        expandedPaths={expandedPaths}
+                        onToggle={(path) => {
+                          setExpandedPaths((previous) => {
+                            const next = new Set(previous);
+                            if (next.has(path)) {
+                              next.delete(path);
+                            } else {
+                              next.add(path);
+                            }
+                            return next;
+                          });
+                        }}
+                        selectedPath={selectedPath}
+                        onSelectPath={onSelectPath}
+                        matchCounts={matchCounts}
+                        showMatchCounts={showMatchCounts}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </Ark.Splitter.Panel>
+
+        {footer ? (
+          <>
+            <Ark.Splitter.ResizeTrigger
+              id="files:history"
+              aria-label="Resize file tree and history"
+              className="group flex h-2 shrink-0 items-center justify-center bg-slate-100 transition-colors hover:bg-slate-200"
+            >
+              <GripHorizontal size={12} className="text-slate-400 group-hover:text-slate-600" />
+            </Ark.Splitter.ResizeTrigger>
+
+            <Ark.Splitter.Panel id="history" className="min-h-0 overflow-hidden">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      History
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-400">
+                      {historyPanelCollapsed
+                        ? "Collapsed"
+                        : "Resize or collapse this timeline panel"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => togglePanel("history")}
+                    className="rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    aria-label={historyPanelCollapsed ? "Expand history" : "Collapse history"}
+                    title={historyPanelCollapsed ? "Expand history" : "Collapse history"}
+                  >
+                    {historyPanelCollapsed ? (
+                      <ChevronDown size={14} />
+                    ) : (
+                      <ChevronRight size={14} className="rotate-90" />
+                    )}
+                  </button>
+                </div>
+
+                {!historyPanelCollapsed ? (
+                  <div className="min-h-0 flex-1 overflow-hidden">{footer}</div>
+                ) : null}
+              </div>
+            </Ark.Splitter.Panel>
+          </>
+        ) : null}
+      </Ark.Splitter.RootProvider>
     </aside>
   );
 };

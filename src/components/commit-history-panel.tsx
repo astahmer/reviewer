@@ -253,8 +253,23 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
           </p>
           <p className="mt-1 truncate font-mono text-xs text-slate-700">{branch || "No branch"}</p>
           <p className="mt-1 text-xs text-slate-500">
-            Click one commit to set an anchor, then click another to diff the range.
+            First click sets an anchor. Second click selects the range: the newer commit becomes
+            Head and the older commit becomes Base.
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              Anchor
+            </span>
+            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              Head
+            </span>
+            <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5">
+              <span className="h-2 w-2 rounded-full bg-sky-500" />
+              Base
+            </span>
+          </div>
         </div>
         {anchorCommit ? (
           <button
