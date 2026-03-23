@@ -81,14 +81,15 @@ export async function getCommitList(
   limit: number = 20,
   repoPath?: string,
   branch?: string,
+  offset: number = 0,
 ): Promise<CommitInfo[]> {
   const cwd = repoPath || process.cwd();
-  const localEntries = createLocalCommitEntries();
+  const localEntries = offset === 0 ? createLocalCommitEntries() : [];
 
   try {
     const format = "%x1e%H%x1f%s%x1f%an%x1f%aI";
     const branchArg = branch ? [branch] : ["--all"];
-    const cmd = `git log ${branchArg.join(" ")} --max-count=${limit} --format=${format} --shortstat`;
+    const cmd = `git log ${branchArg.join(" ")} --max-count=${limit} --skip=${offset} --format=${format} --shortstat`;
 
     const stdout = execSync(cmd, { cwd, encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 });
 

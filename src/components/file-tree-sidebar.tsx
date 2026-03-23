@@ -3,6 +3,7 @@ import { FC, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import {
   ArrowLeftRight,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -21,6 +22,8 @@ interface FileTreeSidebarProps {
   onToggleCollapsed: () => void;
   matchCounts?: Map<string, number>;
   showMatchCounts?: boolean;
+  viewedPaths: Set<string>;
+  onToggleViewed: (paths: string[]) => void;
 }
 
 interface TreeNode {
@@ -32,7 +35,7 @@ interface TreeNode {
 }
 
 const SIDEBAR_SECTION_MIN_SIZE = 18;
-const SIDEBAR_SECTION_COLLAPSED_SIZE = 9;
+const SIDEBAR_SECTION_COLLAPSED_SIZE = 0;
 
 const getFilePath = (file: FileDiffMetadata) => file.name;
 
@@ -193,7 +196,14 @@ interface TreeItemProps {
   onSelectPath: (path: string) => void;
   matchCounts?: Map<string, number>;
   showMatchCounts?: boolean;
+  viewedPaths: Set<string>;
+  onToggleViewed: (paths: string[]) => void;
 }
+
+const getLeafPaths = (node: TreeNode): string[] => {
+  if (node.kind === "file") return [node.path];
+  return node.children.flatMap(getLeafPaths);
+};
 
 const TreeItem: FC<TreeItemProps> = ({
   node,
@@ -204,61 +214,123 @@ const TreeItem: FC<TreeItemProps> = ({
   onSelectPath,
   matchCounts,
   showMatchCounts,
+  viewedPaths,
+  onToggleViewed,
 }) => {
   if (node.kind === "file") {
     const status = getStatusLabel(node.file);
     const isSelected = selectedPath === node.path;
     const matchCount = matchCounts?.get(node.path) || 0;
+    const isViewed = viewedPaths.has(node.path);
+    const additions = node.file?.additionLines?.length ?? 0;
+    const deletions = node.file?.deletionLines?.length ?? 0;
 
     return (
-      <button
-        type="button"
-        onClick={() => onSelectPath(node.path)}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+      <div
+        className={`flex items-center gap-1 rounded-md transition-colors ${
+          isViewed ? "opacity-50" : ""
+        } ${
           isSelected
-            ? "bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-200 dark:bg-sky-950/40 dark:text-sky-200 dark:ring-sky-800"
-            : "text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+            ? "bg-sky-50 ring-1 ring-inset ring-sky-200 dark:bg-sky-950/40 dark:ring-sky-800"
+            : "hover:bg-slate-100 dark:hover:bg-slate-800"
         }`}
-        style={{ paddingLeft: `${depth * 14 + 10}px` }}
+        style={{ paddingLeft: `${depth * 14 + 6}px` }}
       >
-        <span className="w-3 text-center text-slate-400 dark:text-slate-600">•</span>
-        <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
-        {showMatchCounts && matchCount > 0 ? (
-          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
-            {matchCount}
-          </span>
-        ) : null}
-        <span
-          className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase ${status.className}`}
+        <button
+          type="button"
+          onClick={() => onSelectPath(node.path)}
+          className={`flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 text-left text-sm ${
+            isSelected ? "text-sky-800 dark:text-sky-200" : "text-slate-800 dark:text-slate-200"
+          }`}
         >
-          {status.label}
-        </span>
-      </button>
+          <span className="w-3 shrink-0 text-center text-slate-400 dark:text-slate-600">•</span>
+          <span className="min-w-0 flex-1 truncate font-medium">{node.name}</span>
+          {showMatchCounts && matchCount > 0 ? (
+            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+              {matchCount}
+            </span>
+          ) : null}
+          {additions > 0 || deletions > 0 ? (
+            <span className="flex shrink-0 items-center gap-0.5 text-[10px] font-semibold">
+              {additions > 0 && (
+                <span className="text-emerald-600 dark:text-emerald-400">+{additions}</span>
+              )}
+              {deletions > 0 && (
+                <span className="text-rose-500 dark:text-rose-400">-{deletions}</span>
+              )}
+            </span>
+          ) : (
+            <span
+              className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase ${status.className}`}
+            >
+              {status.label}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          title={isViewed ? "Mark as not viewed" : "Mark as viewed"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleViewed([node.path]);
+          }}
+          className={`mr-1.5 flex shrink-0 items-center justify-center rounded p-0.5 transition-colors ${
+            isViewed
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+              : "text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+          }`}
+        >
+          <Check size={11} strokeWidth={2.5} />
+        </button>
+      </div>
     );
   }
 
   const isExpanded = expandedPaths.has(node.path);
   const directoryMatchCount = getNodeMatchCount(node, matchCounts);
+  const leafPaths = getLeafPaths(node);
+  const viewedCount = leafPaths.filter((p) => viewedPaths.has(p)).length;
+  const allViewed = leafPaths.length > 0 && viewedCount === leafPaths.length;
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => onToggle(node.path)}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm font-medium text-slate-800 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-        style={{ paddingLeft: `${depth * 14 + 10}px` }}
-      >
-        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        <span className="min-w-0 flex-1 truncate">{node.name}</span>
-        {showMatchCounts && directoryMatchCount > 0 ? (
-          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
-            {directoryMatchCount}
+      <div className="flex items-center gap-1 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800/60">
+        <button
+          type="button"
+          onClick={() => onToggle(node.path)}
+          className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 text-left text-sm font-medium text-slate-700 dark:text-slate-300"
+          style={{ paddingLeft: `${depth * 14 + 6}px` }}
+        >
+          {isExpanded ? (
+            <ChevronDown size={14} className="shrink-0" />
+          ) : (
+            <ChevronRight size={14} className="shrink-0" />
+          )}
+          <span className="min-w-0 flex-1 truncate">{node.name}</span>
+          {showMatchCounts && directoryMatchCount > 0 ? (
+            <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+              {directoryMatchCount}
+            </span>
+          ) : null}
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
+            {viewedCount}/{leafPaths.length}
           </span>
-        ) : null}
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          {node.children.length}
-        </span>
-      </button>
+        </button>
+        <button
+          type="button"
+          title={allViewed ? "Mark folder as not viewed" : "Mark all in folder as viewed"}
+          onClick={() => onToggleViewed(leafPaths)}
+          className={`mr-1.5 flex shrink-0 items-center justify-center rounded p-0.5 transition-colors ${
+            allViewed
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+              : viewedCount > 0
+                ? "bg-emerald-50 text-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-600"
+                : "text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+          }`}
+        >
+          <Check size={11} strokeWidth={2.5} />
+        </button>
+      </div>
 
       {isExpanded && (
         <div className="space-y-0.5">
@@ -273,6 +345,8 @@ const TreeItem: FC<TreeItemProps> = ({
               onSelectPath={onSelectPath}
               matchCounts={matchCounts}
               showMatchCounts={showMatchCounts}
+              viewedPaths={viewedPaths}
+              onToggleViewed={onToggleViewed}
             />
           ))}
         </div>
@@ -292,6 +366,8 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   onToggleCollapsed,
   matchCounts,
   showMatchCounts,
+  viewedPaths,
+  onToggleViewed,
 }) => {
   const tree = useMemo(() => buildTree(files), [files]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() =>
@@ -449,6 +525,17 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               {files.length} file{files.length === 1 ? "" : "s"}
             </span>
+            {files.length > 0 ? (
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                  viewedPaths.size === files.length
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                }`}
+              >
+                {viewedPaths.size}/{files.length} viewed
+              </span>
+            ) : null}
             {showMatchCounts && totalMatchCount > 0 ? (
               <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
                 {totalMatchCount} matches
@@ -482,7 +569,10 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
         value={sectionSplitter}
         className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-[var(--app-panel-muted)]"
       >
-        <Ark.Splitter.Panel id="files" className="min-h-0 overflow-hidden">
+        <Ark.Splitter.Panel
+          id="files"
+          className="min-h-0 overflow-hidden data-[state=collapsed]:min-h-9"
+        >
           <div className="flex h-full min-h-0 flex-col overflow-hidden">
             <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/70 px-3 py-1.5 dark:border-slate-800 dark:bg-[#161b22]/60">
               <div className="min-w-0">
@@ -535,6 +625,8 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
                         onSelectPath={onSelectPath}
                         matchCounts={matchCounts}
                         showMatchCounts={showMatchCounts}
+                        viewedPaths={viewedPaths}
+                        onToggleViewed={onToggleViewed}
                       />
                     ))}
                   </div>
@@ -556,7 +648,10 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
               </Ark.Splitter.ResizeTrigger>
             ) : null}
 
-            <Ark.Splitter.Panel id="history" className="min-h-0 overflow-hidden">
+            <Ark.Splitter.Panel
+              id="history"
+              className="min-h-0 overflow-hidden data-[state=collapsed]:min-h-9"
+            >
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
                 <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/70 px-3 py-1.5 dark:border-slate-800 dark:bg-[#161b22]/60">
                   <div className="min-w-0">

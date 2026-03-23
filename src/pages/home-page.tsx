@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import React, { FC, useEffect, useMemo, useRef } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
@@ -29,6 +29,7 @@ import type { SearchParams } from "~/routes/index";
 
 const REPO_STORAGE_KEY = "selectedRepoPath";
 const CUSTOM_PATHS_KEY = "customSearchPaths";
+const COMMITS_PER_PAGE = 20;
 
 interface Repository {
   path: string;
@@ -117,21 +118,33 @@ export const HomePage: FC = () => {
   });
 
   const {
-    data: baseCommits = [],
+    data: baseCommitsData,
+    fetchNextPage: fetchMoreBaseCommits,
+    hasNextPage: hasMoreBaseCommits,
     isLoading: baseCommitsLoading,
     error: baseCommitsError,
-  } = useQuery({
+  } = useInfiniteQuery({
     queryKey: ["commits", selectedRepo?.path, baseBranch],
-    queryFn: async () => {
+    queryFn: async ({ pageParam }: { pageParam: number }) => {
       const url = new URL("/api/commits", window.location.origin);
       if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
       if (baseBranch) url.searchParams.set("branch", baseBranch);
+      url.searchParams.set("limit", String(COMMITS_PER_PAGE));
+      url.searchParams.set("offset", String(pageParam));
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch commits");
       return (await response.json()) as CommitInfo[];
     },
+    getNextPageParam: (lastPage: CommitInfo[], allPages: CommitInfo[][]) => {
+      const realInLast = lastPage.filter((c) => !isLocalRef(c.hash));
+      if (realInLast.length < COMMITS_PER_PAGE) return undefined;
+      return allPages.flat().filter((c) => !isLocalRef(c.hash)).length;
+    },
+    initialPageParam: 0,
     enabled: !!selectedRepo,
   });
+
+  const baseCommits = useMemo(() => baseCommitsData?.pages.flat() ?? [], [baseCommitsData]);
 
   const { data: currentBranch, isLoading: currentBranchLoading } = useQuery({
     queryKey: ["currentBranch", selectedRepo?.path],
@@ -146,21 +159,33 @@ export const HomePage: FC = () => {
   });
 
   const {
-    data: headCommits = [],
+    data: headCommitsData,
+    fetchNextPage: fetchMoreHeadCommits,
+    hasNextPage: hasMoreHeadCommits,
     isLoading: headCommitsLoading,
     error: headCommitsError,
-  } = useQuery({
+  } = useInfiniteQuery({
     queryKey: ["commits", selectedRepo?.path, headBranch],
-    queryFn: async () => {
+    queryFn: async ({ pageParam }: { pageParam: number }) => {
       const url = new URL("/api/commits", window.location.origin);
       if (selectedRepo) url.searchParams.set("repoPath", selectedRepo.path);
       if (headBranch) url.searchParams.set("branch", headBranch);
+      url.searchParams.set("limit", String(COMMITS_PER_PAGE));
+      url.searchParams.set("offset", String(pageParam));
       const response = await fetch(url);
       if (!response.ok) throw new Error("Failed to fetch commits");
       return (await response.json()) as CommitInfo[];
     },
+    getNextPageParam: (lastPage: CommitInfo[], allPages: CommitInfo[][]) => {
+      const realInLast = lastPage.filter((c) => !isLocalRef(c.hash));
+      if (realInLast.length < COMMITS_PER_PAGE) return undefined;
+      return allPages.flat().filter((c) => !isLocalRef(c.hash)).length;
+    },
+    initialPageParam: 0,
     enabled: !!selectedRepo,
   });
+
+  const headCommits = useMemo(() => headCommitsData?.pages.flat() ?? [], [headCommitsData]);
 
   const filteredHeadCommits = useMemo(() => {
     if (baseBranch === headBranch && baseCommit && isRealCommitRef(baseCommit)) {
@@ -602,6 +627,10 @@ export const HomePage: FC = () => {
             headCommit={headCommit}
             onBaseCommitChange={(hash) => updateUrl({ baseCommit: hash, headCommit: "" })}
             onHeadCommitChange={(hash) => updateUrl({ headCommit: hash })}
+            onLoadMoreBaseCommits={() => fetchMoreBaseCommits()}
+            onLoadMoreHeadCommits={() => fetchMoreHeadCommits()}
+            hasMoreBaseCommits={hasMoreBaseCommits}
+            hasMoreHeadCommits={hasMoreHeadCommits}
           />
         ) : (
           <EmptyState message="No diff available for the selected refs." />

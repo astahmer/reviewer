@@ -7,11 +7,12 @@ export const Route = createFileRoute("/api/commits")({
       GET: async ({ request }: { request: Request }) => {
         try {
           const url = new URL(request.url);
-          const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
+          const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
+          const offset = Math.max(0, parseInt(url.searchParams.get("offset") || "0"));
           const repoPath = url.searchParams.get("repoPath") || undefined;
           const branch = url.searchParams.get("branch") || undefined;
 
-          const commits = await getCommitList(limit, repoPath, branch);
+          const commits = await getCommitList(limit, repoPath, branch, offset);
           return Response.json(commits);
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to fetch commits";

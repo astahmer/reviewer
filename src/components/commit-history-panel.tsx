@@ -12,6 +12,10 @@ interface CommitHistoryPanelProps {
   selectedHeadCommit: string;
   onBaseCommitChange?: (hash: string) => void;
   onHeadCommitChange?: (hash: string) => void;
+  onLoadMoreBase?: () => void;
+  onLoadMoreHead?: () => void;
+  hasMoreBase?: boolean;
+  hasMoreHead?: boolean;
 }
 
 interface CommitLaneProps {
@@ -22,6 +26,8 @@ interface CommitLaneProps {
   onSelectCommit?: (hash: string) => void;
   accentClassName: string;
   secondarySelectedCommit?: string;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
 const isSelectedCommit = (selectedCommit: string, hash: string) => {
@@ -58,9 +64,9 @@ const CommitLane: FC<CommitLaneProps> = ({
   onSelectCommit,
   accentClassName,
   secondarySelectedCommit,
+  onLoadMore,
+  hasMore,
 }) => {
-  const visibleCommits = commits.slice(0, 8);
-
   return (
     <section className="min-h-0 flex flex-col border-b border-slate-200/80 last:border-b-0 dark:border-slate-800">
       <div className="flex items-center justify-between px-3 py-2">
@@ -79,7 +85,7 @@ const CommitLane: FC<CommitLaneProps> = ({
 
       <div className="min-h-0 flex-1 overflow-auto px-3 pb-2">
         <div className="space-y-2 border-l border-slate-200 pl-3 dark:border-slate-800">
-          {visibleCommits.map((commit) => {
+          {commits.map((commit) => {
             const selected = isSelectedCommit(selectedCommit, commit.hash);
             const secondarySelected = secondarySelectedCommit
               ? isSelectedCommit(secondarySelectedCommit, commit.hash)
@@ -127,6 +133,15 @@ const CommitLane: FC<CommitLaneProps> = ({
               </button>
             );
           })}
+          {hasMore && onLoadMore ? (
+            <button
+              type="button"
+              onClick={onLoadMore}
+              className="ml-[-14px] w-full rounded-md px-2 py-1.5 text-left text-[11px] text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              Load more commits…
+            </button>
+          ) : null}
         </div>
       </div>
     </section>
@@ -140,6 +155,8 @@ interface RangeTimelineProps {
   selectedHeadCommit: string;
   onBaseCommitChange?: (hash: string) => void;
   onHeadCommitChange?: (hash: string) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
 }
 
 const RangeTimeline: FC<RangeTimelineProps> = ({
@@ -149,6 +166,8 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
   selectedHeadCommit,
   onBaseCommitChange,
   onHeadCommitChange,
+  onLoadMore,
+  hasMore,
 }) => {
   const [anchorCommit, setAnchorCommit] = useState<string | null>(null);
   const [focusedCommit, setFocusedCommit] = useState<string>(
@@ -156,7 +175,7 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
   );
   const itemRefs = useRef(new Map<string, HTMLButtonElement>());
 
-  const visibleCommits = commits.slice(0, 12);
+  const visibleCommits = commits;
 
   useEffect(() => {
     const nextFocusedCommit =
@@ -374,6 +393,15 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
               </button>
             );
           })}
+          {hasMore && onLoadMore ? (
+            <button
+              type="button"
+              onClick={onLoadMore}
+              className="ml-[-14px] w-full rounded-md px-2 py-1.5 text-left text-[11px] text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              Load more commits…
+            </button>
+          ) : null}
         </div>
       </div>
     </section>
@@ -389,19 +417,28 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
   selectedHeadCommit,
   onBaseCommitChange,
   onHeadCommitChange,
+  onLoadMoreBase,
+  onLoadMoreHead,
+  hasMoreBase,
+  hasMoreHead,
 }) => {
   const isSameBranchComparison = !!baseBranch && baseBranch === headBranch;
+  const rangeCommits = headCommits.length > 0 ? headCommits : baseCommits;
+  const hasMoreRange = headCommits.length > 0 ? hasMoreHead : hasMoreBase;
+  const onLoadMoreRange = headCommits.length > 0 ? onLoadMoreHead : onLoadMoreBase;
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--app-panel)]">
       {isSameBranchComparison ? (
         <RangeTimeline
           branch={headBranch}
-          commits={headCommits.length > 0 ? headCommits : baseCommits}
+          commits={rangeCommits}
           selectedBaseCommit={selectedBaseCommit}
           selectedHeadCommit={selectedHeadCommit}
           onBaseCommitChange={onBaseCommitChange}
           onHeadCommitChange={onHeadCommitChange}
+          onLoadMore={onLoadMoreRange}
+          hasMore={hasMoreRange}
         />
       ) : (
         <>
@@ -412,6 +449,8 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
             selectedCommit={selectedHeadCommit}
             onSelectCommit={onHeadCommitChange}
             accentClassName="bg-emerald-500"
+            onLoadMore={onLoadMoreHead}
+            hasMore={hasMoreHead}
           />
           <CommitLane
             title="Base"
@@ -421,6 +460,8 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
             secondarySelectedCommit={selectedHeadCommit}
             onSelectCommit={onBaseCommitChange}
             accentClassName="bg-sky-500"
+            onLoadMore={onLoadMoreBase}
+            hasMore={hasMoreBase}
           />
         </>
       )}

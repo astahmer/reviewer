@@ -148,10 +148,10 @@ export class GitLocalAdapter implements VCSAdapter {
     });
   }
 
-  getCommits(limit: number = 20): Effect.Effect<CommitInfo[], VCSError> {
+  getCommits(limit: number = 20, offset: number = 0): Effect.Effect<CommitInfo[], VCSError> {
     const repoPath = this._repoPath;
     const format = "%x1e%H%x1f%s%x1f%an%x1f%aI";
-    const command = `git log --pretty=format:"${format}" --shortstat -n ${limit}`;
+    const command = `git log --pretty=format:"${format}" --shortstat -n ${limit} --skip=${offset}`;
 
     return Effect.tryPromise({
       try: async () => {

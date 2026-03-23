@@ -34,6 +34,10 @@ interface DiffViewerProps {
   headCommit: string;
   onBaseCommitChange?: (hash: string) => void;
   onHeadCommitChange?: (hash: string) => void;
+  onLoadMoreBaseCommits?: () => void;
+  onLoadMoreHeadCommits?: () => void;
+  hasMoreBaseCommits?: boolean;
+  hasMoreHeadCommits?: boolean;
 }
 
 interface ExpandedFileData {
@@ -133,6 +137,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   headCommit,
   onBaseCommitChange,
   onHeadCommitChange,
+  onLoadMoreBaseCommits,
+  onLoadMoreHeadCommits,
+  hasMoreBaseCommits,
+  hasMoreHeadCommits,
 }) => {
   const navigate = useNavigate({ from: "/" });
   const searchParams = useSearch({ from: "/" });
@@ -148,6 +156,39 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   const [expandedFiles, setExpandedFiles] = useState<Map<string, ExpandedFileData>>(new Map());
   const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
+  const [collapsedDiffFiles, setCollapsedDiffFiles] = useState<Set<string>>(new Set());
+
+  const diffKey = `${baseCommit}:${headCommit}`;
+  const [viewedPathsArray, setViewedPathsArray] = useLocalStorage<string[]>(
+    `reviewer_app:viewed:${diffKey}`,
+    [],
+  );
+  const viewedPaths = useMemo(() => new Set(viewedPathsArray), [viewedPathsArray]);
+
+  const handleToggleViewed = useCallback(
+    (paths: string[]) => {
+      setViewedPathsArray((prev) => {
+        const prevSet = new Set(prev);
+        const allViewed = paths.every((p) => prevSet.has(p));
+        if (allViewed) {
+          for (const p of paths) prevSet.delete(p);
+        } else {
+          for (const p of paths) prevSet.add(p);
+        }
+        return Array.from(prevSet);
+      });
+    },
+    [setViewedPathsArray],
+  );
+
+  const handleToggleDiffFileCollapse = useCallback((filePath: string) => {
+    setCollapsedDiffFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(filePath)) next.delete(filePath);
+      else next.add(filePath);
+      return next;
+    });
+  }, []);
   const [lightMenuOpen, setLightMenuOpen] = useState(false);
   const [darkMenuOpen, setDarkMenuOpen] = useState(false);
   const [lightSearch, setLightSearch] = useState("");
@@ -736,35 +777,94 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           const isLoading = loadingFiles.has(`${file.name}-full`);
           const isExpanded = expandedFiles.has(`${file.name}-full`);
           const isSelected = selectedPath === file.name;
+          const isDiffCollapsed = collapsedDiffFiles.has(file.name);
+          const isViewed = viewedPaths.has(file.name);
+          const additions = file.additionLines?.length ?? 0;
+          const deletions = file.deletionLines?.length ?? 0;
 
           return (
             <div
               key={fileKey}
               ref={(element) => setFileRef(file.name, element)}
-              className={`relative scroll-mt-4 ${isSelected ? "bg-sky-50/30" : ""}`}
+              className={`relative scroll-mt-4 border-b border-slate-200 dark:border-slate-800 last:border-b-0 ${
+                isSelected ? "bg-sky-50/30 dark:bg-sky-950/10" : ""
+              }`}
             >
-              {!isExpanded && !isLoading && (
+              {/* File header - always visible, acts as collapse toggle */}
+              <div
+                className={`flex items-center gap-2 border-b border-slate-200 px-3 py-1.5 dark:border-slate-800 ${
+                  isDiffCollapsed ? "border-t-0" : "bg-slate-50/80 dark:bg-[#161b22]/80"
+                } ${isViewed ? "opacity-60" : ""}`}
+              >
                 <button
-                  onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
-                  className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
+                  type="button"
+                  onClick={() => handleToggleDiffFileCollapse(file.name)}
+                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  title={isDiffCollapsed ? "Expand diff" : "Collapse diff"}
                 >
-                  Load full file
+                  <ChevronDown
+                    size={14}
+                    className={`shrink-0 text-slate-500 transition-transform ${
+                      isDiffCollapsed ? "-rotate-90" : ""
+                    }`}
+                  />
+                  <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-700 dark:text-slate-300">
+                    {file.prevName && file.prevName !== file.name
+                      ? `${file.prevName} → ${file.name}`
+                      : file.name}
+                  </span>
+                  {additions > 0 || deletions > 0 ? (
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold">
+                      {additions > 0 && (
+                        <span className="text-emerald-600 dark:text-emerald-400">+{additions}</span>
+                      )}
+                      {deletions > 0 && (
+                        <span className="text-rose-500 dark:text-rose-400">-{deletions}</span>
+                      )}
+                    </span>
+                  ) : null}
                 </button>
+                <button
+                  type="button"
+                  title={isViewed ? "Mark as not viewed" : "Mark as viewed"}
+                  onClick={() => handleToggleViewed([file.name])}
+                  className={`flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                    isViewed
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                      : "text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  <Eye size={12} />
+                  <span>{isViewed ? "Viewed" : "Mark viewed"}</span>
+                </button>
+              </div>
+
+              {!isDiffCollapsed && (
+                <>
+                  {!isExpanded && !isLoading && (
+                    <button
+                      onClick={() => handleExpandHunk(fileKey, 0, "both", true)}
+                      className="absolute top-12 right-2 z-10 px-2 py-1 text-xs bg-blue-500 text-white rounded shadow hover:bg-blue-600"
+                    >
+                      Load full file
+                    </button>
+                  )}
+                  {isLoading && (
+                    <div className="absolute top-12 right-2 z-10 px-2 py-1 text-xs bg-gray-500 text-white rounded">
+                      Loading...
+                    </div>
+                  )}
+                  <FileDiffComponent
+                    fileDiff={file}
+                    options={{
+                      theme: theme as ThemeName,
+                      diffStyle: viewMode,
+                      overflow: wrapping ? "wrap" : "scroll",
+                      disableLineNumbers: false,
+                    }}
+                  />
+                </>
               )}
-              {isLoading && (
-                <div className="absolute top-2 right-2 z-10 px-2 py-1 text-xs bg-gray-500 text-white rounded">
-                  Loading...
-                </div>
-              )}
-              <FileDiffComponent
-                fileDiff={file}
-                options={{
-                  theme: theme as ThemeName,
-                  diffStyle: viewMode,
-                  overflow: wrapping ? "wrap" : "scroll",
-                  disableLineNumbers: false,
-                }}
-              />
             </div>
           );
         })}
@@ -782,6 +882,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       onToggleCollapsed={() => setSidebarCollapsed(!layoutSplitter.isPanelCollapsed("sidebar"))}
       matchCounts={fileMatchCounts}
       showMatchCounts={hasActiveSearch}
+      viewedPaths={viewedPaths}
+      onToggleViewed={handleToggleViewed}
       footer={
         <CommitHistoryPanel
           baseBranch={baseBranch}
@@ -792,6 +894,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           selectedHeadCommit={headCommit}
           onBaseCommitChange={onBaseCommitChange}
           onHeadCommitChange={onHeadCommitChange}
+          onLoadMoreBase={onLoadMoreBaseCommits}
+          onLoadMoreHead={onLoadMoreHeadCommits}
+          hasMoreBase={hasMoreBaseCommits}
+          hasMoreHead={hasMoreHeadCommits}
         />
       }
     />
