@@ -3,11 +3,15 @@
   "version": "0.0.1",
   "description": "Local-first high-performance git diff reviewer",
   "type": "module",
+  "bin": {
+    "reviewer": "./bin/reviewer.mjs"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && tsc --noEmit",
     "preview": "vite preview",
-    "start": "node .output/server/index.mjs",
+    "start": "node dist/server/server.js",
+    "cli": "node ./bin/reviewer.mjs",
     "typecheck": "tsc --noEmit --pretty",
     "go": "tsgo --noEmit --pretty",
     "fmt": "oxfmt",
