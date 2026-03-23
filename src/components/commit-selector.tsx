@@ -98,7 +98,7 @@ export const CommitSelector: FC<CommitSelectorProps> = ({
         </button>
       </Popover.Trigger>
       <Portal>
-        <Popover.Positioner>
+        <Popover.Positioner style={{ zIndex: 50 }}>
           <Popover.Content className="overflow-hidden rounded-md border border-slate-200 bg-[var(--app-panel)] text-slate-800 shadow-lg dark:border-slate-700 dark:text-slate-100">
             <Combobox.Root
               openOnClick

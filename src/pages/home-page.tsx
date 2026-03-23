@@ -507,7 +507,7 @@ export const HomePage: FC = () => {
               placeholder="commit"
             />
             {baseBranch === headBranch && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
-              <div className="flex items-center gap-1 pl-1">
+              <div className="flex items-center gap-1 pl-1 whitespace-nowrap">
                 <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 dark:border-sky-900 dark:bg-sky-950/40">
                   <span className="font-mono text-[11px] font-medium text-sky-700 dark:text-sky-300">
                     {getCommitDisplayLabel(selectedBaseCommitInfo)}
