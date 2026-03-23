@@ -241,6 +241,7 @@ const TreeItem: FC<TreeItemProps> = ({
         <button
           type="button"
           onClick={() => onSelectPath(node.path)}
+          data-tree-path={node.path}
           className={`flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-2 text-left text-sm ${
             isSelected ? "text-sky-800 dark:text-sky-200" : "text-slate-800 dark:text-slate-200"
           }`}
@@ -387,6 +388,7 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   const ExpandIcon = position === "left" ? ChevronRight : ChevronLeft;
   const [sectionSizes, setSectionSizes] = useSidebarSectionSizes();
   const [sectionCollapsedState, setSectionCollapsedState] = useSidebarSectionCollapsedState();
+  const treeScrollRef = useRef<HTMLDivElement>(null);
   const totalMatchCount = Array.from(matchCounts?.values() || []).reduce(
     (total, count) => total + count,
     0,
@@ -442,8 +444,8 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
     });
   }, [files, selectedPath]);
 
-  const filesPanelCollapsed = sectionCollapsedState.files;
-  const historyPanelCollapsed = sectionCollapsedState.history;
+  const filesPanelCollapsed = sectionSplitter.isPanelCollapsed("files");
+  const historyPanelCollapsed = sectionSplitter.isPanelCollapsed("history");
 
   useEffect(() => {
     if (sectionCollapsedState.files) {
@@ -467,6 +469,19 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
     sectionSizes.files,
     sectionSizes.history,
   ]);
+
+  useEffect(() => {
+    if (!selectedPath || !treeScrollRef.current) {
+      return;
+    }
+
+    const escapedPath = window.CSS?.escape ? window.CSS.escape(selectedPath) : selectedPath;
+    requestAnimationFrame(() => {
+      treeScrollRef.current
+        ?.querySelector(`[data-tree-path="${escapedPath}"]`)
+        ?.scrollIntoView({ block: "nearest" });
+    });
+  }, [expandedPaths, selectedPath]);
 
   const toggleFilesPanel = () => {
     setSectionCollapsedState({
@@ -624,7 +639,7 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
             </div>
 
             {!filesPanelCollapsed ? (
-              <div className="min-h-0 flex-1 overflow-auto p-2">
+              <div ref={treeScrollRef} className="min-h-0 flex-1 overflow-auto p-2">
                 {files.length === 0 ? (
                   <div className="flex h-full items-center justify-center px-6 text-center text-sm text-slate-600 dark:text-slate-400">
                     No files match the current diff filters.

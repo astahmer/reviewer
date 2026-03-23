@@ -504,10 +504,6 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const renderPaths = useMemo(() => renderFiles.map((file) => file.name), [renderFiles]);
 
   useEffect(() => {
-    if (!autoMarkViewed) {
-      return;
-    }
-
     const scrollElement = contentScrollRef.current;
     if (!scrollElement) {
       return;
@@ -515,25 +511,49 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
     let frameId = 0;
 
-    const syncViewedFromScroll = () => {
+    const syncFromScroll = () => {
       frameId = 0;
 
       const scrollRect = scrollElement.getBoundingClientRect();
-      const stickyBandTop = scrollRect.top + 56;
-      const stickyBandBottom = scrollRect.top + Math.min(scrollRect.height * 0.45, 260);
+      const activeLine = scrollRect.top + 56;
       const pathsToMark: string[] = [];
+      let currentPath: string | null = null;
+      let nextPath: string | null = null;
+      let nextPathDistance = Number.POSITIVE_INFINITY;
 
       for (const [path, element] of fileRefs.current.entries()) {
         const rect = element.getBoundingClientRect();
-        const overlapsStickyBand = rect.top <= stickyBandBottom && rect.bottom >= stickyBandTop;
-        const scrolledPastTop = rect.top < stickyBandTop && rect.bottom > stickyBandTop;
+        const isVisible = rect.bottom > scrollRect.top && rect.top < scrollRect.bottom;
 
-        if (overlapsStickyBand || scrolledPastTop) {
+        if (!isVisible) {
+          continue;
+        }
+
+        if (autoMarkViewed && rect.bottom > activeLine) {
           pathsToMark.push(path);
+        }
+
+        const containsActiveLine = rect.top <= activeLine && rect.bottom >= activeLine;
+        if (containsActiveLine) {
+          currentPath = path;
+          break;
+        }
+
+        if (rect.top > activeLine) {
+          const distance = rect.top - activeLine;
+          if (distance < nextPathDistance) {
+            nextPathDistance = distance;
+            nextPath = path;
+          }
         }
       }
 
-      if (pathsToMark.length > 0) {
+      const nextSelectedPath = currentPath ?? nextPath ?? renderFiles[0]?.name ?? null;
+      if (nextSelectedPath && nextSelectedPath !== selectedPath) {
+        setSelectedPath(nextSelectedPath);
+      }
+
+      if (autoMarkViewed && pathsToMark.length > 0) {
         markPathsViewed(pathsToMark);
       }
     };
@@ -543,10 +563,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         return;
       }
 
-      frameId = window.requestAnimationFrame(syncViewedFromScroll);
+      frameId = window.requestAnimationFrame(syncFromScroll);
     };
 
-    syncViewedFromScroll();
+    syncFromScroll();
     scrollElement.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {
@@ -555,7 +575,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         window.cancelAnimationFrame(frameId);
       }
     };
-  }, [autoMarkViewed, renderFiles, viewedPathsArray]);
+  }, [autoMarkViewed, renderFiles, selectedPath, viewedPathsArray]);
 
   useEffect(() => {
     if (renderPaths.length === 0) {
