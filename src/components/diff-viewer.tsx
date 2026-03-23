@@ -157,25 +157,52 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const [expandedFiles, setExpandedFiles] = useState<Map<string, ExpandedFileData>>(new Map());
   const [loadingFiles, setLoadingFiles] = useState<Set<string>>(new Set());
   const [collapsedDiffFiles, setCollapsedDiffFiles] = useState<Set<string>>(new Set());
+  const [autoMarkViewed, setAutoMarkViewed] = useLocalStorage<boolean>(
+    STORAGE_KEYS.autoMarkViewed,
+    false,
+  );
+  const contentScrollRef = useRef<HTMLDivElement>(null);
 
   const diffKey = `${baseCommit}:${headCommit}`;
   const [viewedPathsArray, setViewedPathsArray] = useLocalStorage<string[]>(
     `reviewer_app:viewed:${diffKey}`,
     [],
   );
-  const viewedPaths = useMemo(() => new Set(viewedPathsArray), [viewedPathsArray]);
+
+  const markPathsViewed = useCallback(
+    (paths: string[]) => {
+      setViewedPathsArray((currentPaths) => {
+        const nextPaths = new Set(currentPaths);
+        let changed = false;
+
+        for (const path of paths) {
+          if (!nextPaths.has(path)) {
+            nextPaths.add(path);
+            changed = true;
+          }
+        }
+
+        return changed ? Array.from(nextPaths) : currentPaths;
+      });
+    },
+    [setViewedPathsArray],
+  );
 
   const handleToggleViewed = useCallback(
     (paths: string[]) => {
-      setViewedPathsArray((prev) => {
-        const prevSet = new Set(prev);
-        const allViewed = paths.every((p) => prevSet.has(p));
+      setViewedPathsArray((currentPaths) => {
+        const nextPaths = new Set(currentPaths);
+        const allViewed = paths.every((path) => nextPaths.has(path));
         if (allViewed) {
-          for (const p of paths) prevSet.delete(p);
+          for (const path of paths) {
+            nextPaths.delete(path);
+          }
         } else {
-          for (const p of paths) prevSet.add(p);
+          for (const path of paths) {
+            nextPaths.add(path);
+          }
         }
-        return Array.from(prevSet);
+        return Array.from(nextPaths);
       });
     },
     [setViewedPathsArray],
@@ -441,6 +468,12 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   }, [diff.pierreData, expandedFiles, parsedSearchQuery]);
 
   const renderFiles = useMemo(() => getRenderFiles(), [getRenderFiles]);
+  const renderFilePaths = useMemo(() => renderFiles.map((file) => file.name), [renderFiles]);
+  const renderFilePathSet = useMemo(() => new Set(renderFilePaths), [renderFilePaths]);
+  const visibleViewedPaths = useMemo(
+    () => new Set(viewedPathsArray.filter((path) => renderFilePathSet.has(path))),
+    [renderFilePathSet, viewedPathsArray],
+  );
   const fileMatchCounts = useMemo(
     () =>
       new Map(renderFiles.map((file) => [file.name, getFileMatchCount(file, parsedSearchQuery)])),
@@ -464,6 +497,35 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   }, []);
 
   const renderPaths = useMemo(() => renderFiles.map((file) => file.name), [renderFiles]);
+
+  useEffect(() => {
+    if (!autoMarkViewed || !contentScrollRef.current) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const pathsToMark = entries
+          .filter((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6)
+          .map((entry) => (entry.target as HTMLDivElement).dataset.filePath)
+          .filter((path): path is string => Boolean(path));
+
+        if (pathsToMark.length > 0) {
+          markPathsViewed(pathsToMark);
+        }
+      },
+      {
+        root: contentScrollRef.current,
+        threshold: [0.6],
+      },
+    );
+
+    for (const element of fileRefs.current.values()) {
+      observer.observe(element);
+    }
+
+    return () => observer.disconnect();
+  }, [autoMarkViewed, markPathsViewed, renderFiles]);
 
   useEffect(() => {
     if (renderPaths.length === 0) {
@@ -778,13 +840,14 @@ export const DiffViewer: FC<DiffViewerProps> = ({
           const isExpanded = expandedFiles.has(`${file.name}-full`);
           const isSelected = selectedPath === file.name;
           const isDiffCollapsed = collapsedDiffFiles.has(file.name);
-          const isViewed = viewedPaths.has(file.name);
+          const isViewed = visibleViewedPaths.has(file.name);
           const additions = file.additionLines?.length ?? 0;
           const deletions = file.deletionLines?.length ?? 0;
 
           return (
             <div
               key={fileKey}
+              data-file-path={file.name}
               ref={(element) => setFileRef(file.name, element)}
               className={`relative scroll-mt-4 border-b border-slate-200 dark:border-slate-800 last:border-b-0 ${
                 isSelected ? "bg-sky-50/30 dark:bg-sky-950/10" : ""
@@ -882,8 +945,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       onToggleCollapsed={() => setSidebarCollapsed(!layoutSplitter.isPanelCollapsed("sidebar"))}
       matchCounts={fileMatchCounts}
       showMatchCounts={hasActiveSearch}
-      viewedPaths={viewedPaths}
+      viewedPaths={visibleViewedPaths}
       onToggleViewed={handleToggleViewed}
+      autoMarkViewed={autoMarkViewed}
+      onToggleAutoMarkViewed={() => setAutoMarkViewed((current) => !current)}
       footer={
         <CommitHistoryPanel
           baseBranch={baseBranch}
@@ -903,7 +968,11 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     />
   );
 
-  const renderContent = () => <div className="min-w-0 h-full overflow-auto">{MainContent}</div>;
+  const renderContent = () => (
+    <div ref={contentScrollRef} className="min-w-0 h-full overflow-auto">
+      {MainContent}
+    </div>
+  );
 
   return (
     <div className="h-full flex flex-col">

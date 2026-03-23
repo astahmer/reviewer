@@ -24,6 +24,8 @@ interface FileTreeSidebarProps {
   showMatchCounts?: boolean;
   viewedPaths: Set<string>;
   onToggleViewed: (paths: string[]) => void;
+  autoMarkViewed: boolean;
+  onToggleAutoMarkViewed: () => void;
 }
 
 interface TreeNode {
@@ -274,10 +276,11 @@ const TreeItem: FC<TreeItemProps> = ({
             e.stopPropagation();
             onToggleViewed([node.path]);
           }}
-          className={`mr-1.5 flex shrink-0 items-center justify-center rounded p-0.5 transition-colors ${
+          aria-pressed={isViewed}
+          className={`mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
             isViewed
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
-              : "text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+              ? "border-emerald-300 bg-emerald-500 text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-slate-950"
+              : "border-slate-300 text-transparent hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
           }`}
         >
           <Check size={11} strokeWidth={2.5} />
@@ -320,12 +323,13 @@ const TreeItem: FC<TreeItemProps> = ({
           type="button"
           title={allViewed ? "Mark folder as not viewed" : "Mark all in folder as viewed"}
           onClick={() => onToggleViewed(leafPaths)}
-          className={`mr-1.5 flex shrink-0 items-center justify-center rounded p-0.5 transition-colors ${
+          aria-pressed={allViewed}
+          className={`mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
             allViewed
-              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+              ? "border-emerald-300 bg-emerald-500 text-white dark:border-emerald-500 dark:bg-emerald-500 dark:text-slate-950"
               : viewedCount > 0
-                ? "bg-emerald-50 text-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-600"
-                : "text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-500 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                : "border-slate-300 text-transparent hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-700"
           }`}
         >
           <Check size={11} strokeWidth={2.5} />
@@ -368,8 +372,14 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
   showMatchCounts,
   viewedPaths,
   onToggleViewed,
+  autoMarkViewed,
+  onToggleAutoMarkViewed,
 }) => {
   const tree = useMemo(() => buildTree(files), [files]);
+  const viewedFileCount = useMemo(
+    () => files.reduce((count, file) => count + (viewedPaths.has(file.name) ? 1 : 0), 0),
+    [files, viewedPaths],
+  );
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() =>
     getDefaultExpandedPaths(files),
   );
@@ -528,12 +538,12 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
             {files.length > 0 ? (
               <span
                 className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                  viewedPaths.size === files.length
+                  viewedFileCount === files.length
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
                     : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                 }`}
               >
-                {viewedPaths.size}/{files.length} viewed
+                {viewedFileCount}/{files.length} viewed
               </span>
             ) : null}
             {showMatchCounts && totalMatchCount > 0 ? (
@@ -544,6 +554,23 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={onToggleAutoMarkViewed}
+            className={`rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide transition-colors ${
+              autoMarkViewed
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+                : "text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            }`}
+            aria-pressed={autoMarkViewed}
+            title={
+              autoMarkViewed
+                ? "Disable automatic viewed tracking"
+                : "Enable automatic viewed tracking based on scroll position"
+            }
+          >
+            auto
+          </button>
           <button
             type="button"
             onClick={onTogglePosition}

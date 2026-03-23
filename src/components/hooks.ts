@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   SEARCH_DEBOUNCE_MS,
   DEFAULT_PREFERENCES,
@@ -35,38 +35,32 @@ export function useLocalStorage<T>(
       return defaultValue;
     }
   });
+  const valueRef = useRef(value);
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   const updateValue = (nextValue: StorageUpdater<T>) => {
-    setValue((previousValue) => {
-      let currentValue = previousValue;
+    const currentValue = valueRef.current;
+    const resolvedValue =
+      typeof nextValue === "function" ? (nextValue as (value: T) => T)(currentValue) : nextValue;
 
-      if (typeof window !== "undefined") {
-        try {
-          const stored = localStorage.getItem(key);
-          currentValue = stored ? (JSON.parse(stored) as T) : previousValue;
-        } catch {
-          currentValue = previousValue;
-        }
+    valueRef.current = resolvedValue;
+    setValue(resolvedValue);
+
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(key, JSON.stringify(resolvedValue));
+        window.dispatchEvent(
+          new CustomEvent(LOCAL_STORAGE_SYNC_EVENT, {
+            detail: { key, value: resolvedValue },
+          }),
+        );
+      } catch {
+        // Silently fail if localStorage is unavailable
       }
-
-      const resolvedValue =
-        typeof nextValue === "function" ? (nextValue as (value: T) => T)(currentValue) : nextValue;
-
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(key, JSON.stringify(resolvedValue));
-          window.dispatchEvent(
-            new CustomEvent(LOCAL_STORAGE_SYNC_EVENT, {
-              detail: { key, value: resolvedValue },
-            }),
-          );
-        } catch {
-          // Silently fail if localStorage is unavailable
-        }
-      }
-
-      return resolvedValue;
-    });
+    }
   };
 
   useEffect(() => {
@@ -77,8 +71,11 @@ export function useLocalStorage<T>(
     const syncFromStorage = () => {
       try {
         const stored = localStorage.getItem(key);
-        setValue(stored ? (JSON.parse(stored) as T) : defaultValue);
+        const nextValue = stored ? (JSON.parse(stored) as T) : defaultValue;
+        valueRef.current = nextValue;
+        setValue(nextValue);
       } catch {
+        valueRef.current = defaultValue;
         setValue(defaultValue);
       }
     };
@@ -92,6 +89,7 @@ export function useLocalStorage<T>(
     const handleCustomSync = (event: Event) => {
       const customEvent = event as CustomEvent<{ key: string; value: T }>;
       if (customEvent.detail?.key === key) {
+        valueRef.current = customEvent.detail.value;
         setValue(customEvent.detail.value);
       }
     };

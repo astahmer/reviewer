@@ -507,21 +507,18 @@ export const HomePage: FC = () => {
               placeholder="commit"
             />
             {baseBranch === headBranch && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
-              <div className="flex items-center gap-1 pl-1 whitespace-nowrap">
-                <span className="inline-flex items-center gap-1 rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 dark:border-sky-900 dark:bg-sky-950/40">
-                  <span className="font-mono text-[11px] font-medium text-sky-700 dark:text-sky-300">
+              <div className="flex items-center gap-2 pl-1 whitespace-nowrap rounded-full border border-slate-200/80 bg-white/80 px-2.5 py-1 shadow-sm dark:border-slate-700 dark:bg-slate-800/70">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                  <span className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-200">
                     {getCommitDisplayLabel(selectedBaseCommitInfo)}
                   </span>
-                  <span className="text-[9px] font-semibold uppercase tracking-wider text-sky-400 dark:text-sky-700">
-                    base
-                  </span>
                 </span>
-                <span className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 dark:border-emerald-900 dark:bg-emerald-950/40">
-                  <span className="font-mono text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                <span className="text-slate-300 dark:text-slate-600">→</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="font-mono text-[11px] font-medium text-slate-700 dark:text-slate-200">
                     {getCommitDisplayLabel(selectedHeadCommitInfo)}
-                  </span>
-                  <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-400 dark:text-emerald-700">
-                    head
                   </span>
                 </span>
               </div>
@@ -622,7 +619,7 @@ export const HomePage: FC = () => {
             baseBranch={baseBranch}
             headBranch={headBranch}
             baseCommits={baseCommits}
-            headCommits={filteredHeadCommits}
+            headCommits={headCommits}
             baseCommit={baseCommit}
             headCommit={headCommit}
             onBaseCommitChange={(hash) => updateUrl({ baseCommit: hash, headCommit: "" })}

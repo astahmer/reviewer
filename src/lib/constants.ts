@@ -17,6 +17,7 @@ export const STORAGE_KEYS = {
   customPaths: "reviewer_app:customPaths",
   lastLightTheme: "reviewer_app:lastLightTheme",
   lastDarkTheme: "reviewer_app:lastDarkTheme",
+  autoMarkViewed: "reviewer_app:autoMarkViewed",
 } as const;
 
 // Default preferences
