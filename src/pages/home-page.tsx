@@ -6,7 +6,6 @@ import { BranchSelector } from "~/components/branch-selector";
 import { CommitCompare } from "~/components/commit-compare";
 import { CommitSelector } from "~/components/commit-selector";
 import { DiffViewer } from "~/components/diff-viewer";
-import { EmptyState } from "~/components/empty-state";
 import { ErrorBanner } from "~/components/error-banner.tsx";
 import {
   getSystemColorMode,
@@ -612,7 +611,7 @@ export const HomePage: FC = () => {
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-slate-300 border-t-blue-500 dark:border-slate-700"></div>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Loading diff...</p>
           </div>
-        ) : diff ? (
+        ) : (
           <DiffViewer
             diff={diff}
             repoPath={selectedRepo?.path}
@@ -629,8 +628,6 @@ export const HomePage: FC = () => {
             hasMoreBaseCommits={hasMoreBaseCommits}
             hasMoreHeadCommits={hasMoreHeadCommits}
           />
-        ) : (
-          <EmptyState message="No diff available for the selected refs." />
         )}
       </main>
     </div>

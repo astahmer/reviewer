@@ -442,8 +442,8 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
     });
   }, [files, selectedPath]);
 
-  const filesPanelCollapsed = sectionSplitter.isPanelCollapsed("files");
-  const historyPanelCollapsed = sectionSplitter.isPanelCollapsed("history");
+  const filesPanelCollapsed = sectionCollapsedState.files;
+  const historyPanelCollapsed = sectionCollapsedState.history;
 
   useEffect(() => {
     if (sectionCollapsedState.files) {
@@ -470,14 +470,14 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
 
   const toggleFilesPanel = () => {
     setSectionCollapsedState({
-      ...sectionCollapsedState,
       files: !sectionCollapsedState.files,
+      history: sectionCollapsedState.history,
     });
   };
 
   const toggleHistoryPanel = () => {
     setSectionCollapsedState({
-      ...sectionCollapsedState,
+      files: sectionCollapsedState.files,
       history: !sectionCollapsedState.history,
     });
   };
@@ -594,7 +594,7 @@ export const FileTreeSidebar: FC<FileTreeSidebarProps> = ({
 
       <Ark.Splitter.RootProvider
         value={sectionSplitter}
-        className="min-h-0 flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-[var(--app-panel-muted)]"
+        className="min-h-0 flex flex-1 flex-col overflow-hidden bg-[var(--app-panel-muted)]"
       >
         <Ark.Splitter.Panel
           id="files"

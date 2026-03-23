@@ -24,7 +24,7 @@ import { FileTreeSidebar } from "./file-tree-sidebar";
 import { Tooltip } from "./tooltip";
 
 interface DiffViewerProps {
-  diff: Diff & { pierreData?: FileDiffMetadata[] };
+  diff?: Diff & { pierreData?: FileDiffMetadata[] };
   repoPath?: string;
   baseBranch: string;
   headBranch: string;
@@ -169,44 +169,40 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     [],
   );
 
-  const markPathsViewed = useCallback(
-    (paths: string[]) => {
-      setViewedPathsArray((currentPaths) => {
-        const nextPaths = new Set(currentPaths);
-        let changed = false;
+  const markPathsViewed = (paths: string[]) => {
+    setViewedPathsArray((currentPaths) => {
+      const nextPaths = new Set(currentPaths);
+      let changed = false;
 
+      for (const path of paths) {
+        if (!nextPaths.has(path)) {
+          nextPaths.add(path);
+          changed = true;
+        }
+      }
+
+      return changed ? Array.from(nextPaths) : currentPaths;
+    });
+  };
+
+  const handleToggleViewed = (paths: string[]) => {
+    setViewedPathsArray((currentPaths) => {
+      const nextPaths = new Set(currentPaths);
+      const allViewed = paths.every((path) => nextPaths.has(path));
+
+      if (allViewed) {
         for (const path of paths) {
-          if (!nextPaths.has(path)) {
-            nextPaths.add(path);
-            changed = true;
-          }
+          nextPaths.delete(path);
         }
-
-        return changed ? Array.from(nextPaths) : currentPaths;
-      });
-    },
-    [setViewedPathsArray],
-  );
-
-  const handleToggleViewed = useCallback(
-    (paths: string[]) => {
-      setViewedPathsArray((currentPaths) => {
-        const nextPaths = new Set(currentPaths);
-        const allViewed = paths.every((path) => nextPaths.has(path));
-        if (allViewed) {
-          for (const path of paths) {
-            nextPaths.delete(path);
-          }
-        } else {
-          for (const path of paths) {
-            nextPaths.add(path);
-          }
+      } else {
+        for (const path of paths) {
+          nextPaths.add(path);
         }
-        return Array.from(nextPaths);
-      });
-    },
-    [setViewedPathsArray],
-  );
+      }
+
+      return Array.from(nextPaths);
+    });
+  };
 
   const handleToggleDiffFileCollapse = useCallback((filePath: string) => {
     setCollapsedDiffFiles((prev) => {
@@ -316,6 +312,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       newPath: string,
       expandType: "full" | "top" | "bottom",
     ) => {
+      if (!diff) {
+        return;
+      }
+
       const key = `${fileName}-${expandType}`;
       if (expandedFiles.has(key) || loadingFiles.has(key)) {
         return;
@@ -370,7 +370,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         });
       }
     },
-    [diff.from, diff.to, expandedFiles, loadingFiles, repoPath],
+    [diff, expandedFiles, loadingFiles, repoPath],
   );
 
   const handleExpandHunk = useCallback(
@@ -380,7 +380,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       direction: "up" | "down" | "both",
       expandFully?: boolean,
     ) => {
-      const file = diff.pierreData?.find((f, idx) => `${f.prevName || f.name}-${idx}` === fileKey);
+      const file = diff?.pierreData?.find((f, idx) => `${f.prevName || f.name}-${idx}` === fileKey);
       if (!file) return;
 
       const fileName = file.name;
@@ -395,7 +395,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         handleExpandFile(fileName, oldPath, newPath, "bottom");
       }
     },
-    [diff.pierreData, handleExpandFile],
+    [diff?.pierreData, handleExpandFile],
   );
 
   // Track last selected light and dark themes with localStorage
@@ -432,7 +432,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
   // Get files to render - use expanded full diff if available, otherwise use partial
   const getRenderFiles = useCallback(() => {
-    const baseFiles = diff.pierreData || [];
+    const baseFiles = diff?.pierreData || [];
 
     let filtered = baseFiles;
 
@@ -465,7 +465,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       }
       return file;
     });
-  }, [diff.pierreData, expandedFiles, parsedSearchQuery]);
+  }, [diff?.pierreData, expandedFiles, parsedSearchQuery]);
 
   const renderFiles = useMemo(() => getRenderFiles(), [getRenderFiles]);
   const renderFilePaths = useMemo(() => renderFiles.map((file) => file.name), [renderFiles]);
@@ -474,6 +474,11 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     () => new Set(viewedPathsArray.filter((path) => renderFilePathSet.has(path))),
     [renderFilePathSet, viewedPathsArray],
   );
+  const allRenderedPaths = renderFiles.map((file) => file.name);
+  const allFilesCollapsed =
+    allRenderedPaths.length > 0 && allRenderedPaths.every((path) => collapsedDiffFiles.has(path));
+  const allFilesViewed =
+    allRenderedPaths.length > 0 && allRenderedPaths.every((path) => visibleViewedPaths.has(path));
   const fileMatchCounts = useMemo(
     () =>
       new Map(renderFiles.map((file) => [file.name, getFileMatchCount(file, parsedSearchQuery)])),
@@ -499,33 +504,58 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const renderPaths = useMemo(() => renderFiles.map((file) => file.name), [renderFiles]);
 
   useEffect(() => {
-    if (!autoMarkViewed || !contentScrollRef.current) {
+    if (!autoMarkViewed) {
       return;
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const pathsToMark = entries
-          .filter((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.6)
-          .map((entry) => (entry.target as HTMLDivElement).dataset.filePath)
-          .filter((path): path is string => Boolean(path));
-
-        if (pathsToMark.length > 0) {
-          markPathsViewed(pathsToMark);
-        }
-      },
-      {
-        root: contentScrollRef.current,
-        threshold: [0.6],
-      },
-    );
-
-    for (const element of fileRefs.current.values()) {
-      observer.observe(element);
+    const scrollElement = contentScrollRef.current;
+    if (!scrollElement) {
+      return;
     }
 
-    return () => observer.disconnect();
-  }, [autoMarkViewed, markPathsViewed, renderFiles]);
+    let frameId = 0;
+
+    const syncViewedFromScroll = () => {
+      frameId = 0;
+
+      const scrollRect = scrollElement.getBoundingClientRect();
+      const stickyBandTop = scrollRect.top + 56;
+      const stickyBandBottom = scrollRect.top + Math.min(scrollRect.height * 0.45, 260);
+      const pathsToMark: string[] = [];
+
+      for (const [path, element] of fileRefs.current.entries()) {
+        const rect = element.getBoundingClientRect();
+        const overlapsStickyBand = rect.top <= stickyBandBottom && rect.bottom >= stickyBandTop;
+        const scrolledPastTop = rect.top < stickyBandTop && rect.bottom > stickyBandTop;
+
+        if (overlapsStickyBand || scrolledPastTop) {
+          pathsToMark.push(path);
+        }
+      }
+
+      if (pathsToMark.length > 0) {
+        markPathsViewed(pathsToMark);
+      }
+    };
+
+    const onScroll = () => {
+      if (frameId !== 0) {
+        return;
+      }
+
+      frameId = window.requestAnimationFrame(syncViewedFromScroll);
+    };
+
+    syncViewedFromScroll();
+    scrollElement.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      scrollElement.removeEventListener("scroll", onScroll);
+      if (frameId !== 0) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [autoMarkViewed, renderFiles, viewedPathsArray]);
 
   useEffect(() => {
     if (renderPaths.length === 0) {
@@ -792,6 +822,37 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
       {/* Wrapping and Ignore whitespace toggles */}
       <div className="flex shrink-0 items-center gap-1 border-l border-slate-200 pl-3 dark:border-slate-700">
+        <button
+          onClick={() => {
+            if (allFilesCollapsed) {
+              setCollapsedDiffFiles(new Set());
+              return;
+            }
+
+            setCollapsedDiffFiles(new Set(allRenderedPaths));
+          }}
+          className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+            allFilesCollapsed
+              ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+              : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          }`}
+          title={allFilesCollapsed ? "Expand all files" : "Collapse all files"}
+          disabled={allRenderedPaths.length === 0}
+        >
+          {allFilesCollapsed ? "Expand all" : "Collapse all"}
+        </button>
+        <button
+          onClick={() => handleToggleViewed(allRenderedPaths)}
+          className={`rounded px-2 py-1 text-xs font-medium transition-colors ${
+            allFilesViewed
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400"
+              : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          }`}
+          title={allFilesViewed ? "Mark all files as not viewed" : "Mark all files as viewed"}
+          disabled={allRenderedPaths.length === 0}
+        >
+          {allFilesViewed ? "Viewed all" : "Mark all viewed"}
+        </button>
         <Tooltip content="Toggle line wrapping">
           <button
             onClick={() => setWrapping(!wrapping)}
@@ -830,7 +891,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
   const MainContent =
     !renderFiles || renderFiles.length === 0 ? (
       <div className="flex h-full items-center justify-center px-6 text-center text-slate-600 dark:text-slate-400">
-        No diff data available
+        No diff available for the selected refs.
       </div>
     ) : (
       <div className="diffs-container">
@@ -855,8 +916,10 @@ export const DiffViewer: FC<DiffViewerProps> = ({
             >
               {/* File header - always visible, acts as collapse toggle */}
               <div
-                className={`flex items-center gap-2 border-b border-slate-200 px-3 py-1.5 dark:border-slate-800 ${
-                  isDiffCollapsed ? "border-t-0" : "bg-slate-50/80 dark:bg-[#161b22]/80"
+                className={`sticky top-0 z-20 flex items-center gap-2 border-b border-slate-200 px-3 py-1.5 backdrop-blur-sm dark:border-slate-800 ${
+                  isDiffCollapsed
+                    ? "border-t-0 bg-white/95 dark:bg-[#161b22]/95"
+                    : "bg-slate-50/95 dark:bg-[#161b22]/95"
                 } ${isViewed ? "opacity-60" : ""}`}
               >
                 <button
