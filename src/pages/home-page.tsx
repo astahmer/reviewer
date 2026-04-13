@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import React, { FC, useEffect, useMemo, useRef } from "react";
+import React, { FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { CommitCompare } from "~/components/commit-compare";
 import { DiffViewer } from "~/components/diff-viewer";
@@ -52,25 +52,32 @@ export const HomePage: FC = () => {
   const baseCommitsLoadedRef = useRef(false);
   const headCommitsLoadedRef = useRef(false);
 
-  const selectedRepo = searchParams.repoPath
-    ? {
-        path: searchParams.repoPath,
-        name: searchParams.repoPath.split("/").pop() || "repo",
-      }
-    : null;
+  const selectedRepo = useMemo(
+    () =>
+      searchParams.repoPath
+        ? {
+            path: searchParams.repoPath,
+            name: searchParams.repoPath.split("/").pop() || "repo",
+          }
+        : null,
+    [searchParams.repoPath],
+  );
 
   const baseBranch = searchParams.baseBranch ?? "";
   const headBranch = searchParams.headBranch ?? "";
   const baseCommit = searchParams.baseCommit ?? "";
   const headCommit = searchParams.headCommit ?? "";
 
-  const updateUrl = (updates: Partial<SearchParams>) =>
-    navigate({
-      search: (prev: SearchParams) => ({
-        ...prev,
-        ...updates,
+  const updateUrl = useCallback(
+    (updates: Partial<SearchParams>) =>
+      navigate({
+        search: (prev: SearchParams) => ({
+          ...prev,
+          ...updates,
+        }),
       }),
-    });
+    [navigate],
+  );
 
   const handleGlobalColorModeChange = (nextMode: "light" | "dark" | "auto") => {
     setGlobalColorMode(nextMode);
@@ -315,6 +322,7 @@ export const HomePage: FC = () => {
     baseBranch,
     headBranch,
     currentBranchLoading,
+    updateUrl,
   ]);
 
   // Auto-select most recent baseCommit when baseCommits load after branch change
@@ -328,7 +336,7 @@ export const HomePage: FC = () => {
         updateUrl({ baseCommit: defaultBaseCommit?.hash || "" });
       }
     }
-  }, [baseCommits, baseBranch, baseCommit, initialized]);
+  }, [baseCommits, baseBranch, baseCommit, initialized, updateUrl]);
 
   // Auto-select most recent headCommit when headCommits load after branch change
   useEffect(() => {
@@ -343,7 +351,7 @@ export const HomePage: FC = () => {
         updateUrl({ headCommit: defaultHeadCommit });
       }
     }
-  }, [filteredHeadCommits, headBranch, headCommit, headCommits, initialized]);
+  }, [filteredHeadCommits, headBranch, headCommit, headCommits, initialized, updateUrl]);
 
   const combinedError = baseCommitsError || headCommitsError || diffError;
 

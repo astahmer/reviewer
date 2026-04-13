@@ -1,0 +1,23 @@
+{
+    "$schema": "https://unpkg.com/knip@latest/schema.json",
+    "entry": [
+        "bin/**/*.mjs",
+        "src/query-client.ts",
+        "src/router.tsx",
+        "src/routes/**/*.{ts,tsx}",
+        "src/server/**/*.ts",
+        "features/**/*.{ts,tsx}",
+        "tests/**/*.{ts,tsx}"
+    ],
+    "project": [
+        "src/**/*.{ts,tsx}",
+        "features/**/*.{ts,tsx}",
+        "tests/**/*.{ts,tsx}",
+        "bin/**/*.mjs",
+        "*.ts"
+    ],
+    "ignoreDependencies": [
+        "chrome-devtools-mcp",
+        "nitro"
+    ]
+}

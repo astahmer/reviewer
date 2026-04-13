@@ -238,7 +238,7 @@ function resolveGitRef(repoPath: string, ref: string): string {
  * Git local VCS adapter
  * Executes git commands to fetch diffs and commits
  */
-export class GitLocalAdapter implements VCSAdapter {
+class GitLocalAdapter implements VCSAdapter {
   constructor(private readonly _repoPath: string = process.cwd()) {}
 
   getDiff(

@@ -67,7 +67,7 @@ const buildCommitInfoFromJjJson = (commit: JjCommitJson, statsLine?: string): Co
 
 const isCommitHeaderLine = (line: string): boolean => line.startsWith("{") && line.includes("\t[");
 
-export const parseJjCommitLog = (stdout: string): CommitInfo[] => {
+const parseJjCommitLog = (stdout: string): CommitInfo[] => {
   const lines = stdout.split("\n");
   const commits: CommitInfo[] = [];
   let index = 0;
@@ -278,7 +278,7 @@ const getJjCurrentBookmark = async (repoPath: string): Promise<string> => {
  * JJ local VCS adapter
  * Executes jj commands to fetch diffs, bookmarks, and revisions
  */
-export class JjAdapter implements VCSAdapter {
+class JjAdapter implements VCSAdapter {
   constructor(private readonly _repoPath: string = process.cwd()) {}
 
   getDiff(

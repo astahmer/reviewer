@@ -6,7 +6,7 @@ import { StorageAdapter } from "./storage.interface";
  * In-memory storage adapter
  * Used for development and MVP; can be swapped with IndexedDB for production
  */
-export class MemoryStorageAdapter implements StorageAdapter {
+class MemoryStorageAdapter implements StorageAdapter {
   private store = new Map<string, unknown>();
 
   get<T = unknown>(key: string): Effect.Effect<T | null, StorageError> {

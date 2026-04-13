@@ -6,7 +6,7 @@ import { FileDiff, Line as DiffLine, Diff as DiffType } from "~/lib/types";
 import { DiffParseError } from "~/lib/errors";
 import { DiffParser } from "./types";
 
-export interface ParsedDiffWithMetadata extends DiffType {
+interface ParsedDiffWithMetadata extends DiffType {
   /** @pierre/diffs parsed data for rendering with FileDiff component */
   pierreData?: FileDiffMetadata[];
 }
@@ -14,7 +14,7 @@ export interface ParsedDiffWithMetadata extends DiffType {
 /**
  * Parses unified diff format using @pierre/diffs
  */
-export class PierreDiffParser implements DiffParser {
+class PierreDiffParser implements DiffParser {
   parse(
     rawDiff: string,
     id: string,
@@ -170,8 +170,3 @@ function extractLinesFromHunk(
 export const createDiffParser = (): DiffParser => {
   return new PierreDiffParser();
 };
-
-/**
- * Backward compatibility export
- */
-export const createJsDiffParser = createDiffParser;
