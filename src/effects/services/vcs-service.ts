@@ -1,6 +1,6 @@
 import { Effect, Schedule } from "effect";
-import { CommitInfo } from "~/lib/types";
 import { VCSError } from "~/lib/errors";
+import { BranchInfo, CommitInfo } from "~/lib/types";
 import { VCSContext } from "~/effects/context/vcs-context";
 
 /**
@@ -36,6 +36,16 @@ export const getCommits = (limit?: number): Effect.Effect<CommitInfo[], VCSError
   });
 };
 
+export const getCommitsForBranch = (
+  limit?: number,
+  options?: { branch?: string; offset?: number },
+): Effect.Effect<CommitInfo[], VCSError, VCSContext> => {
+  return Effect.gen(function* () {
+    const vcs = yield* VCSContext;
+    return yield* vcs.getCommits(limit, options);
+  });
+};
+
 /**
  * Get current branch
  */
@@ -49,10 +59,20 @@ export const getCurrentBranch = (): Effect.Effect<string, VCSError, VCSContext> 
 /**
  * Get list of branches
  */
-export const getBranches = (): Effect.Effect<string[], VCSError, VCSContext> => {
+export const getBranches = (): Effect.Effect<BranchInfo[], VCSError, VCSContext> => {
   return Effect.gen(function* () {
     const vcs = yield* VCSContext;
     return yield* vcs.getBranches();
+  });
+};
+
+export const getCommitDistance = (
+  from: string,
+  to: string,
+): Effect.Effect<number | null, VCSError, VCSContext> => {
+  return Effect.gen(function* () {
+    const vcs = yield* VCSContext;
+    return yield* vcs.getCommitDistance(from, to);
   });
 };
 

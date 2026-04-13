@@ -26,8 +26,9 @@ import { Tooltip } from "./tooltip";
 interface DiffViewerProps {
   diff?: Diff & { pierreData?: FileDiffMetadata[] };
   repoPath?: string;
-  baseBranch: string;
-  headBranch: string;
+  baseBranchLabel: string;
+  headBranchLabel: string;
+  isSameBranchComparison: boolean;
   baseCommits: CommitInfo[];
   headCommits: CommitInfo[];
   baseCommit: string;
@@ -129,8 +130,9 @@ const SIDEBAR_COLLAPSED_SIZE = 3.2;
 export const DiffViewer: FC<DiffViewerProps> = ({
   diff,
   repoPath,
-  baseBranch,
-  headBranch,
+  baseBranchLabel,
+  headBranchLabel,
+  isSameBranchComparison,
   baseCommits,
   headCommits,
   baseCommit,
@@ -1034,8 +1036,9 @@ export const DiffViewer: FC<DiffViewerProps> = ({
       onToggleAutoMarkViewed={() => setAutoMarkViewed((current) => !current)}
       footer={
         <CommitHistoryPanel
-          baseBranch={baseBranch}
-          headBranch={headBranch}
+          baseBranchLabel={baseBranchLabel}
+          headBranchLabel={headBranchLabel}
+          isSameBranchComparison={isSameBranchComparison}
           baseCommits={baseCommits}
           headCommits={headCommits}
           selectedBaseCommit={baseCommit}

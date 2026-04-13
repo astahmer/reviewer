@@ -2,9 +2,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import React, { FC, useEffect, useMemo, useRef } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { BranchSelector } from "~/components/branch-selector";
 import { CommitCompare } from "~/components/commit-compare";
-import { CommitSelector } from "~/components/commit-selector";
 import { DiffViewer } from "~/components/diff-viewer";
 import { ErrorBanner } from "~/components/error-banner.tsx";
 import {
@@ -14,7 +12,9 @@ import {
   useLocalStorage,
   useTheme,
 } from "~/components/hooks";
+import { RevisionSelector } from "~/components/revision-selector";
 import { RepositorySelector } from "~/components/repository-selector";
+import { findBranchByName, getBranchDisplayName, getDefaultBranchName } from "~/lib/branches";
 import { DARK_THEMES, LIGHT_THEMES, STORAGE_KEYS } from "~/lib/constants";
 import {
   LOCAL_REF_WORKTREE,
@@ -210,13 +210,20 @@ export const HomePage: FC = () => {
   });
 
   const defaultBranch = useMemo(() => {
-    if (currentBranch && branches.some((branch) => branch.name === currentBranch)) {
-      return currentBranch;
-    }
-
-    const defaults = ["main", "master", "develop", "dev", "release"];
-    return branches.find((b) => defaults.includes(b.name.toLowerCase()))?.name || branches[0]?.name;
+    return getDefaultBranchName(branches, currentBranch);
   }, [branches, currentBranch]);
+
+  const selectedBaseBranchInfo = useMemo(
+    () => findBranchByName(branches, baseBranch || defaultBranch),
+    [baseBranch, branches, defaultBranch],
+  );
+  const selectedHeadBranchInfo = useMemo(
+    () => findBranchByName(branches, headBranch || defaultBranch),
+    [branches, defaultBranch, headBranch],
+  );
+  const baseBranchLabel = getBranchDisplayName(selectedBaseBranchInfo) || baseBranch;
+  const headBranchLabel = getBranchDisplayName(selectedHeadBranchInfo) || headBranch;
+  const isSameBranchComparison = !!baseBranch && baseBranch === headBranch;
 
   const selectedBaseCommitInfo = useMemo(
     () => baseCommits.find((c) => c.hash === baseCommit || c.hash.startsWith(baseCommit)),
@@ -330,10 +337,13 @@ export const HomePage: FC = () => {
         !headCommitsLoadedRef.current || prevHeadBranchRef.current === headBranch;
       if (shouldAutoSelect) {
         headCommitsLoadedRef.current = true;
-        updateUrl({ headCommit: LOCAL_REF_WORKTREE });
+        const defaultHeadCommit = headCommits.find((commit) => commit.hash === LOCAL_REF_WORKTREE)
+          ? LOCAL_REF_WORKTREE
+          : getDefaultCommit(filteredHeadCommits)?.hash || "";
+        updateUrl({ headCommit: defaultHeadCommit });
       }
     }
-  }, [headCommits, headBranch, headCommit, initialized]);
+  }, [filteredHeadCommits, headBranch, headCommit, headCommits, initialized]);
 
   const combinedError = baseCommitsError || headCommitsError || diffError;
 
@@ -457,10 +467,13 @@ export const HomePage: FC = () => {
           />
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-slate-500 dark:text-slate-400">Base</span>
-            <BranchSelector
+            <RevisionSelector
+              label="Base"
               branches={branches}
-              value={baseBranch}
-              onChange={(branch) => {
+              commits={baseCommits}
+              branchValue={baseBranch}
+              commitValue={baseCommit}
+              onBranchChange={(branch) => {
                 prevBaseBranchRef.current = branch;
                 if (!headBranch) {
                   updateUrl({ baseBranch: branch, baseCommit: "", headBranch: branch });
@@ -468,44 +481,37 @@ export const HomePage: FC = () => {
                   updateUrl({ baseBranch: branch, baseCommit: "" });
                 }
               }}
-              defaultBranch={defaultBranch}
-              placeholder="branch"
-              isLoading={branchesLoading}
-            />
-            <CommitSelector
-              commits={baseCommits}
-              value={baseCommit}
-              onChange={(hash: string) => {
+              onCommitChange={(hash: string) => {
                 updateUrl({ baseCommit: hash, headCommit: "" });
               }}
-              isLoading={baseCommitsLoading}
-              placeholder="commit"
+              defaultBranch={defaultBranch}
+              placeholder="base revision"
+              isBranchLoading={branchesLoading}
+              isCommitLoading={baseCommitsLoading}
             />
           </div>
           <span className="text-slate-400 dark:text-slate-600">→</span>
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] text-slate-500 dark:text-slate-400">Head</span>
-            <BranchSelector
+            <RevisionSelector
+              label="Head"
               branches={branches}
-              value={headBranch}
-              onChange={(branch) => {
+              commits={filteredHeadCommits}
+              branchValue={headBranch}
+              commitValue={headCommit}
+              onBranchChange={(branch) => {
                 prevHeadBranchRef.current = branch;
                 updateUrl({ headBranch: branch, headCommit: "" });
               }}
-              defaultBranch={defaultBranch}
-              placeholder="branch"
-              isLoading={branchesLoading}
-            />
-            <CommitSelector
-              commits={filteredHeadCommits}
-              value={headCommit}
-              onChange={(hash) => {
+              onCommitChange={(hash) => {
                 updateUrl({ headCommit: hash });
               }}
-              isLoading={headCommitsLoading}
-              placeholder="commit"
+              defaultBranch={defaultBranch}
+              placeholder="head revision"
+              isBranchLoading={branchesLoading}
+              isCommitLoading={headCommitsLoading}
             />
-            {baseBranch === headBranch && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
+            {isSameBranchComparison && selectedBaseCommitInfo && selectedHeadCommitInfo ? (
               <div className="flex items-center gap-2 pl-1 whitespace-nowrap rounded-full border border-slate-200/80 bg-white/80 px-2.5 py-1 shadow-sm dark:border-slate-700 dark:bg-slate-800/70">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
@@ -599,8 +605,9 @@ export const HomePage: FC = () => {
           headCommit={headCommits.find(
             (c) => c.hash === headCommit || c.hash.startsWith(headCommit),
           )}
-          baseBranch={baseBranch}
-          headBranch={headBranch}
+          baseBranchLabel={baseBranchLabel}
+          headBranchLabel={headBranchLabel}
+          isSameBranchComparison={isSameBranchComparison}
           distance={commitDistance ?? null}
         />
       )}
@@ -615,8 +622,9 @@ export const HomePage: FC = () => {
           <DiffViewer
             diff={diff}
             repoPath={selectedRepo?.path}
-            baseBranch={baseBranch}
-            headBranch={headBranch}
+            baseBranchLabel={baseBranchLabel}
+            headBranchLabel={headBranchLabel}
+            isSameBranchComparison={isSameBranchComparison}
             baseCommits={baseCommits}
             headCommits={headCommits}
             baseCommit={baseCommit}

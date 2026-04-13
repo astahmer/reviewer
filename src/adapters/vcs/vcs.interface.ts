@@ -1,6 +1,6 @@
 import { Context, Effect } from "effect";
 import { VCSError } from "~/lib/errors";
-import { CommitInfo } from "~/lib/types";
+import { BranchInfo, CommitInfo } from "~/lib/types";
 
 /**
  * VCS (Version Control System) adapter interface
@@ -25,7 +25,13 @@ export interface VCSAdapter {
   /**
    * Get list of recent commits
    */
-  getCommits(limit?: number): Effect.Effect<CommitInfo[], VCSError>;
+  getCommits(
+    limit?: number,
+    options?: {
+      branch?: string;
+      offset?: number;
+    },
+  ): Effect.Effect<CommitInfo[], VCSError>;
 
   /**
    * Get current branch name
@@ -35,7 +41,12 @@ export interface VCSAdapter {
   /**
    * Get list of branches
    */
-  getBranches(): Effect.Effect<string[], VCSError>;
+  getBranches(): Effect.Effect<BranchInfo[], VCSError>;
+
+  /**
+   * Get number of commits between two revisions when supported
+   */
+  getCommitDistance(from: string, to: string): Effect.Effect<number | null, VCSError>;
 
   /**
    * Get list of available repositories (git directories)
