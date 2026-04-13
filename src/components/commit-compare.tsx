@@ -5,16 +5,18 @@ import { CommitInfo } from "~/lib/types";
 interface CommitCompareProps {
   baseCommit: CommitInfo | undefined;
   headCommit: CommitInfo | undefined;
-  baseBranch: string;
-  headBranch: string;
+  baseBranchLabel: string;
+  headBranchLabel: string;
+  isSameBranchComparison: boolean;
   distance: number | null;
 }
 
 export const CommitCompare: FC<CommitCompareProps> = ({
   baseCommit,
   headCommit,
-  baseBranch,
-  headBranch,
+  baseBranchLabel,
+  headBranchLabel,
+  isSameBranchComparison,
   distance,
 }) => {
   const [expanded, setExpanded] = useState(false);
@@ -74,14 +76,14 @@ export const CommitCompare: FC<CommitCompareProps> = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {baseBranch &&
-            headBranch &&
-            baseBranch === headBranch &&
+          {baseBranchLabel &&
+            headBranchLabel &&
+            isSameBranchComparison &&
             !isLocalCommit(baseCommit) &&
             !isLocalCommit(headCommit) && (
               <>
                 <span className="rounded bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-950/40 dark:text-purple-300">
-                  {baseBranch}
+                  {baseBranchLabel}
                 </span>
                 {distance !== null && distance > 0 && (
                   <span className="rounded bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-950/40 dark:text-green-300">
@@ -90,17 +92,17 @@ export const CommitCompare: FC<CommitCompareProps> = ({
                 )}
               </>
             )}
-          {baseBranch !== headBranch && (
+          {!isSameBranchComparison && (
             <div className="flex gap-1">
-              {baseBranch && (
+              {baseBranchLabel && (
                 <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                  {baseBranch}
+                  {baseBranchLabel}
                 </span>
               )}
               <span className="text-slate-400 dark:text-slate-500">→</span>
-              {headBranch && (
+              {headBranchLabel && (
                 <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-mono text-slate-600 dark:bg-slate-800 dark:text-slate-200">
-                  {headBranch}
+                  {headBranchLabel}
                 </span>
               )}
             </div>

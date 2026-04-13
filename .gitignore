@@ -11,4 +11,7 @@ dist/
 *.swo
 *~
 .context
+.features-gen/
 .tanstack/tmp
+test-results
+.cachebro

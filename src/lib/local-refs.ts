@@ -37,6 +37,11 @@ export const getLocalRefDescription = (ref: string): string => {
   return "";
 };
 
+export interface LocalRefState {
+  hasStaged: boolean;
+  hasWorktree: boolean;
+}
+
 export const getCommitDisplayLabel = (commit?: Pick<CommitInfo, "hash" | "label">): string => {
   if (!commit) {
     return "";
@@ -48,24 +53,36 @@ export const getCommitDisplayLabel = (commit?: Pick<CommitInfo, "hash" | "label"
   );
 };
 
-export const createLocalCommitEntries = (): CommitInfo[] => [
-  {
-    hash: LOCAL_REF_WORKTREE,
-    message: getLocalRefDescription(LOCAL_REF_WORKTREE),
-    author: "Local state",
-    date: new Date(0),
-    kind: "local-worktree",
-    label: getLocalRefLabel(LOCAL_REF_WORKTREE),
-  },
-  {
-    hash: LOCAL_REF_STAGED,
-    message: getLocalRefDescription(LOCAL_REF_STAGED),
-    author: "Local state",
-    date: new Date(0),
-    kind: "local-staged",
-    label: getLocalRefLabel(LOCAL_REF_STAGED),
-  },
-];
+export const createLocalCommitEntries = ({
+  hasStaged,
+  hasWorktree,
+}: LocalRefState): CommitInfo[] => {
+  const entries: CommitInfo[] = [];
+
+  if (hasStaged) {
+    entries.push({
+      hash: LOCAL_REF_STAGED,
+      message: getLocalRefDescription(LOCAL_REF_STAGED),
+      author: "Local state",
+      date: new Date(0),
+      kind: "local-staged",
+      label: getLocalRefLabel(LOCAL_REF_STAGED),
+    });
+  }
+
+  if (hasWorktree) {
+    entries.push({
+      hash: LOCAL_REF_WORKTREE,
+      message: getLocalRefDescription(LOCAL_REF_WORKTREE),
+      author: "Local state",
+      date: new Date(0),
+      kind: "local-worktree",
+      label: getLocalRefLabel(LOCAL_REF_WORKTREE),
+    });
+  }
+
+  return entries;
+};
 
 export const getDefaultCommit = (commits: CommitInfo[]): CommitInfo | undefined =>
   commits.find((commit) => !isLocalCommit(commit)) || commits[0];

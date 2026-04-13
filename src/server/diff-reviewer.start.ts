@@ -5,51 +5,19 @@
  */
 
 import { Effect, Layer, ManagedRuntime } from "effect";
-import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { Diff, CommitInfo } from "~/lib/types";
-import { createLocalCommitEntries, isLocalRef } from "~/lib/local-refs";
+import { createVCSAdapter } from "~/adapters/vcs/factory";
+import { VCSContext } from "~/effects/context/vcs-context";
 import { runEffectWithDeps, appLayer } from "~/effects/runtime";
 import * as diffProcessor from "~/effects/services/diff-processor";
 import * as vcsService from "~/effects/services/vcs-service";
-import { createGitLocalAdapter } from "~/adapters/vcs/git-local";
-import { VCSContext } from "~/effects/context/vcs-context";
+import { isLocalRef } from "~/lib/local-refs";
+import { BranchInfo, CommitInfo, Diff } from "~/lib/types";
 
 const createRuntimeWithRepo = (repoPath: string) => {
-  const repoLayer = Layer.succeed(VCSContext, createGitLocalAdapter(repoPath));
+  const repoLayer = Layer.succeed(VCSContext, createVCSAdapter(repoPath));
   const fullLayer = Layer.mergeAll(appLayer, repoLayer);
   return ManagedRuntime.make(fullLayer);
-};
-
-const parseCommitStats = (chunk: string): CommitInfo | null => {
-  const lines = chunk
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const [header, ...rest] = lines;
-  if (!header) {
-    return null;
-  }
-
-  const [hash, message, author, rawDate] = header.split("\u001f");
-  if (!hash || !message) {
-    return null;
-  }
-
-  const statsLine = rest.find((line) => /files? changed|insertions?|deletions?/.test(line)) || "";
-  const additions = Number(statsLine.match(/(\d+) insertions?/i)?.[1] || 0);
-  const deletions = Number(statsLine.match(/(\d+) deletions?/i)?.[1] || 0);
-
-  return {
-    hash,
-    message,
-    author: author || "",
-    date: new Date(rawDate || Date.now()),
-    kind: "commit",
-    additions,
-    deletions,
-  };
 };
 
 /**
@@ -83,44 +51,11 @@ export async function getCommitList(
   branch?: string,
   offset: number = 0,
 ): Promise<CommitInfo[]> {
-  const cwd = repoPath || process.cwd();
-  const localEntries = offset === 0 ? createLocalCommitEntries() : [];
-
+  const runtime = createRuntimeWithRepo(repoPath || process.cwd());
   try {
-    const format = "%x1e%H%x1f%s%x1f%an%x1f%aI";
-    const branchArg = branch ? [branch] : ["--all"];
-    const cmd = `git log ${branchArg.join(" ")} --max-count=${limit} --skip=${offset} --format=${format} --shortstat`;
-
-    const stdout = execSync(cmd, { cwd, encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 });
-
-    if (!stdout) {
-      return [];
-    }
-
-    const commits = stdout
-      .split("\u001e")
-      .map((chunk) => parseCommitStats(chunk))
-      .filter((commit): commit is CommitInfo => commit != null);
-
-    return [...localEntries, ...commits];
-  } catch {
-    const runtime = createRuntimeWithRepo(cwd);
-    try {
-      return await runtime.runPromise(vcsService.getCommits(limit)).then((commits) => [
-        ...localEntries,
-        ...commits.map((c) => ({
-          hash: c.hash,
-          message: c.message,
-          author: c.author,
-          date: c.date,
-          kind: c.kind,
-          additions: c.additions,
-          deletions: c.deletions,
-        })),
-      ]);
-    } finally {
-      runtime.dispose();
-    }
+    return await runtime.runPromise(vcsService.getCommitsForBranch(limit, { branch, offset }));
+  } finally {
+    runtime.dispose();
   }
 }
 
@@ -139,7 +74,7 @@ export async function getCurrentBranch(repoPath?: string): Promise<string> {
 /**
  * Server function: Get list of branches
  */
-export async function getBranchesList(repoPath?: string): Promise<string[]> {
+export async function getBranchesList(repoPath?: string): Promise<BranchInfo[]> {
   const runtime = createRuntimeWithRepo(repoPath || process.cwd());
   try {
     return await runtime.runPromise(vcsService.getBranches());
@@ -156,14 +91,13 @@ export async function getCommitDistance(
   to: string,
   repoPath?: string,
 ): Promise<number | null> {
-  const cwd = repoPath || process.cwd();
+  const runtime = createRuntimeWithRepo(repoPath || process.cwd());
   try {
-    const cmd = `git rev-list --count ${from}..${to}`;
-    const stdout = execSync(cmd, { cwd, encoding: "utf-8", maxBuffer: 1024 * 1024 });
-    const count = parseInt(stdout.trim(), 10);
-    return isNaN(count) ? null : count;
+    return await runtime.runPromise(vcsService.getCommitDistance(from, to));
   } catch {
     return null;
+  } finally {
+    runtime.dispose();
   }
 }
 

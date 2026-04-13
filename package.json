@@ -8,10 +8,16 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:e2e": "vite --host 127.0.0.1 --port 4173",
     "build": "vite build && tsc --noEmit",
     "preview": "vite preview",
     "start": "node dist/server/server.js",
     "cli": "node ./bin/reviewer.mjs",
+    "bddgen": "bddgen",
+    "test": "pnpm test:unit",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "pnpm bddgen && playwright test",
     "typecheck": "tsc --noEmit --pretty",
     "go": "tsgo --noEmit --pretty",
     "fmt": "oxfmt",
@@ -43,6 +49,7 @@
     "zipson": "0.2.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@tailwindcss/vite": "4.2.1",
     "@types/node": "25.3.3",
     "@types/react": "19.2.14",
@@ -54,11 +61,13 @@
     "oxfmt": "0.36.0",
     "oxlint": "1.51.0",
     "oxlint-tsgolint": "0.16.0",
+    "playwright-bdd": "^8.5.0",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
     "unplugin-jsx-source": "0.1.5",
     "vite": "7.3.1",
-    "vite-tsconfig-paths": "6.1.1"
+    "vite-tsconfig-paths": "6.1.1",
+    "vitest": "^4.1.4"
   },
   "packageManager": "pnpm@10.16.0"
 }

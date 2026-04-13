@@ -4,8 +4,9 @@ import { CommitInfo } from "~/lib/types";
 import { formatDate } from "./format-date";
 
 interface CommitHistoryPanelProps {
-  baseBranch: string;
-  headBranch: string;
+  baseBranchLabel: string;
+  headBranchLabel: string;
+  isSameBranchComparison: boolean;
   baseCommits: CommitInfo[];
   headCommits: CommitInfo[];
   selectedBaseCommit: string;
@@ -409,8 +410,9 @@ const RangeTimeline: FC<RangeTimelineProps> = ({
 };
 
 export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
-  baseBranch,
-  headBranch,
+  baseBranchLabel,
+  headBranchLabel,
+  isSameBranchComparison,
   baseCommits,
   headCommits,
   selectedBaseCommit,
@@ -422,7 +424,6 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
   hasMoreBase,
   hasMoreHead,
 }) => {
-  const isSameBranchComparison = !!baseBranch && baseBranch === headBranch;
   const rangeCommits = headCommits.length > 0 ? headCommits : baseCommits;
   const hasMoreRange = headCommits.length > 0 ? hasMoreHead : hasMoreBase;
   const onLoadMoreRange = headCommits.length > 0 ? onLoadMoreHead : onLoadMoreBase;
@@ -431,7 +432,7 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--app-panel)]">
       {isSameBranchComparison ? (
         <RangeTimeline
-          branch={headBranch}
+          branch={headBranchLabel}
           commits={rangeCommits}
           selectedBaseCommit={selectedBaseCommit}
           selectedHeadCommit={selectedHeadCommit}
@@ -444,7 +445,7 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
         <>
           <CommitLane
             title="Head"
-            branch={headBranch}
+            branch={headBranchLabel}
             commits={headCommits}
             selectedCommit={selectedHeadCommit}
             onSelectCommit={onHeadCommitChange}
@@ -454,7 +455,7 @@ export const CommitHistoryPanel: FC<CommitHistoryPanelProps> = ({
           />
           <CommitLane
             title="Base"
-            branch={baseBranch}
+            branch={baseBranchLabel}
             commits={baseCommits}
             selectedCommit={selectedBaseCommit}
             secondarySelectedCommit={selectedHeadCommit}

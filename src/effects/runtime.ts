@@ -1,5 +1,5 @@
 import { Effect, Layer, ManagedRuntime } from "effect";
-import { createGitLocalAdapter } from "~/adapters/vcs/git-local";
+import { createVCSAdapter } from "~/adapters/vcs/factory";
 import { createMemoryStorageAdapter } from "~/adapters/storage/memory";
 import { createDiffParser } from "~/adapters/diff-parser/diff-parser";
 import { VCSContext } from "~/effects/context/vcs-context";
@@ -9,7 +9,7 @@ import { DiffParserContext } from "~/effects/context/diff-parser-context";
 /**
  * Layer providing all VCS adapters
  */
-const vcsLayer = Layer.succeed(VCSContext, createGitLocalAdapter(process.cwd()));
+const vcsLayer = Layer.succeed(VCSContext, createVCSAdapter(process.cwd()));
 
 /**
  * Layer providing storage adapter

@@ -69,8 +69,14 @@ export interface CommitInfo {
   deletions?: number;
 }
 
+export type BranchScope = "local" | "tracked" | "remote";
+
 export interface BranchInfo {
   name: string;
+  baseName: string;
+  displayName: string;
+  scope: BranchScope;
+  remoteName?: string;
   latestCommit: CommitInfo;
 }
 
