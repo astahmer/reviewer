@@ -1,11 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  SEARCH_DEBOUNCE_MS,
-  DEFAULT_PREFERENCES,
-  STORAGE_KEYS,
-  DEFAULT_THEME,
-} from "~/lib/constants";
-import { UserPreferences, Line } from "~/lib/types";
+import { DEFAULT_PREFERENCES, STORAGE_KEYS, DEFAULT_THEME } from "~/lib/constants";
+import { UserPreferences } from "~/lib/types";
 import type { ColorMode } from "~/lib/constants";
 
 type StorageUpdater<T> = T | ((currentValue: T) => T);
@@ -104,64 +99,6 @@ export function useLocalStorage<T>(
   }, [defaultValue, key]);
 
   return [value, updateValue];
-}
-
-/**
- * Hook to manage user preferences with localStorage persistence
- */
-export function useUserPreferences(): [UserPreferences, (prefs: Partial<UserPreferences>) => void] {
-  const [storedPrefs, setStoredPrefs] = useLocalStorage<UserPreferences>(
-    STORAGE_KEYS.preferences,
-    DEFAULT_PREFERENCES,
-  );
-
-  const updatePrefs = (update: Partial<UserPreferences>) => {
-    setStoredPrefs((currentPrefs) => ({ ...currentPrefs, ...update }));
-  };
-
-  return [storedPrefs, updatePrefs];
-}
-
-/**
- * Hook for debounced search input
- */
-export function useDebouncedSearch(
-  initialValue: string = "",
-): [string, string, (value: string) => void] {
-  const [input, setInput] = useState(initialValue);
-  const [debouncedValue, setDebouncedValue] = useState(initialValue);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedValue(input);
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => clearTimeout(timer);
-  }, [input]);
-
-  return [input, debouncedValue, setInput];
-}
-
-/**
- * Hook to manage search history
- */
-export function useSearchHistory(): [string[], (query: string) => void] {
-  const [history, setHistory] = useLocalStorage<string[]>(STORAGE_KEYS.searchHistory, []);
-
-  const addToHistory = (query: string) => {
-    setHistory([query, ...history.filter((q) => q !== query)].slice(0, 10));
-  };
-
-  return [history, addToHistory];
-}
-
-/**
- * Hook to manage selected line in the diff viewer
- */
-export function useSelectedLine(): [Line | null, (line: Line | null) => void] {
-  const [selectedLine, setSelectedLine] = useState<Line | null>(null);
-
-  return [selectedLine, setSelectedLine];
 }
 
 /**

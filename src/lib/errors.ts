@@ -23,8 +23,3 @@ export class StorageError extends Schema.TaggedError<StorageError>()("StorageErr
   message: Schema.String,
   key: Schema.optional(Schema.String),
 }) {}
-
-/**
- * Union of all application errors
- */
-export type AppError = VCSError | DiffParseError | StorageError;

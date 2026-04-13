@@ -10,7 +10,7 @@ interface TooltipProps {
 
 export const Tooltip: FC<TooltipProps> = ({ content, children, side = "top", delay = 200 }) => {
   return (
-    <Ark.Tooltip.Root openDelay={delay}>
+    <Ark.Tooltip.Root openDelay={delay} positioning={{ placement: side }}>
       <Ark.Tooltip.Trigger asChild>{children}</Ark.Tooltip.Trigger>
       <Ark.Tooltip.Positioner>
         <Ark.Tooltip.Content

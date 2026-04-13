@@ -13,7 +13,7 @@ export const isRealCommitRef = (ref: string): boolean => !isLocalRef(ref);
 
 export const isLocalCommit = (commit: Pick<CommitInfo, "hash">): boolean => isLocalRef(commit.hash);
 
-export const getLocalRefLabel = (ref: string): string => {
+const getLocalRefLabel = (ref: string): string => {
   if (isWorktreeRef(ref)) {
     return "Working tree";
   }
@@ -37,7 +37,7 @@ export const getLocalRefDescription = (ref: string): string => {
   return "";
 };
 
-export interface LocalRefState {
+interface LocalRefState {
   hasStaged: boolean;
   hasWorktree: boolean;
 }

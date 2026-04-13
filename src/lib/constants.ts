@@ -7,7 +7,6 @@ import type { UserPreferences } from "~/lib/types";
 // Timing constants
 export const PARSE_DIFF_TIMEOUT_MS = 30000;
 export const GIT_DIFF_TIMEOUT_MS = 30000;
-export const SEARCH_DEBOUNCE_MS = 300;
 
 // Storage keys
 export const STORAGE_KEYS = {

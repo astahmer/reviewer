@@ -80,13 +80,6 @@ export interface BranchInfo {
   latestCommit: CommitInfo;
 }
 
-export interface DiffFilter {
-  query?: string;
-  type?: LineType | "all";
-  fileName?: string;
-  folderPath?: string;
-}
-
 export interface UserPreferences {
   /** 'unified' or 'split' */
   viewMode: "unified" | "split";
