@@ -171,21 +171,24 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     [],
   );
 
-  const markPathsViewed = useCallback((paths: string[]) => {
-    setViewedPathsArray((currentPaths) => {
-      const nextPaths = new Set(currentPaths);
-      let changed = false;
+  const markPathsViewed = useCallback(
+    (paths: string[]) => {
+      setViewedPathsArray((currentPaths) => {
+        const nextPaths = new Set(currentPaths);
+        let changed = false;
 
-      for (const path of paths) {
-        if (!nextPaths.has(path)) {
-          nextPaths.add(path);
-          changed = true;
+        for (const path of paths) {
+          if (!nextPaths.has(path)) {
+            nextPaths.add(path);
+            changed = true;
+          }
         }
-      }
 
-      return changed ? Array.from(nextPaths) : currentPaths;
-    });
-  }, [setViewedPathsArray]);
+        return changed ? Array.from(nextPaths) : currentPaths;
+      });
+    },
+    [setViewedPathsArray],
+  );
 
   const handleToggleViewed = (paths: string[]) => {
     setViewedPathsArray((currentPaths) => {

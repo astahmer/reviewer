@@ -5,6 +5,7 @@ import viteReact from "@vitejs/plugin-react";
 import jsxSource from "unplugin-jsx-source/vite";
 import { defineConfig } from "vite";
 import viteTsConfigPaths from "vite-tsconfig-paths";
+import { nitro } from "nitro/vite";
 
 const defaultTransformFileName = (
   id: string,
@@ -39,6 +40,9 @@ const config = defineConfig((env) => ({
       projects: ["./tsconfig.json"],
     }),
     tailwindcss(),
+    nitro({
+      config: { preset: "node-server" },
+    }),
     tanstackStart({ spa: { enabled: false } }),
     viteReact(),
   ],
