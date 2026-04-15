@@ -15,3 +15,5 @@ dist/
 .tanstack/tmp
 test-results
 .cachebro
+.output
+.tanstack
