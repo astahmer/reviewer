@@ -166,7 +166,7 @@ export const RevisionSelector: FC<RevisionSelectorProps> = ({
       <Popover.Trigger asChild>
         <button
           aria-label={`${label} revision selector`}
-          className="flex w-[17.5rem] items-center justify-between gap-2 rounded-xl border border-slate-300 bg-[var(--app-panel)] px-3 py-2 text-xs shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-blue-500 data-[state=open]:bg-blue-50 sm:w-[18.25rem] xl:w-[19rem] dark:border-slate-700 dark:hover:bg-slate-800 dark:data-[state=open]:bg-blue-950/40"
+          className="flex w-[17.5rem] items-center justify-between gap-2 rounded-xl border border-slate-300 bg-[var(--app-panel)] px-3 py-2 text-xs shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=open]:border-slate-400 data-[state=open]:bg-slate-50 sm:w-[18.25rem] xl:w-[19rem] dark:border-slate-700 dark:hover:bg-slate-800 dark:data-[state=open]:border-slate-600 dark:data-[state=open]:bg-slate-800/80"
         >
           <span className="min-w-0 flex-1 truncate text-left text-slate-900 dark:text-slate-100">
             {selectedCommit
@@ -189,7 +189,7 @@ export const RevisionSelector: FC<RevisionSelectorProps> = ({
         <Popover.Positioner style={{ zIndex: 50 }}>
           <Popover.Content
             data-testid={`${label.toLowerCase()}-revision-menu`}
-            className="w-[min(38rem,calc(100vw-2rem))] max-w-[38rem] overflow-hidden rounded-2xl border border-slate-200 bg-[var(--app-panel)] text-slate-800 shadow-[0_28px_80px_-36px_rgba(15,23,42,0.7)] dark:border-slate-700 dark:text-slate-100"
+            className="w-[min(38rem,calc(100vw-2rem))] max-w-[38rem] overflow-hidden rounded-2xl border border-slate-200 bg-[var(--app-panel)] text-slate-800 shadow-[0_24px_48px_-28px_rgba(15,23,42,0.32)] dark:border-slate-700 dark:text-slate-100 dark:shadow-[0_24px_48px_-28px_rgba(0,0,0,0.6)]"
           >
             <Combobox.Root
               openOnClick
@@ -218,7 +218,7 @@ export const RevisionSelector: FC<RevisionSelectorProps> = ({
                   autoFocus
                   aria-label={`${label} revision search`}
                   className="w-full bg-[var(--app-panel)] px-3 py-2 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-0 dark:text-slate-100"
-                  placeholder="Search branches and commits..."
+                  placeholder="Search branches or commits"
                 />
               </Combobox.Control>
               <Combobox.List className="max-h-[70vh] w-full overflow-y-auto p-1.5">

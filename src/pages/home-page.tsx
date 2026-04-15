@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import React, { FC, useCallback, useEffect, useMemo, useRef } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
+import { FolderOpen, History, Monitor, Moon, Shield, Sun } from "lucide-react";
 import { CommitCompare } from "~/components/commit-compare";
 import { DiffViewer } from "~/components/diff-viewer";
 import { ErrorBanner } from "~/components/error-banner.tsx";
@@ -46,6 +46,7 @@ export const HomePage: FC = () => {
   const [lastDarkTheme] = useLocalStorage<string>(STORAGE_KEYS.lastDarkTheme, DARK_THEMES[0]);
 
   const [customPaths, setCustomPaths] = React.useState<string[]>([]);
+  const [lastSelectedRepo, setLastSelectedRepo] = React.useState<Repository | null>(null);
   const [initialized, setInitialized] = React.useState(false);
   const prevBaseBranchRef = useRef<string>("");
   const prevHeadBranchRef = useRef<string>("");
@@ -106,14 +107,20 @@ export const HomePage: FC = () => {
         setCustomPaths(JSON.parse(savedPaths));
       } catch {}
     }
+
+    const savedRepo = localStorage.getItem(REPO_STORAGE_KEY);
+    if (savedRepo) {
+      try {
+        setLastSelectedRepo(JSON.parse(savedRepo));
+      } catch {}
+    }
   }, []);
 
-  const allSearchPaths = useMemo(() => {
-    return customPaths;
-  }, [customPaths]);
+  const allSearchPaths = useMemo(() => customPaths, [customPaths]);
+  const hasSearchRoots = allSearchPaths.length > 0;
 
-  const { data: repositories = [] } = useQuery({
-    queryKey: ["repositories", customPaths],
+  const { data: repositories = [], isFetching: repositoriesLoading } = useQuery({
+    queryKey: ["repositories", allSearchPaths],
     queryFn: async () => {
       const params = new URLSearchParams();
       allSearchPaths.forEach((p) => params.append("basePath", p));
@@ -121,7 +128,44 @@ export const HomePage: FC = () => {
       if (!response.ok) throw new Error("Failed to fetch repositories");
       return (await response.json()) as Repository[];
     },
+    enabled: hasSearchRoots,
   });
+
+  const handleRepoSelection = useCallback(
+    (repo: Repository) => {
+      setLastSelectedRepo(repo);
+      localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+
+      prevBaseBranchRef.current = "";
+      prevHeadBranchRef.current = "";
+      baseCommitsLoadedRef.current = false;
+      headCommitsLoadedRef.current = false;
+
+      updateUrl({
+        repoPath: repo.path,
+        baseBranch: "",
+        headBranch: "",
+        baseCommit: "",
+        headCommit: "",
+      });
+    },
+    [updateUrl],
+  );
+
+  const handleAddCustomPath = useCallback(
+    (path: string) => {
+      const nextPath = path.trim();
+      if (!nextPath || customPaths.includes(nextPath)) {
+        return;
+      }
+
+      const newPaths = [...customPaths, nextPath];
+      setCustomPaths(newPaths);
+      localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
+      queryClient.invalidateQueries({ queryKey: ["repositories"] });
+    },
+    [customPaths, queryClient],
+  );
 
   const {
     data: baseCommitsData,
@@ -399,39 +443,119 @@ export const HomePage: FC = () => {
             </button>
           </div>
         </header>
-        <main className="flex flex-1 min-h-0 flex-col items-center justify-center gap-4 p-8">
-          <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Select a repository to get started
-            </p>
-            <RepositorySelector
-              repositories={repositories}
-              selectedRepo={selectedRepo}
-              onRepoChange={(repo) => {
-                localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
+        <main className="relative flex flex-1 min-h-0 items-center justify-center overflow-hidden p-6 sm:p-8">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(100,116,139,0.12),transparent_34%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(96,165,250,0.08),transparent_36%),radial-gradient(circle_at_bottom_right,rgba(148,163,184,0.10),transparent_32%)]" />
+          <div className="relative w-full max-w-5xl rounded-[2rem] border border-slate-200/80 bg-[var(--app-panel)]/95 p-5 shadow-[0_32px_120px_-52px_rgba(15,23,42,0.28)] backdrop-blur dark:border-slate-700/80 dark:bg-slate-900/88 dark:shadow-[0_32px_120px_-52px_rgba(0,0,0,0.72)] sm:p-6">
+            <ErrorBanner error={combinedError ? new Error(String(combinedError)) : null} />
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)]">
+              <section className="space-y-5">
+                <div className="space-y-3">
+                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-[11px] font-semibold tracking-[0.08em] text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                    Repository setup
+                  </span>
+                  <div className="space-y-2">
+                    <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
+                      Open a repository.
+                    </h2>
+                    <p className="max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+                      Reviewer looks only inside the folders you add here. Open something recent, or
+                      add a folder and pick a repository from it.
+                    </p>
+                  </div>
+                </div>
 
-                prevBaseBranchRef.current = "";
-                prevHeadBranchRef.current = "";
-                baseCommitsLoadedRef.current = false;
-                headCommitsLoadedRef.current = false;
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/60">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      <History className="h-3.5 w-3.5" />
+                      Last repository
+                    </div>
+                    {lastSelectedRepo ? (
+                      <button
+                        onClick={() => handleRepoSelection(lastSelectedRepo)}
+                        className="mt-3 w-full rounded-2xl border border-slate-200 bg-[var(--app-panel)] px-4 py-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:border-slate-600 dark:hover:bg-slate-800/70"
+                      >
+                        <span className="block truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+                          {lastSelectedRepo.name}
+                        </span>
+                        <span className="block truncate pt-1 text-xs text-slate-500 dark:text-slate-400">
+                          {lastSelectedRepo.path}
+                        </span>
+                      </button>
+                    ) : (
+                      <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                        You haven't opened a repository here yet.
+                      </p>
+                    )}
+                  </div>
 
-                updateUrl({
-                  repoPath: repo.path,
-                  baseBranch: "",
-                  headBranch: "",
-                  baseCommit: "",
-                  headCommit: "",
-                });
-              }}
-              onAddCustomPath={(path) => {
-                if (path && !customPaths.includes(path)) {
-                  const newPaths = [...customPaths, path];
-                  setCustomPaths(newPaths);
-                  localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
-                }
-              }}
-            />
+                  <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm dark:border-slate-700/80 dark:bg-slate-900/60">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      <Shield className="h-3.5 w-3.5" />
+                      Scan roots
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {customPaths.length > 0 ? (
+                        customPaths.map((rootPath) => (
+                          <span
+                            key={rootPath}
+                            className="max-w-full truncate rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          >
+                            {rootPath}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                          No folders added
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+                      {hasSearchRoots
+                        ? `Searching ${customPaths.length} folder${customPaths.length === 1 ? "" : "s"}.`
+                        : "Add a folder to start browsing repositories."}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200/80 bg-[var(--app-panel-muted)] p-4 shadow-sm dark:border-slate-700/80 dark:bg-slate-950/30">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    Repository
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                    Choose a repository
+                  </h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    Pick from the folders you've added, or add another one.
+                  </p>
+                </div>
+
+                <div className="mt-4">
+                  <RepositorySelector
+                    repositories={repositories}
+                    selectedRepo={selectedRepo}
+                    onRepoChange={handleRepoSelection}
+                    onAddCustomPath={handleAddCustomPath}
+                    searchRoots={customPaths}
+                    isLoading={repositoriesLoading}
+                    triggerClassName="w-full"
+                  />
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 text-sm text-slate-600 dark:border-slate-700/80 dark:bg-slate-900/60 dark:text-slate-300">
+                  {repositoriesLoading
+                    ? `Scanning ${customPaths.length || 1} folder${customPaths.length === 1 ? "" : "s"}...`
+                    : repositories.length > 0
+                      ? `${repositories.length} repos found in ${customPaths.length} folder${customPaths.length === 1 ? "" : "s"}.`
+                      : hasSearchRoots
+                        ? "No repositories found in the folders you've added."
+                        : "Add a folder to list repositories here."}
+                </div>
+              </section>
+            </div>
           </div>
         </main>
       </div>
@@ -440,40 +564,22 @@ export const HomePage: FC = () => {
 
   return (
     <div className="flex h-screen flex-col bg-[var(--app-bg)]">
-      <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-[var(--app-panel)] px-3 py-2 dark:border-slate-800">
-        <div className="flex flex-1 items-center gap-2.5">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 bg-[var(--app-panel)] px-3 py-2.5 dark:border-slate-800">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
           <h1 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
             <Link to="/">Reviewer</Link>
           </h1>
           <RepositorySelector
             repositories={repositories}
             selectedRepo={selectedRepo}
-            onRepoChange={(repo) => {
-              localStorage.setItem(REPO_STORAGE_KEY, JSON.stringify(repo));
-
-              prevBaseBranchRef.current = "";
-              prevHeadBranchRef.current = "";
-              baseCommitsLoadedRef.current = false;
-              headCommitsLoadedRef.current = false;
-
-              updateUrl({
-                repoPath: repo.path,
-                baseBranch: "",
-                headBranch: "",
-                baseCommit: "",
-                headCommit: "",
-              });
-            }}
-            onAddCustomPath={(path: string) => {
-              if (path && !customPaths.includes(path)) {
-                const newPaths = [...customPaths, path];
-                setCustomPaths(newPaths);
-                localStorage.setItem(CUSTOM_PATHS_KEY, JSON.stringify(newPaths));
-                queryClient.invalidateQueries({ queryKey: ["repositories"] });
-              }
-            }}
+            onRepoChange={handleRepoSelection}
+            onAddCustomPath={handleAddCustomPath}
+            searchRoots={customPaths}
+            isLoading={repositoriesLoading}
+            showPath={false}
+            triggerClassName="w-[15rem] sm:w-[16rem] xl:w-[17rem]"
           />
-          <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
             <span className="text-[11px] text-slate-500 dark:text-slate-400">Base</span>
             <RevisionSelector
               label="Base"
@@ -499,7 +605,7 @@ export const HomePage: FC = () => {
             />
           </div>
           <span className="text-slate-400 dark:text-slate-600">→</span>
-          <div className="flex items-center gap-1.5">
+          <div className="flex min-w-0 items-center gap-1.5">
             <span className="text-[11px] text-slate-500 dark:text-slate-400">Head</span>
             <RevisionSelector
               label="Head"
