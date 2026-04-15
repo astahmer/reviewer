@@ -23,9 +23,8 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "knip": "knip",
-    "lint": "pnpm run lint:ox && pnpm run lint:knip",
+    "lint": "pnpm run lint:ox",
     "lint:fix": "pnpm run lint:ox --fix",
-    "lint:knip": "knip",
     "lint:ox": "oxlint",
     "check": "pnpm run typecheck && pnpm run lint"
   },

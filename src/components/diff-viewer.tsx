@@ -171,7 +171,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
     [],
   );
 
-  const markPathsViewed = (paths: string[]) => {
+  const markPathsViewed = useCallback((paths: string[]) => {
     setViewedPathsArray((currentPaths) => {
       const nextPaths = new Set(currentPaths);
       let changed = false;
@@ -185,7 +185,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
 
       return changed ? Array.from(nextPaths) : currentPaths;
     });
-  };
+  }, [setViewedPathsArray]);
 
   const handleToggleViewed = (paths: string[]) => {
     setViewedPathsArray((currentPaths) => {
@@ -577,7 +577,7 @@ export const DiffViewer: FC<DiffViewerProps> = ({
         window.cancelAnimationFrame(frameId);
       }
     };
-  }, [autoMarkViewed, renderFiles, selectedPath, viewedPathsArray]);
+  }, [autoMarkViewed, markPathsViewed, renderFiles, selectedPath, viewedPathsArray]);
 
   useEffect(() => {
     if (renderPaths.length === 0) {
@@ -940,8 +940,8 @@ export const DiffViewer: FC<DiffViewerProps> = ({
               <div
                 className={`sticky top-0 z-20 flex items-center gap-2 border-b border-slate-200 px-3 py-1.5 backdrop-blur-sm dark:border-slate-800 ${
                   isDiffCollapsed
-                    ? "border-t-0 bg-white/95 dark:bg-[#161b22]/95"
-                    : "bg-slate-50/95 dark:bg-[#161b22]/95"
+                    ? "border-t-0 bg-white/95 dark:bg-slate-900/95"
+                    : "bg-slate-50/95 dark:bg-slate-900/95"
                 } ${isViewed ? "opacity-60" : ""}`}
               >
                 <button

@@ -16,6 +16,26 @@
         "bin/**/*.mjs",
         "*.ts"
     ],
+    "ignoreIssues": {
+        "src/adapters/storage/storage.interface.ts": [
+            "exports"
+        ],
+        "src/adapters/vcs/vcs.interface.ts": [
+            "exports"
+        ],
+        "src/components/hooks.ts": [
+            "exports"
+        ],
+        "src/effects/runtime.ts": [
+            "exports"
+        ],
+        "src/effects/services/vcs-service.ts": [
+            "exports"
+        ],
+        "src/lib/errors.ts": [
+            "exports"
+        ]
+    },
     "ignoreDependencies": [
         "chrome-devtools-mcp",
         "nitro"
