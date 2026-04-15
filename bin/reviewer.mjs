@@ -52,6 +52,7 @@ const getFreePort = async () => {
 
 const waitForServer = async (url) => {
   const deadline = Date.now() + WAIT_TIMEOUT_MS;
+  console.log("Waiting for server...");
 
   while (Date.now() < deadline) {
     try {

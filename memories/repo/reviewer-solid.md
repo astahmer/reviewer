@@ -1,0 +1,7 @@
+- `reviewer-solid` is a separate pnpm package; verified commands are `pnpm typecheck` and `pnpm build` from that directory.
+- Current migration state: Solid page/workspace is ported, but per-file diff rendering still uses a temporary React bridge in `src/components/react-file-diff.tsx`.
+- TanStack Solid Router search subscriptions here should use `useSearch({ select: ... })` for individual fields; subscribing to the whole search object can miss client-side updates.
+- Solid component branches that depend on signals/search state must use reactive control flow like `<Show>`; a top-level `if` only evaluates once on mount.
+- Solid setup-screen SSR should avoid mounting repo-selected query hooks; the current fix keeps the selected-repo workspace behind a client-ready wrapper in `src/pages/home-page.tsx`.
+- Solid root document should follow the Start shell pattern (`shellComponent`, `HeadContent` in `<body>`), not a plain route component wrapper.
+- Root React Start app must not keep a Vite template `index.html`; Nitro/node hosting will otherwise serve it and try to load missing `/src/main.tsx`.
